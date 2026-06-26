@@ -24,7 +24,7 @@ export class PlanModeInjector extends DynamicInjector {
   }
 
   override async getInjection(): Promise<string | undefined> {
-    const { isActive, planFilePath, isUltraMode } = this.agent.planMode;
+    const { isActive, planFilePath, isUltraMode, phase } = this.agent.planMode;
     if (!isActive) {
       if (!this.wasActive) {
         return undefined;
@@ -37,7 +37,7 @@ export class PlanModeInjector extends DynamicInjector {
       this.injectedAt = null;
       this.wasActive = true;
       if (isUltraMode) {
-        return ultraReminder(planFilePath);
+        return phaseReminder(planFilePath, phase);
       }
       if (await this.hasCurrentPlanContent()) {
         return reentryReminder(planFilePath);
@@ -48,8 +48,8 @@ export class PlanModeInjector extends DynamicInjector {
 
     if (isUltraMode) {
       return variant === 'full' || variant === 'reentry'
-        ? ultraReminder(planFilePath)
-        : ultraSparseReminder(planFilePath);
+        ? phaseReminder(planFilePath, phase)
+        : phaseSparseReminder(planFilePath, phase);
     }
 
     return variant === 'full'
@@ -190,71 +190,79 @@ function exitReminder(): string {
   return `Plan mode is no longer active. The read-only and plan-file-only restrictions from plan mode no longer apply. Continue with the approved plan using the normal tool and permission rules.`;
 }
 
-// ── Ultra Plan Mode reminders ───────────────────────────────────────────────
+// ── Ultra Plan Mode phase-aware reminders ──────────────────────────────────
 
-function ultraReminder(planFilePath: PlanFilePath): string {
-  if (planFilePath === null || planFilePath.length === 0) {
-    return inlineUltraReminder();
-  }
+const PHASE_INSTRUCTIONS: Record<string, string> = {
+  interview: `## Interview Phase
+You are in the Interview Phase. Your ONLY allowed tool is AskUserQuestion.
+Write, Edit, Bash, TaskStop, CronCreate, and CronDelete are BLOCKED.
 
-  const body = `Ultra Plan mode is active. You MUST NOT make any edits (with the exception of the current plan file) or otherwise make changes to the system unless a tool request is explicitly approved. Prefer read-only tools. Use Bash only when needed; Bash follows the normal permission mode and rules. This supersedes any other instructions you have received. TaskStop, CronCreate, and CronDelete are also blocked — call ExitPlanMode first if you need them.
+Goal: Clarify requirements through Socratic questioning until ambiguity is low.
+- Ask focused, one-at-a-time questions
+- Target scope, non-goals, success criteria, constraints, risks
+- For brownfield work, focus on intent and decisions
+- You MUST ask at least 3 rounds of questions before moving to Design phase
+- After each user answer, assess whether ambiguity remains
 
-## Ultra Plan Mode Workflow
-This is an advanced planning mode with Ouroboros-inspired rigor:
+You CANNOT write to the plan file yet. You CANNOT call ExitPlanMode.
+Your turn MUST end with AskUserQuestion.
 
-  1. Interview — Use AskUserQuestion to clarify requirements until ambiguity is low.
-  2. Seed Spec — Write the immutable Seed Spec (Goal, Constraints, Acceptance Criteria, Ontology) to the plan file.
-  3. Design — Converge on the best approach; consider trade-offs.
-  4. Review — Re-read key files to verify understanding.
-  5. Write Plan — Include AC Tree, Evaluation Plan, and Execution Plan in the plan file.
-  6. Exit — Call ExitPlanMode for user approval.
+Current interview round: {{round}}`,
 
-## Seed Spec (immutable once written)
-- Goal: Primary objective
-- Constraints: Hard constraints that must never be violated
-- Acceptance Criteria: Hierarchical AC tree with statuses
-- Ontology: Conceptual lens defining the domain
-- Evaluation Principles: How success is measured
-- Exit Conditions: When to stop
+  design: `## Design Phase
+You are in the Design Phase. Read-only tools only (Read, Grep, Glob, WebSearch, FetchURL).
+Write and Edit are BLOCKED.
 
-## Drift & Stagnation Detection
-The system monitors for:
-- Goal drift: deviation from the stated objective
-- Stagnation patterns: spinning, oscillation, no drift, diminishing returns
-- If stagnation is detected, lateral thinking personas will be suggested
+Goal: Explore the codebase and converge on the best approach.
+- Use Read, Grep, Glob to understand relevant code
+- Consider trade-offs but aim for a single recommendation
+- Identify key files, architectural decisions, and risks
+- You may use Bash only when needed for exploration
 
-## Handling multiple approaches
-Same as normal plan mode: at most 2-3 approaches, pass via ExitPlanMode options.
+You CANNOT write to the plan file yet. You CANNOT call ExitPlanMode.
+Your turn MUST end with a design summary in your response.`,
 
-Your turn must end with either AskUserQuestion (to clarify requirements) or ExitPlanMode (to request plan approval). Do NOT end your turn any other way.`;
+  review: `## Review Phase
+You are in the Review Phase. Read-only tools only (Read, Grep, Glob).
+Write, Edit, and Bash are BLOCKED.
+
+Goal: Re-read key files to verify your understanding before writing the plan.
+- Verify your design assumptions against actual code
+- Check edge cases and failure modes
+- Confirm file paths and dependencies
+
+You CANNOT write to the plan file yet. You CANNOT call ExitPlanMode.
+Your turn MUST end with a verification summary.`,
+
+  write: `## Write Phase
+You are in the Write Phase. You may ONLY write to the current plan file.
+All other file edits are BLOCKED.
+
+Goal: Write the complete plan to the plan file with these sections:
+1. Seed Spec — immutable Goal, Constraints, Acceptance Criteria, Ontology
+2. AC Tree — hierarchical acceptance criteria with statuses
+3. Evaluation Plan — how the implementation will be verified
+4. Execution Plan — step-by-step implementation plan
+
+You MUST fill out the Seed Spec template completely.
+You can call ExitPlanMode ONLY after the plan file contains a complete Seed Spec.
+
+Use Write or Edit to modify the plan file. If it does not exist, create it first.`,
+
+  exit: `## Exit Phase
+The plan is complete. Call ExitPlanMode to request user approval.
+Make sure the plan file contains a complete Seed Spec before exiting.`,
+};
+
+function phaseReminder(planFilePath: PlanFilePath, phase: string): string {
+  const base = `Ultra Plan mode is active. Phase: ${phase.toUpperCase()}.
+
+${PHASE_INSTRUCTIONS[phase] ?? PHASE_INSTRUCTIONS['interview']}`;
+  const body = base.replace('{{round}}', String((planFilePath as unknown as { round?: number }).round ?? 0));
   return withPlanFileFooter(body, planFilePath);
 }
 
-function ultraSparseReminder(planFilePath: PlanFilePath): string {
-  if (planFilePath === null || planFilePath.length === 0) {
-    return inlineUltraSparseReminder();
-  }
-
-  const body = `Ultra Plan mode still active (see full instructions earlier). Prefer read-only tools except the current plan file. Maintain the Seed Spec, AC Tree, and Evaluation Plan in the plan file. Use AskUserQuestion to clarify requirements. End turns with AskUserQuestion or ExitPlanMode.`;
+function phaseSparseReminder(planFilePath: PlanFilePath, phase: string): string {
+  const body = `Ultra Plan mode — ${phase.toUpperCase()} phase. ${PHASE_INSTRUCTIONS[phase]?.split('\n')[0] ?? ''}`;
   return withPlanFileFooter(body, planFilePath);
-}
-
-function inlineUltraReminder(): string {
-  return `Ultra Plan mode is active. You MUST NOT make any edits or otherwise make changes to the system unless a tool request is explicitly approved. Prefer read-only tools. Use Bash only when needed; Bash follows the normal permission mode and rules. This supersedes any other instructions you have received.
-
-## Ultra Plan Mode Workflow
-  1. Interview — Clarify requirements with AskUserQuestion.
-  2. Seed Spec — Write the immutable spec to the plan file.
-  3. Design — Converge on the best approach.
-  4. Review — Verify understanding.
-  5. Write Plan — AC Tree, Evaluation Plan, Execution Plan.
-  6. Exit — Call ExitPlanMode for approval.
-
-No plan file path is available in this host. Wait for the host to provide one before writing the plan.
-
-Your turn must end with either AskUserQuestion or ExitPlanMode.`;
-}
-
-function inlineUltraSparseReminder(): string {
-  return `Ultra Plan mode still active (see full instructions earlier). Read-only; no plan file path is available. Wait for the host to provide a plan file path before writing the plan. End turns with AskUserQuestion or ExitPlanMode.`;
 }

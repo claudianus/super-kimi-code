@@ -127,6 +127,48 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
     }
 
     const isUltra = this.agent.planMode.isUltraMode;
+
+    // Ultra Plan Mode: enforce phase workflow
+    if (isUltra) {
+      const phase = this.agent.planMode.phase;
+      if (phase !== 'write' && phase !== 'exit') {
+        return {
+          isError: true,
+          output: `ExitPlanMode is blocked in ${phase} phase. Complete the current phase and use NextPhase to advance through the workflow: interview -> design -> review -> write -> exit.`,
+        };
+      }
+
+      // Verify plan file contains Seed Spec
+      const planData = await this.agent.planMode.data();
+      const planContent = planData?.content ?? '';
+      if (!planContent.includes('## Seed Spec') && !planContent.includes('Seed Spec')) {
+        return {
+          isError: true,
+          output: 'ExitPlanMode blocked: the plan file must contain a Seed Spec section. Write the complete Seed Spec (Goal, Constraints, Acceptance Criteria, Ontology) to the plan file before exiting.',
+        };
+      }
+    }
+
+    // Ultra Plan Mode: enforce phase workflow
+    if (isUltra) {
+      const phase = this.agent.planMode.phase;
+      if (phase !== 'write' && phase !== 'exit') {
+        return {
+          isError: true,
+          output: 'ExitPlanMode is blocked in ' + phase + ' phase. Complete the current phase and use NextPhase to advance through the workflow: interview -> design -> review -> write -> exit.',
+        };
+      }
+
+      // Verify plan file contains Seed Spec
+      const planData = await this.agent.planMode.data();
+      const planContent = planData?.content ?? '';
+      if (!planContent.includes('## Seed Spec') && !planContent.includes('Seed Spec')) {
+        return {
+          isError: true,
+          output: 'ExitPlanMode blocked: the plan file must contain a Seed Spec section. Write the complete Seed Spec (Goal, Constraints, Acceptance Criteria, Ontology) to the plan file before exiting.',
+        };
+      }
+    }
     const resolvedPlan = await this.resolvePlan();
     if (!resolvedPlan.ok) return resolvedPlan.error;
 

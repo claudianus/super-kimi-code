@@ -69,6 +69,9 @@ export function isDriftAcceptable(metrics: DriftMetrics): boolean {
   return combinedDrift(metrics) <= 0.3;
 }
 
+export type UltraPlanPhase = 'interview' | 'design' | 'review' | 'write' | 'exit';
+
+
 export type StagnationPatternType =
   | 'spinning'
   | 'oscillation'

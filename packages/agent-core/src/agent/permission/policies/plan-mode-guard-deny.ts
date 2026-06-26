@@ -11,6 +11,20 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
     if (!this.agent.planMode.isActive) return;
 
     const toolName = context.toolCall.name;
+    const { isUltraMode, phase } = this.agent.planMode;
+
+    // Ultra Plan Mode: phase-aware tool restrictions
+    if (isUltraMode) {
+      // Track interview rounds
+      if (phase === 'interview' && toolName === 'AskUserQuestion') {
+        this.agent.planMode.incrementInterviewRound();
+      }
+
+      const phaseResult = this.evaluateUltraPhase(toolName, phase);
+      if (phaseResult !== undefined) return phaseResult;
+    }
+
+    // Normal plan mode guards (and ultra write-phase plan-file guard)
     if (toolName === 'Write' || toolName === 'Edit') {
       const planFilePath = this.agent.planMode.planFilePath;
       if (planFilePath === null) {
@@ -45,6 +59,81 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
     }
 
     return;
+  }
+
+  private evaluateUltraPhase(toolName: string, phase: string): PermissionPolicyResult | undefined {
+    switch (phase) {
+      case 'interview': {
+        // Only AskUserQuestion allowed; everything else blocked
+        if (toolName === 'AskUserQuestion') return;
+        if (toolName === 'ExitPlanMode') {
+          return {
+            kind: 'deny',
+            message: 'ExitPlanMode is blocked in Interview phase. You must complete the interview first. Use AskUserQuestion to clarify requirements. After at least 3 interview rounds, use NextPhase to advance to Design.',
+          };
+        }
+        return {
+          kind: 'deny',
+          message: `${toolName} is blocked in Interview phase. Only AskUserQuestion is allowed. Complete at least 3 interview rounds, then use NextPhase to advance.`,
+        };
+      }
+      case 'design': {
+        // Read-only exploration
+        const designAllowed = ['Read', 'Grep', 'Glob', 'WebSearch', 'FetchURL', 'Bash'];
+        if (designAllowed.includes(toolName)) return;
+        if (toolName === 'ExitPlanMode') {
+          return {
+            kind: 'deny',
+            message: 'ExitPlanMode is blocked in Design phase. Use NextPhase to advance to Review or Write when your design is complete.',
+          };
+        }
+        return {
+          kind: 'deny',
+          message: `${toolName} is blocked in Design phase. Only read-only tools are allowed (Read, Grep, Glob, WebSearch, FetchURL, Bash). Use NextPhase to advance when ready.`,
+        };
+      }
+      case 'review': {
+        const reviewAllowed = ['Read', 'Grep', 'Glob'];
+        if (reviewAllowed.includes(toolName)) return;
+        if (toolName === 'ExitPlanMode') {
+          return {
+            kind: 'deny',
+            message: 'ExitPlanMode is blocked in Review phase. Use NextPhase to advance to Write when verification is complete.',
+          };
+        }
+        return {
+          kind: 'deny',
+          message: `${toolName} is blocked in Review phase. Only Read, Grep, and Glob are allowed. Use NextPhase to advance when ready.`,
+        };
+      }
+      case 'write': {
+        // Write/Edit allowed only for plan file (handled by normal plan mode guard above)
+        // But also block Bash, TaskStop, Cron in write phase
+        if (toolName === 'Bash') {
+          return {
+            kind: 'deny',
+            message: 'Bash is blocked in Write phase. Focus on writing the plan file. Use NextPhase to advance to Exit when the plan is complete.',
+          };
+        }
+        if (toolName === 'TaskStop' || toolName === 'CronCreate' || toolName === 'CronDelete') {
+          return {
+            kind: 'deny',
+            message: `${toolName} is blocked in Write phase. Focus on writing the plan file.`,
+          };
+        }
+        return;
+      }
+      case 'exit': {
+        // Only ExitPlanMode allowed
+        if (toolName === 'ExitPlanMode') return;
+        return {
+          kind: 'deny',
+          message: `${toolName} is blocked in Exit phase. Only ExitPlanMode is allowed.`,
+        };
+      }
+      default:
+        return;
+    }
   }
 }
 

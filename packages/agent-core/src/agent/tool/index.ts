@@ -1,5 +1,5 @@
 import { uniq } from '@antfu/utils';
-import type { ChatProvider, Tool } from '@moonshot-ai/kosong';
+import type { ChatProvider, Tool } from '@super-kimi/kosong';
 import picomatch from 'picomatch';
 
 import type { Agent } from '..';
@@ -490,6 +490,7 @@ export class ToolManager {
           new b.ReadMediaFileTool(kaos, workspace, modelCapabilities, videoUploader),
         new b.EnterPlanModeTool(this.agent),
         new b.ExitPlanModeTool(this.agent),
+        new b.NextPhaseTool(this.agent),
         // Goal tools are main-agent-only.
         goalToolsEnabled && new b.CreateGoalTool(this.agent),
         goalToolsEnabled && new b.GetGoalTool(this.agent),

@@ -3,7 +3,7 @@ import { dirname, join } from 'pathe';
 
 import type { Agent } from '..';
 import { generateHeroSlug } from '../../utils/hero-slug';
-import { UltraPlanModeEngine, type UltraPlanData } from './ultra-plan-mode';
+import { UltraPlanModeEngine, type UltraPlanData, type UltraPlanPhase } from './ultra-plan-mode';
 
 export type PlanData = null | {
   id: string;
@@ -17,6 +17,8 @@ export class PlanMode {
   protected _planId: null | string = null;
   protected _planFilePath: PlanFilePath = null;
   protected _isUltraMode = false;
+  protected _phase: UltraPlanPhase = 'interview';
+  protected _interviewRoundCount = 0;
   readonly ultraEngine: UltraPlanModeEngine;
 
   constructor(protected readonly agent: Agent) {
@@ -41,6 +43,8 @@ export class PlanMode {
     this._planId = id;
     this._planFilePath = null;
     this._isUltraMode = ultra;
+    this._phase = 'interview';
+    this._interviewRoundCount = 0;
 
     let enterRecorded = false;
     try {
@@ -63,6 +67,8 @@ export class PlanMode {
         this._planId = null;
         this._planFilePath = null;
         this._isUltraMode = false;
+        this._phase = 'interview';
+        this._interviewRoundCount = 0;
       }
       throw error;
     }
@@ -92,6 +98,8 @@ export class PlanMode {
     this._planId = null;
     this._planFilePath = null;
     this._isUltraMode = false;
+    this._phase = 'interview';
+    this._interviewRoundCount = 0;
     this.agent.emitStatusUpdated();
   }
 
@@ -110,6 +118,8 @@ export class PlanMode {
     this._planId = null;
     this._planFilePath = null;
     this._isUltraMode = false;
+    this._phase = 'interview';
+    this._interviewRoundCount = 0;
     this.agent.emitStatusUpdated();
   }
 
@@ -121,8 +131,24 @@ export class PlanMode {
     return this._isUltraMode;
   }
 
+  get phase(): UltraPlanPhase {
+    return this._phase;
+  }
+
+  get interviewRoundCount(): number {
+    return this._interviewRoundCount;
+  }
+
   get planFilePath(): PlanFilePath {
     return this._planFilePath;
+  }
+
+  setPhase(phase: UltraPlanPhase): void {
+    this._phase = phase;
+  }
+
+  incrementInterviewRound(): void {
+    this._interviewRoundCount += 1;
   }
 
   async data(): Promise<PlanData> {
