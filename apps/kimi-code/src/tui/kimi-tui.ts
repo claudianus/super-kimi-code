@@ -8,7 +8,7 @@ import {
   getCapabilities,
   Spacer,
 } from '@earendil-works/pi-tui';
-import type { DeviceAuthorization } from '@moonshot-ai/kimi-code-oauth';
+import type { DeviceAuthorization } from '@super-kimi/super-kimi-code-oauth';
 import type {
   ApprovalRequest,
   ApprovalResponse,
@@ -18,8 +18,8 @@ import type {
   PermissionMode,
   PromptPart,
   Session,
-} from '@moonshot-ai/kimi-code-sdk';
-import type { MigrationPlan } from '@moonshot-ai/migration-legacy';
+} from '@super-kimi/super-kimi-code-sdk';
+import type { MigrationPlan } from '@super-kimi/migration-legacy';
 import { resolve } from 'pathe';
 
 import type { CLIOptions } from '#/cli/options';
@@ -848,8 +848,8 @@ export class KimiTUI {
   // Input Dispatch
   // =========================================================================
 
-  handlePlanToggle(next: boolean): void {
-    void slashCommands.handlePlanCommand(this, next ? 'on' : 'off');
+  handlePlanToggle(next: boolean, ultra = false): void {
+    void slashCommands.handlePlanCommand(this, next ? (ultra ? 'ultra' : 'on') : 'off');
   }
 
   handleInputModeChange(mode: 'prompt' | 'bash'): void {
@@ -2064,7 +2064,7 @@ export class KimiTUI {
     openUrl(auth.verificationUriComplete);
     this.state.transcriptContainer.addChild(
       new DeviceCodeBoxComponent({
-        title: 'Sign in to Kimi Code',
+        title: 'Sign in to Super Kimi Code',
         url: auth.verificationUriComplete,
         code: auth.userCode,
         hint: 'Press Ctrl-C to cancel',
@@ -2672,7 +2672,7 @@ export class KimiTUI {
   private showApprovalPanel(payload: ApprovalPanelData): void {
     this.patchLivePane({ pendingApproval: { data: payload } });
     notifyTerminalOnce(this.state, `approval:${payload.id}`, {
-      title: 'Kimi Code approval required',
+      title: 'Super Kimi Code approval required',
       body: payload.tool_name,
     });
     const panel = new ApprovalPanelComponent(
@@ -2739,7 +2739,7 @@ export class KimiTUI {
   private showQuestionDialog(payload: QuestionPanelData): void {
     this.patchLivePane({ pendingQuestion: { data: payload } });
     notifyTerminalOnce(this.state, `question:${payload.id}`, {
-      title: 'Kimi Code needs your answer',
+      title: 'Super Kimi Code needs your answer',
       body: payload.questions[0]?.question,
     });
     const dialog = new QuestionDialogComponent(

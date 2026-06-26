@@ -1,4 +1,4 @@
-import type { Session } from '@moonshot-ai/kimi-code-sdk';
+import type { Session } from '@super-kimi/super-kimi-code-sdk';
 
 import { ClipboardMediaError, readClipboardMedia } from '#/utils/clipboard/clipboard-image';
 import { parseImageMeta } from '#/utils/image/image-mime';
@@ -36,7 +36,7 @@ export interface EditorKeyboardHost {
   cancelRunningShellCommand(): void;
   hideSessionPicker(): void;
   stop(exitCode?: number): Promise<void>;
-  handlePlanToggle(next: boolean): void;
+  handlePlanToggle(next: boolean, ultra?: boolean): void;
   handleInputModeChange(mode: 'prompt' | 'bash'): void;
   clearQueuedMessages(): void;
   setExternalEditorRunning(running: boolean): void;
@@ -147,6 +147,17 @@ export class EditorKeyboardController {
       host.track('shortcut_plan_toggle', { enabled: next });
       host.track('shortcut_mode_switch', { to_mode: next ? 'plan' : 'agent' });
       host.handlePlanToggle(next);
+    };
+
+    editor.onShiftTabUltra = () => {
+      if (host.session === undefined) {
+        host.showError(NO_ACTIVE_SESSION_MESSAGE);
+        return;
+      }
+      const next = !host.state.appState.planMode;
+      host.track('shortcut_plan_toggle', { enabled: next, ultra: true });
+      host.track('shortcut_mode_switch', { to_mode: next ? 'ultra-plan' : 'agent' });
+      host.handlePlanToggle(next, true);
     };
 
     editor.onInputModeChange = (mode) => {

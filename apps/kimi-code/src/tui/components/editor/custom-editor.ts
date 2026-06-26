@@ -137,6 +137,7 @@ export class CustomEditor extends Editor {
   public onUpArrowEmpty?: () => boolean;
   public onDownArrowEmpty?: () => boolean;
   public onShiftTab?: () => void;
+  public onShiftTabUltra?: () => void;
   /** 'bash' when entering a `!` shell command. The `!` is never part of the
    *  text buffer — it is a separate mode + prompt symbol (see handleInput). */
   public inputMode: 'prompt' | 'bash' = 'prompt';
@@ -377,6 +378,11 @@ export class CustomEditor extends Editor {
       // Only consume the key when the todo list actually has overflow to
       // expand/collapse; otherwise fall through to the editor default.
       if (this.onToggleTodoExpand?.() === true) return;
+    }
+
+    if (matchesKey(normalized, 'ctrl+shift+tab')) {
+      this.onShiftTabUltra?.();
+      return;
     }
 
     if (matchesKey(normalized, 'shift+tab')) {
