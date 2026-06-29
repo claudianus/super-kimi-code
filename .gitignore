@@ -24,3 +24,14 @@ docker-compose.yml
 docs/superpowers/
 reports/
 .superpowers/
+.model-cache
+.model-cache/
+.skill-index/
+.ouroboros/
+.ouroboros_eval_artifact.md
+kimi-code/
+.omo/evidence/
+.omo/notepads/
+.omo/research/
+.omo/start-work/
+.omo/ulw-loop/
