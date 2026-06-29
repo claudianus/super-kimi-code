@@ -43,6 +43,10 @@ function truecolorCodes(text: string): Set<string> {
   return codes;
 }
 
+function strip(text: string): string {
+  return text.replaceAll(/\u001B\[[0-9;]*m/g, '');
+}
+
 /** The two header rows (logo + title) of the rendered welcome box. */
 function headerOf(lines: string[]): string {
   return [lines[3], lines[4]].join('\n');
@@ -64,6 +68,13 @@ describe('WelcomeComponent', () => {
 
     // No rainbow by default — just the brand primary (plus the dim tagline).
     expect(codes.size).toBeLessThanOrEqual(2);
+  });
+
+  it('leads logged-in users to describe the task first', () => {
+    const output = strip(new WelcomeComponent(appState).render(80).join('\n'));
+
+    expect(output).toContain('Describe the task; Kimi checks readiness.');
+    expect(output).not.toContain('Send /help for help information.');
   });
 
   it('keeps every line within the requested width on narrow terminals', () => {

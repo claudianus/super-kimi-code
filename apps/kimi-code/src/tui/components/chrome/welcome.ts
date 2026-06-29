@@ -10,6 +10,8 @@ import chalk from 'chalk';
 import type { AppState } from '#/tui/types';
 import { currentTheme } from '#/tui/theme';
 
+const LOGGED_IN_PROMPT = 'Describe the task; Kimi checks readiness.';
+
 export class WelcomeComponent implements Component {
   private state: AppState;
 
@@ -29,7 +31,7 @@ export class WelcomeComponent implements Component {
       const title = chalk.bold.hex(currentTheme.palette.primary)('Welcome to Kimi Code!');
       const prompt = isLoggedOut
         ? chalk.hex(currentTheme.palette.warning)('Run /login or /provider to get started.')
-        : chalk.hex(currentTheme.palette.textDim)('Send /help for help information.');
+        : chalk.hex(currentTheme.palette.textDim)(LOGGED_IN_PROMPT);
       const model = isLoggedOut
         ? chalk.hex(currentTheme.palette.warning)('not set, run /login or /provider')
         : (activeModel?.displayName ?? activeModel?.model ?? this.state.model);
@@ -55,7 +57,7 @@ export class WelcomeComponent implements Component {
     const dim = chalk.hex(currentTheme.palette.textDim);
     const labelStyle = chalk.bold.hex(currentTheme.palette.textDim);
     const rightRow1 = truncateToWidth(
-      dim(isLoggedOut ? 'Run /login or /provider to get started.' : 'Send /help for help information.'),
+      dim(isLoggedOut ? 'Run /login or /provider to get started.' : LOGGED_IN_PROMPT),
       textWidth,
       '…',
     );
