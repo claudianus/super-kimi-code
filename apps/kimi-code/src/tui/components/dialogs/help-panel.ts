@@ -43,6 +43,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   { keys: '↑ / ↓', description: 'Browse input history' },
   { keys: 'Enter', description: 'Submit' },
 ];
+const DEFAULT_HELP_INTRO =
+  'Describe the task to start; Kimi checks readiness, scope, and verification.\nManual controls live in /help advanced.';
 
 export interface HelpPanelOptions {
   readonly commands: readonly HelpPanelCommand[];
@@ -110,14 +112,14 @@ export class HelpPanelComponent extends Container implements Focusable {
       return `/${c.name}${aliases}`;
     });
     const cmdWidth = Math.max(12, ...cmdLabels.map((l) => l.length));
-    const intro = this.opts.intro ?? 'Describe the task to start. Use /help advanced for manual controls.';
+    const introLines = (this.opts.intro ?? DEFAULT_HELP_INTRO).split('\n');
     const commandSectionTitle = this.opts.commandSectionTitle ?? 'Slash commands';
     const lines: string[] = [
       accent('─'.repeat(width)),
       currentTheme.boldFg('primary', ' help ') + muted('· Esc / Enter / q to cancel · ↑↓ scroll'),
       '',
       // Greeting
-      `  ${dim(intro)}`,
+      ...introLines.map((line) => `  ${dim(line)}`),
       '',
       // Section: keyboard shortcuts
       `  ${currentTheme.bold('Keyboard shortcuts')}`,

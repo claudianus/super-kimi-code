@@ -23,7 +23,8 @@ describe('HelpPanelComponent', () => {
     });
     const out = strip(panel.render(80).join('\n'));
     expect(out).toMatch(/help/);
-    expect(out).toMatch(/Describe the task to start\. Use \/help advanced for manual controls\./);
+    expect(out).toMatch(/Describe the task to start; Kimi checks readiness, scope, and verification\./);
+    expect(out).toMatch(/Manual controls live in \/help advanced\./);
     expect(out).toMatch(/Keyboard shortcuts/);
     expect(out).toMatch(/Shift-Tab/);
     expect(out).toMatch(/Ctrl-O/);
