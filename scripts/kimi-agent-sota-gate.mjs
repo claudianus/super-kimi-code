@@ -627,6 +627,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate) {
           'screen-state classification during the run',
           'operator wait/intervention decisions',
           'no plan-mode false-starts',
+          'agent-run verification observed in TUI',
           'workspace diff review',
           'verification command',
         ],

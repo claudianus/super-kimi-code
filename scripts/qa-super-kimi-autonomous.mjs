@@ -629,7 +629,7 @@ async function runHarness(options, runId) {
       : phases.includes('tui-launch')
         ? 'Visible TUI launch proof completed with computer-use and tmux evidence.'
         : phases.includes('tui-real-workflow')
-          ? 'Real TUI vibe-coding workflow proof completed with submitted prompt, workspace diff, verification command, and cleanup evidence.'
+          ? 'Real TUI vibe-coding workflow proof completed with submitted prompt, agent-run verification evidence, workspace diff, and cleanup evidence.'
           : phases.includes('tui-iteration')
             ? 'TUI before/after evidence, targeted logs, and QA verdict completed.'
           : phases.includes('direct-cli')
@@ -4153,6 +4153,9 @@ async function runTuiRealWorkflowPhase(context) {
       verificationRecord.exitCode === 0,
       'verification command must pass against the edited fixture.',
     );
+    summary.validations.agentVerificationObserved = validateTuiRealWorkflowAgentVerification(
+      waitResult,
+    );
     summary.validations.screenEvidence = passFail(
       summary.captures.every((capture) => capture.status === 'PASS'),
       'startup, submitted, and after-wait screen captures must show recognizable TUI evidence.',
@@ -4179,7 +4182,7 @@ async function runTuiRealWorkflowPhase(context) {
     if (failedValidation === undefined) {
       summary.status = 'PASS';
       summary.reason =
-        'Real TUI vibe-coding workflow submitted a coding prompt, produced workspace diff evidence, and passed verification.';
+        'Real TUI vibe-coding workflow submitted a coding prompt, observed agent-run verification, produced workspace diff evidence, and passed verification.';
     } else {
       summary.status = waitResult.status === 'BLOCKED' ? 'BLOCKED' : 'FAIL';
       summary.reason =
@@ -4319,25 +4322,24 @@ async function waitForRealWorkflowOutcome(context, tmuxSession, fixturePath) {
   const observations = [];
   const interventions = [];
   const inputTraces = [];
+  const agentVerificationEvidence = [];
   const attemptedActions = new Set();
   while (Date.now() - startedAt < TUI_REAL_WORKFLOW_TIMEOUT_MS) {
-    const fixtureText = await readFileIfExists(fixturePath);
-    if (typeof fixtureText === 'string' && fixtureText.includes(TUI_REAL_WORKFLOW_SENTINEL)) {
-      return {
-        status: 'PASS',
-        reason: 'fixture contained the requested sentinel before timeout.',
-        durationMs: Date.now() - startedAt,
-        observations,
-        interventions,
-        inputTraces,
-        operatorLoop: buildRealWorkflowOperatorLoopSummary(observations, interventions),
-      };
-    }
     const screen = runBoundedCommand('tmux', ['capture-pane', '-pt', tmuxSession, '-S', '-80'], {
       cwd: context.sourceCheckout,
       timeoutMs: 10_000,
     });
     const normalized = normalizeScreenText(screen.stdout);
+    const fixtureText = await readFileIfExists(fixturePath);
+    const sentinelPresent =
+      typeof fixtureText === 'string' && fixtureText.includes(TUI_REAL_WORKFLOW_SENTINEL);
+    const agentVerification = inspectRealWorkflowAgentVerification(normalized);
+    if (agentVerification.status === 'PASS' && agentVerificationEvidence.length === 0) {
+      agentVerificationEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: agentVerification.reason,
+      });
+    }
     const blocker = detectRealWorkflowScreenBlocker(normalized);
     const classification = classifyRealWorkflowScreenState(normalized);
     const decision = decideRealWorkflowOperatorAction(classification, attemptedActions);
@@ -4347,8 +4349,23 @@ async function waitForRealWorkflowOutcome(context, tmuxSession, fixturePath) {
       blocker,
       state: classification.state,
       decision,
+      sentinelPresent,
+      agentVerificationStatus: agentVerification.status,
       sample: normalized.slice(0, 240),
     });
+    if (sentinelPresent && agentVerificationEvidence.length > 0) {
+      return {
+        status: 'PASS',
+        reason:
+          'fixture contained the requested sentinel and the TUI showed the agent-run verification command before timeout.',
+        durationMs: Date.now() - startedAt,
+        observations,
+        interventions,
+        inputTraces,
+        agentVerificationEvidence,
+        operatorLoop: buildRealWorkflowOperatorLoopSummary(observations, interventions),
+      };
+    }
     if (blocker !== undefined) {
       return {
         status: 'BLOCKED',
@@ -4357,6 +4374,7 @@ async function waitForRealWorkflowOutcome(context, tmuxSession, fixturePath) {
         observations,
         interventions,
         inputTraces,
+        agentVerificationEvidence,
         operatorLoop: buildRealWorkflowOperatorLoopSummary(observations, interventions),
       };
     }
@@ -4385,11 +4403,12 @@ async function waitForRealWorkflowOutcome(context, tmuxSession, fixturePath) {
   }
   return {
     status: 'FAIL',
-    reason: `timed out after ${String(TUI_REAL_WORKFLOW_TIMEOUT_MS)}ms waiting for ${TUI_REAL_WORKFLOW_SENTINEL}.`,
+    reason: `timed out after ${String(TUI_REAL_WORKFLOW_TIMEOUT_MS)}ms waiting for ${TUI_REAL_WORKFLOW_SENTINEL} and in-TUI agent verification.`,
     durationMs: Date.now() - startedAt,
     observations,
     interventions,
     inputTraces,
+    agentVerificationEvidence,
     operatorLoop: buildRealWorkflowOperatorLoopSummary(observations, interventions),
   };
 }
@@ -4479,6 +4498,20 @@ function buildRealWorkflowOperatorLoopSummary(observations, interventions) {
   };
 }
 
+function inspectRealWorkflowAgentVerification(output) {
+  const hasVerificationCommand =
+    matchesAny(output, [/Used Bash/i, /\bBash\b/i]) &&
+    matchesAny(output, [/node -e/i, /REAL_WORKFLOW_DONE/i]);
+  const succeeded = matchesAny(output, [/Command executed successfully/i, /exited with code 0/i]);
+  return {
+    status: hasVerificationCommand && succeeded ? 'PASS' : 'FAIL',
+    reason:
+      hasVerificationCommand && succeeded
+        ? 'TUI screen shows the agent ran the requested verification command successfully.'
+        : 'TUI screen does not yet show a successful agent-run verification command.',
+  };
+}
+
 async function validateTuiRealWorkflowModelEvidence(captures) {
   const readable = captures.filter((capture) => typeof capture.path === 'string');
   for (const capture of readable) {
@@ -4495,6 +4528,20 @@ async function validateTuiRealWorkflowModelEvidence(captures) {
     status: 'FAIL',
     reason: 'Live TUI screen evidence must show Model: K2.7 Code.',
     checkedCaptures: readable.map((capture) => capture.path),
+  };
+}
+
+function validateTuiRealWorkflowAgentVerification(waitResult) {
+  const count = Array.isArray(waitResult.agentVerificationEvidence)
+    ? waitResult.agentVerificationEvidence.length
+    : 0;
+  return {
+    status: count > 0 ? 'PASS' : 'FAIL',
+    reason:
+      count > 0
+        ? 'Real workflow observed the agent-run verification command inside the TUI.'
+        : 'Real workflow must not rely only on the external harness verification command.',
+    evidenceCount: count,
   };
 }
 
@@ -4624,6 +4671,11 @@ function buildTuiRealWorkflowOperatorTrajectory(summary) {
       name: 'run-verification-command',
       status: summary.workspace?.verificationExitCode === 0 ? 'PASS' : 'FAIL',
       evidence: 'commands[real-workflow-verification]',
+    },
+    {
+      name: 'observe-agent-run-verification-in-tui',
+      status: summary.validations?.agentVerificationObserved?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.agentVerificationEvidence',
     },
   ];
   return {
