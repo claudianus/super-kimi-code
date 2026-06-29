@@ -26,7 +26,7 @@ Not in scope (see PLAN §6): NAT traversal, untrusted relays, end-to-end encrypt
 ## Default (loopback) deployment
 
 ```
-kimi server run          # or: kimi web
+kimi server run
 ```
 
 - Binds `127.0.0.1:58627` by default (`--host` / `--port` to override).
@@ -163,7 +163,6 @@ tiers.
 - **`KIMI_CODE_CORS_ORIGINS`** — comma-separated list of allowed cross-origin values
   (full `scheme://host[:port]`). No `*` wildcard. Matched origins get
   `Access-Control-Allow-Origin` echoed; `OPTIONS` preflight short-circuits to `204`.
-  The bundled Web UI is same-origin and needs no entry.
   Example: `KIMI_CODE_CORS_ORIGINS=https://kimi.example.com`.
 - **`KIMI_CODE_DISABLE_HOST_CHECK=1`** — disables the Host check entirely on **all**
   tiers (loopback, LAN, and public). Test/controlled environments only; this removes
@@ -172,7 +171,8 @@ tiers.
 ## Authentication reference
 
 - **HTTP:** `Authorization: Bearer <token|password>` on every route except
-  `GET /api/v1/healthz`, `OPTIONS *`, and the static Web UI assets (`/`, `/*`).
+  `GET /api/v1/healthz`, `OPTIONS *`, and non-API/non-meta paths that fall
+  through to 404.
   Failure returns `401` with code `40101`.
 - **WebSocket:** send either an `Authorization: Bearer <token|password>` header or
   the subprotocol `Sec-WebSocket-Protocol: kimi-code.bearer.<token>` (for browsers

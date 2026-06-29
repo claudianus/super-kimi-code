@@ -7853,7 +7853,7 @@ async function runServerPhase(context) {
       apiOnlyServerRunnerPath,
     ],
     argvCompatibility:
-      'The requested CLI dev:server form is recorded, but the QA harness starts @moonshot-ai/server directly with webAssetsDir omitted. This keeps the real REST/WebSocket server surface while avoiding both apps/kimi-web and synthetic dist-web assets.',
+      'The requested CLI dev:server form is recorded, but the QA harness starts @moonshot-ai/server directly as an API-only server. This keeps the real REST/WebSocket surface without depending on browser UI assets.',
     validations: {},
     artifacts: {},
   };
@@ -7912,19 +7912,19 @@ async function runServerPhase(context) {
     await rm(reportDir, { recursive: true, force: true });
     await mkdir(reportDir, { recursive: true });
     await writeApiOnlyServerRunner(apiOnlyServerRunnerPath, context);
-    const webAssetsScopeGuard = {
+    const browserUiAssetsScopeGuard = {
       status: 'PASS',
-      reason: 'Server phase does not create or inject fake web UI assets; API and server checks must not depend on a synthetic dist-web success path.',
-      fakeSeaWebAssetsHookInjected: false,
-      generatedWebAssetFiles: [],
-      forbiddenSuccessPath: 'web/<target>/dist-web/index.html',
+      reason: 'Server phase does not create or inject browser UI assets; API and server checks must not depend on a browser bundle success path.',
+      fakeBrowserUiAssetsHookInjected: false,
+      generatedBrowserAssetFiles: [],
+      forbiddenSuccessPath: 'browser-ui/static-assets',
     };
-    await writeJson(path.join(context.evidenceRoot, 'server', 'web-assets-scope-guard.json'), webAssetsScopeGuard);
-    summary.validations.webAssetsScopeGuard = passFail(
-      webAssetsScopeGuard.fakeSeaWebAssetsHookInjected === false && webAssetsScopeGuard.generatedWebAssetFiles.length === 0,
-      webAssetsScopeGuard.reason,
+    await writeJson(path.join(context.evidenceRoot, 'server', 'browser-ui-assets-scope-guard.json'), browserUiAssetsScopeGuard);
+    summary.validations.browserUiAssetsScopeGuard = passFail(
+      !browserUiAssetsScopeGuard.fakeBrowserUiAssetsHookInjected && browserUiAssetsScopeGuard.generatedBrowserAssetFiles.length === 0,
+      browserUiAssetsScopeGuard.reason,
     );
-    summary.artifacts.webAssetsScopeGuard = path.join(context.evidenceRoot, 'server', 'web-assets-scope-guard.json');
+    summary.artifacts.browserUiAssetsScopeGuard = path.join(context.evidenceRoot, 'server', 'browser-ui-assets-scope-guard.json');
 
     const serverEnv = withRequiredNodePath(
       {
@@ -8609,7 +8609,7 @@ const running = await startServer({
 console.log(JSON.stringify({
   event: 'api-only-server-ready',
   address: running.address,
-  webAssetsDir: null,
+  browserUiAssets: 'removed',
 }));
 
 let stopping = false;

@@ -1,6 +1,6 @@
 /**
  * Tests for the CLI telemetry bootstrap helpers, focusing on the
- * `kimi web` / `kimi server run` host wiring added in `cli/telemetry.ts`.
+ * `kimi server run` host wiring added in `cli/telemetry.ts`.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,7 +57,7 @@ describe('initializeServerTelemetry', () => {
     });
   });
 
-  it('configures the sink with ui_mode="web" and the CLI product identity', async () => {
+  it('configures the sink with ui_mode="server" and the CLI product identity', async () => {
     const { initializeServerTelemetry } = await import('#/cli/telemetry');
     const client = initializeServerTelemetry({ version: '1.2.3' });
 
@@ -65,7 +65,7 @@ describe('initializeServerTelemetry', () => {
       expect.objectContaining({
         appName: 'kimi-code-cli',
         version: '1.2.3',
-        uiMode: 'web',
+        uiMode: 'server',
         model: 'kimi-k2',
         enabled: true,
         deviceId: 'device-123',

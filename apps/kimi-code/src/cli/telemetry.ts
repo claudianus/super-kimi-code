@@ -15,7 +15,7 @@ import {
   withTelemetryContext,
 } from '@moonshot-ai/kimi-telemetry';
 
-import { CLI_USER_AGENT_PRODUCT, WEB_UI_MODE } from '#/constant/app';
+import { CLI_USER_AGENT_PRODUCT, SERVER_UI_MODE } from '#/constant/app';
 
 import { createKimiCodeHostIdentity } from './version';
 
@@ -67,11 +67,11 @@ export interface InitializeServerTelemetryOptions {
 }
 
 /**
- * Bootstrap telemetry for the `kimi web` / `kimi server run` host.
+ * Bootstrap telemetry for the `kimi server run` host.
  *
  * Mirrors {@link initializeCliTelemetry}: mints the device id, reads config to
  * honor the `telemetry` toggle and pick up the default model, attaches the
- * sink with `ui_mode = "web"`, and returns a {@link TelemetryClient} the
+ * sink with `ui_mode = "server"`, and returns a {@link TelemetryClient} the
  * caller hands to `startServer` via `coreProcessOptions.telemetry`. That wires
  * the same real client into `KimiCore`, so agent-core events emitted inside the
  * server process (`mcp_connected`, `session_load_failed`, plan-mode / cron
@@ -100,7 +100,7 @@ export function initializeServerTelemetry(
     enabled: config.telemetry !== false,
     appName: CLI_USER_AGENT_PRODUCT,
     version: options.version,
-    uiMode: WEB_UI_MODE,
+    uiMode: SERVER_UI_MODE,
     model: config.defaultModel,
     getAccessToken: async () => (await auth.getCachedAccessToken(KIMI_CODE_PROVIDER_NAME)) ?? null,
   });

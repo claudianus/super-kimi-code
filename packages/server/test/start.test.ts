@@ -13,11 +13,9 @@
 
 import {
   existsSync,
-  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -300,14 +298,8 @@ describe('createServerLogger', () => {
   });
 });
 
-describe('startServer — web assets', () => {
-  it('serves web assets from the server root without shadowing API routes', async () => {
-    const assetsDir = join(tmpDir, 'web-assets');
-    rmSync(assetsDir, { recursive: true, force: true });
-    mkdirSync(assetsDir);
-    writeFileSync(join(assetsDir, 'index.html'), '<html><div id="app"></div></html>', 'utf8');
-    writeFileSync(join(assetsDir, 'app.js'), 'console.log("kimi web");', 'utf8');
-
+describe('startServer — API-only root', () => {
+  it('does not serve a browser UI from the server root', async () => {
     const r = await startServer({
       serviceOverrides: [fixedTokenAuth()],
       host: '127.0.0.1',
@@ -315,19 +307,11 @@ describe('startServer — web assets', () => {
       lockPath,
       logger: silentLogger(),
       coreProcessOptions: { homeDir: bridgeHome },
-      webAssetsDir: assetsDir,
     });
     running.push(r);
 
-    await expect(fetch(`${r.address}/`).then((res) => res.text())).resolves.toContain(
-      '<div id="app"></div>',
-    );
-    await expect(fetch(`${r.address}/sessions/abc`).then((res) => res.text())).resolves.toContain(
-      '<div id="app"></div>',
-    );
-    await expect(fetch(`${r.address}/app.js`).then((res) => res.text())).resolves.toBe(
-      'console.log("kimi web");',
-    );
+    expect((await fetch(`${r.address}/`)).status).toBe(404);
+    expect((await fetch(`${r.address}/sessions/abc`)).status).toBe(404);
 
     const health = await fetch(`${r.address}/api/v1/healthz`);
     await expect(health.json()).resolves.toMatchObject({ code: 0 });

@@ -1,37 +1,27 @@
 /**
- * `kimi server run` — starts the local server.
+ * `kimi server run` — starts the local API server.
  *
  * By default this ensures a single background daemon is running (spawning a
  * detached `kimi server run --daemon` child when needed) and returns once it is
  * healthy. Pass `--foreground` to run the server in-process and keep this
  * terminal attached until SIGINT/SIGTERM. OS-managed background operation
- * (launchd / systemd / schtasks) lives in `kimi server install` + `kimi server start`.
+ * OS-managed background operation (launchd / systemd / schtasks) lives in the
+ * hidden lifecycle command builder.
  *
- * `kimi web` is an alias of this command with `--open` defaulted to `true`,
- * registered in `./web-alias.ts`.
  */
-
-import { join } from 'node:path';
 
 import { shutdownTelemetry, track } from '@moonshot-ai/kimi-telemetry';
 import { startServer, type RunningServer } from '@moonshot-ai/server';
 import chalk from 'chalk';
 import { Option, type Command } from 'commander';
 
-import { CLI_SHUTDOWN_TIMEOUT_MS, WEB_UI_MODE } from '#/constant/app';
-import { getNativeWebAssetsDir } from '#/native/web-assets';
+import { CLI_SHUTDOWN_TIMEOUT_MS, SERVER_UI_MODE } from '#/constant/app';
 import { darkColors } from '#/tui/theme/colors';
-import { openUrl as defaultOpenUrl } from '#/utils/open-url';
 import { getDataDir } from '#/utils/paths';
 
 import { initializeServerTelemetry } from '../../telemetry';
-import { createKimiCodeHostIdentity, getHostPackageRoot, getVersion } from '../../version';
-import {
-  accessUrlLines,
-  buildOpenableUrl,
-  isLoopbackHost,
-  splitTokenFragment,
-} from './access-urls';
+import { createKimiCodeHostIdentity, getVersion } from '../../version';
+import { accessUrlLines, isLoopbackHost } from './access-urls';
 import { ensureDaemon, type EnsureDaemonResult } from './daemon';
 import { type NetworkAddress } from './networks';
 import {
@@ -46,10 +36,7 @@ import {
   type ServerCliOptions,
 } from './shared';
 
-const WEB_ASSETS_DIR = 'dist-web';
-
 export interface RunCliOptions extends ServerCliOptions {
-  open?: boolean;
   /** Run the server in-process instead of spawning a background daemon. */
   foreground?: boolean;
 }
@@ -74,12 +61,10 @@ export interface RunCommandDeps {
     options: ParsedServerOptions,
     hooks?: StartForegroundHooks,
   ) => Promise<never>;
-  openUrl(url: string): void;
   /**
    * Best-effort read of the server's persistent bearer token. When it returns
-   * a token, the ready banner prints it and the opened Web UI URL carries it in
-   * the `#token=` fragment (M5.5). Optional so callers/tests that don't supply
-   * it simply print/open the plain origin.
+   * a token, the ready banner prints it. Optional so callers/tests that don't
+   * supply it simply print the server origin.
    */
   resolveToken?: () => string | undefined;
   /**
@@ -92,19 +77,8 @@ export interface RunCommandDeps {
   stderr: Pick<NodeJS.WriteStream, 'write'>;
 }
 
-/**
- * Build the Web UI URL, carrying the bearer token in the URL fragment.
- *
- * The token rides in `#token=<token>` — a client-side fragment that is never
- * sent to the server (so it never appears in server access logs) and is not
- * logged by proxies. The Web UI reads it from `location.hash` after load.
- */
-export function buildWebUrl(origin: string, token: string): string {
-  return buildOpenableUrl(origin, token);
-}
-
 /** Build the `run` subcommand, mounted under a parent (`server` or top-level). */
-export function buildRunCommand(cmd: Command, options: { defaultOpen: boolean }): Command {
+export function buildRunCommand(cmd: Command): Command {
   return cmd
     .option(
       '--port <port>',
@@ -148,13 +122,6 @@ export function buildRunCommand(cmd: Command, options: { defaultOpen: boolean })
       'Run the server in the foreground and keep this terminal attached until SIGINT/SIGTERM (do not daemonize).',
       false,
     )
-    .option(
-      options.defaultOpen ? '--no-open' : '--open',
-      options.defaultOpen
-        ? 'Do not open the web UI in the default browser.'
-        : 'Open the web UI in the default browser once the server is healthy.',
-      options.defaultOpen,
-    )
     .addOption(
       new Option('--daemon', 'Run as an idle-exiting background daemon (internal).').hideHelp(),
     )
@@ -183,9 +150,8 @@ export async function handleRunCommand(
     await startServerDaemon(parsed);
     return;
   }
-  // Resolve the persistent token once: it is printed in the ready banner and
-  // rides in the opened Web UI URL's `#token=` fragment (M5.5). Falls back to
-  // the plain origin / no token line when unavailable.
+  // Resolve the persistent token once so the ready banner can show API clients
+  // the bearer value. Falls back to no token line when unavailable.
   const writeReady = (result: { origin: string; reused?: boolean; host?: string }): void => {
     const { origin } = result;
     const host = result.host ?? parsed.host;
@@ -205,9 +171,6 @@ export async function handleRunCommand(
           })
         : formatReadyLine(origin, token);
     deps.stdout.write(output);
-    if (opts.open === true) {
-      deps.openUrl(token !== undefined ? buildWebUrl(origin, token) : origin);
-    }
   };
   if (opts.foreground === true) {
     const run = deps.startServerForeground ?? startServerForeground;
@@ -230,8 +193,8 @@ function formatReuseNotice(origin: string): string {
   );
 }
 
-function formatReadyLine(origin: string, token: string | undefined): string {
-  return `Kimi server: ${buildOpenableUrl(origin, token)}\n`;
+function formatReadyLine(origin: string, _token: string | undefined): string {
+  return `Kimi server: ${origin}\n`;
 }
 
 /**
@@ -261,7 +224,7 @@ export async function startServerBackground(
  *
  * Spawned as a detached child by {@link startServerBackground}. The process is
  * expected to be detached (no controlling terminal) and self-terminates after
- * the last web client disconnects and a grace period elapses. The grace timer
+ * the last client disconnects and a grace period elapses. The grace timer
  * is driven by the WS connection count reported through `wsGatewayOptions`.
  * Resolves only via `process.exit`.
  */
@@ -331,7 +294,6 @@ async function runServerInProcess(
     allowRemoteShutdown: options.allowRemoteShutdown,
     allowRemoteTerminals: options.allowRemoteTerminals,
     allowedHosts: options.allowedHosts,
-    webAssetsDir: serverWebAssetsDir(),
     coreProcessOptions: {
       identity: createKimiCodeHostIdentity(version),
       telemetry,
@@ -346,7 +308,7 @@ async function runServerInProcess(
     },
   });
 
-  track('server_started', { ui_mode: WEB_UI_MODE, daemon: mode.daemon });
+  track('server_started', { ui_mode: SERVER_UI_MODE, daemon: mode.daemon });
 
   process.once('SIGINT', () => {
     void shutdown('SIGINT');
@@ -406,16 +368,6 @@ export function createIdleShutdownHandler(opts: { graceMs: number; onIdle: () =>
   };
 }
 
-function serverWebAssetsDir(): string {
-  return resolveServerWebAssetsDir();
-}
-
-export function resolveServerWebAssetsDir(
-  nativeWebAssetsDir: string | null = getNativeWebAssetsDir(),
-): string {
-  return nativeWebAssetsDir ?? join(getHostPackageRoot(), WEB_ASSETS_DIR);
-}
-
 interface FormatReadyBannerOptions {
   /** Persistent bearer token to print; omitted when unresolvable. */
   token?: string;
@@ -434,12 +386,6 @@ function formatReadyBanner(
   const muted = (text: string): string => chalk.hex(darkColors.textMuted)(text);
   const label = (text: string): string => chalk.bold.hex(darkColors.textDim)(text);
   const url = (text: string): string => chalk.hex(darkColors.accent)(text);
-  // Render the `#token=…` fragment in a de-emphasized gray so the host/port
-  // stands out while the full URL stays selectable for copying.
-  const urlWithDimToken = (href: string): string => {
-    const [base, frag] = splitTokenFragment(href);
-    return frag === '' ? url(base) : url(base) + dim(frag);
-  };
 
   const port = Number(new URL(origin).port);
   // Borderless header: the Kimi sprite (the little mascot with eyes) sits next
@@ -448,7 +394,7 @@ function formatReadyBanner(
   const lines: string[] = [
     '',
     `  ${primary(logo[0])}  ${title('Kimi server ready')}  ${dim(getVersion())}`,
-    `  ${primary(logo[1])}  ${dim('Local web UI is available from this machine.')}`,
+    `  ${primary(logo[1])}  ${dim('Local REST and WebSocket API is available from this machine.')}`,
     '',
   ];
 
@@ -456,10 +402,9 @@ function formatReadyBanner(
   for (const { label: text, url: href } of accessUrlLines(
     host,
     port,
-    opts.token,
     opts.networkAddresses,
   )) {
-    lines.push(`  ${label(text)}${urlWithDimToken(href)}`);
+    lines.push(`  ${label(text)}${url(href)}`);
   }
   // On a loopback bind there is no network URL; show how to enable one.
   if (isLoopbackHost(host)) {
@@ -483,11 +428,10 @@ function formatReadyBanner(
 const DEFAULT_RUN_COMMAND_DEPS: RunCommandDeps = {
   startServerBackground,
   startServerForeground,
-  openUrl: defaultOpenUrl,
   resolveToken: () => {
     // Read the persistent `<homeDir>/server.token` written on first boot
     // (M5.1). Best-effort: a missing/older server yields undefined and the
-    // caller opens the plain origin.
+    // ready banner prints only the server origin.
     return tryResolveServerToken(getDataDir());
   },
   stdout: process.stdout,

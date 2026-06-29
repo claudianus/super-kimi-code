@@ -9,8 +9,8 @@
  * Headers:
  *   - `X-Content-Type-Options: nosniff` — stop MIME sniffing.
  *   - `Referrer-Policy: no-referrer` — never leak the URL to third parties.
- *   - `Content-Security-Policy: default-src 'self'` — the bundled Web UI is
- *     same-origin, so `'self'` covers it; tighten later if needed.
+ *   - `Content-Security-Policy: default-src 'self'` — keep future same-origin
+ *     API clients constrained by default; tighten later if needed.
  *   - `Strict-Transport-Security` — ONLY when `opts.tls === true`. In this
  *     phase TLS is terminated by a reverse proxy (Caddy/nginx), so `start.ts`
  *     passes `tls: false` and HSTS is omitted here; the proxy is responsible

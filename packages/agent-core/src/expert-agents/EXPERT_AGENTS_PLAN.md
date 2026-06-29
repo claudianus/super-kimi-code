@@ -12,7 +12,7 @@ Integrate 275+ expert personas from the agency-agents repository into the existi
 
 3. **UltraSwarm orchestrator**: A new swarm orchestrator that uses the main agent's LLM to analyze tasks, perform embedding search to select experts, and coordinate their execution via the existing `SubagentBatch` system.
 
-4. **Full product branding**: `/ultraswarm` command in CLI/TUI, expert summon indicators, and a dedicated panel in Web UI.
+4. **Full product branding**: `/ultraswarm` command in CLI/TUI, expert summon indicators, and a dedicated TUI status surface.
 
 ## Implementation Phases
 
@@ -48,11 +48,10 @@ Integrate 275+ expert personas from the agency-agents repository into the existi
 - Expert summon indicators in the transcript (show which experts were summoned and their status)
 - Rename existing swarm UI labels to include UltraSwarm branding where appropriate
 
-### Phase 5: Web UI Branding
-- Add an "Expert Agents" panel in the Web UI (`apps/kimi-web`)
-- Display summoned experts with their emoji, color, and status
-- Show the UltraSwarm plan (dependency graph, progress)
-- Add a toggle for "Auto UltraSwarm" mode
+### Phase 5: TUI/CLI Branding
+- Display summoned experts with their names, status, and compact progress in the TUI transcript
+- Show the UltraSwarm plan as a terminal-friendly tree or table
+- Add a CLI-readable "Auto UltraSwarm" state indicator
 
 ## Technical Details
 
@@ -99,7 +98,6 @@ export type SkillType = 'prompt' | 'inline' | 'flow' | 'reference' | 'expert';
 - `apps/kimi-code/src/tui/commands/ultraswarm.ts`
 - `apps/kimi-code/src/tui/components/dialogs/ultraswarm-start-permission-prompt.ts`
 - `apps/kimi-code/src/tui/components/messages/ultraswarm-markers.ts`
-- `apps/kimi-web/src/components/ExpertAgentsPanel.vue`
 
 ### Modified Files
 - `packages/agent-core/src/skill/types.ts` (add `expert` type)
@@ -112,7 +110,6 @@ export type SkillType = 'prompt' | 'inline' | 'flow' | 'reference' | 'expert';
 - `apps/kimi-code/src/tui/commands/index.ts` (register /ultraswarm)
 - `apps/kimi-code/src/tui/commands/dispatch.ts` (add /ultraswarm dispatch)
 - `apps/kimi-code/src/tui/components/index.ts` (export new components)
-- `apps/kimi-web/src/App.vue` (add ExpertAgentsPanel)
 - `pnpm-workspace.yaml` (if new packages needed)
 - `flake.nix` (sync workspace paths)
 
@@ -126,6 +123,6 @@ export type SkillType = 'prompt' | 'inline' | 'flow' | 'reference' | 'expert';
 1. Phase 1 (build-time conversion) is implemented first and can be merged independently.
 2. Phase 2 (embedding search) is merged next, gated behind an experimental flag `KIMI_CODE_EXPERIMENTAL_ULTRASWARM`.
 3. Phase 3 (orchestrator) follows, with the flag still on.
-4. Phases 4 & 5 (UI branding) are done in parallel with Phase 3.
+4. Phases 4 & 5 (TUI/CLI branding) are done in parallel with Phase 3.
 5. Once E2E tests pass and dogfooding shows good results, the flag is flipped to default on.
 6. Generate changeset with `minor` bump (new feature, backward compatible).

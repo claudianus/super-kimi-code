@@ -2,7 +2,7 @@
  * Shared helpers for `kimi server …` subcommands.
  *
  * Owns the default host/port, option parsers, and health/readiness probes that
- * `run`, `web`, and `status` all use.
+ * server subcommands use.
  */
 
 import { readFileSync } from 'node:fs';
@@ -23,7 +23,7 @@ export const DEFAULT_LOG_LEVEL: ServerLogLevel = 'info';
 export const DEFAULT_FOREGROUND_LOG_LEVEL: ServerLogLevel = 'silent';
 
 /**
- * Default idle-shutdown grace for the background daemon: once the last web
+ * Default idle-shutdown grace for the background daemon: once the last
  * client disconnects, the daemon waits this long before exiting. Overridable
  * via the internal `--idle-grace-ms` flag (used by tests).
  */
@@ -71,7 +71,7 @@ export interface ServerCliOptions {
   allowRemoteTerminals?: boolean;
   /** Extra `Host` header values to allow (`--allowed-host`). */
   allowedHost?: string[];
-  /** Internal flag set by the daemon spawner (`kimi web`). */
+  /** Internal flag set by the daemon spawner. */
   daemon?: boolean;
   /** Internal flag set by the daemon spawner / tests. */
   idleGraceMs?: string;
@@ -179,42 +179,6 @@ export async function waitForServerHealthy(origin: string, timeoutMs: number): P
     });
   } while (Date.now() < deadline);
   return false;
-}
-
-/**
- * Probe `/` and confirm the bundled web UI is being served.
- *
- * A different build that runs on the same port serves its own bundle — opening
- * a browser at that origin lands on stale code. Catching that here lets the
- * caller surface a clear "stop the running server" message instead of silently
- * handing the user the wrong UI.
- */
-export async function ensureServerWebReady(origin: string): Promise<void> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 3000);
-  try {
-    const response = await fetch(`${origin}/`, {
-      headers: { accept: 'text/html' },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const body = await response.text();
-    if (!body.includes('<div id="app"')) {
-      throw new Error('missing app root');
-    }
-  } catch (error) {
-    const reason = error instanceof Error ? ` (${error.message})` : '';
-    throw new Error(
-      `Server at ${origin} does not serve the Kimi web UI${reason}. Stop the existing server and rerun \`kimi server run\`.`,
-      { cause: error },
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 /**

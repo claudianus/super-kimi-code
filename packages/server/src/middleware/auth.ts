@@ -45,8 +45,8 @@ export interface AuthHookOptions {
  * Bypassed (no token required):
  *   - every `OPTIONS` request (CORS preflight);
  *   - `GET /api/v1/healthz` (liveness probe for supervisors / load balancers);
- *   - static web assets, defined as any path that does NOT start with `/api/`
- *     AND is not one of the meta documents `/openapi.json` / `/asyncapi.json`.
+ *   - non-API, non-meta paths, so removed browser routes fall through to 404
+ *     without needing a bearer token.
  *
  * NOT bypassed (token required): all `/api/…` routes plus `/openapi.json` and
  * `/asyncapi.json` (the meta documents leak the API shape, so they stay gated).

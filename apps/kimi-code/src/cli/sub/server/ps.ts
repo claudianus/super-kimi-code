@@ -2,8 +2,7 @@
  * `kimi server ps` — list clients currently connected to the running server.
  *
  * Talks to the running server over HTTP (`GET /api/v1/connections`) using the
- * single-instance lock (`~/.kimi-code/server/lock`) to discover its origin —
- * the same way `kimi web` locates the daemon.
+ * single-instance lock (`~/.kimi-code/server/lock`) to discover its origin.
  */
 
 import chalk from 'chalk';
@@ -55,7 +54,7 @@ async function handlePsCommand(opts: { json?: boolean }): Promise<void> {
   const lock = getLiveLock();
   if (!lock) {
     throw new Error(
-      'No running Kimi server. Start one with `kimi server run` or `kimi web`.',
+      'No running Kimi server. Start one with `kimi server run`.',
     );
   }
 
@@ -97,7 +96,7 @@ async function fetchConnections(origin: string, token: string): Promise<Connecti
     return body.data?.connections ?? [];
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`Timed out listing clients from ${origin}.`);
+      throw new Error(`Timed out listing clients from ${origin}.`, { cause: error });
     }
     throw error;
   } finally {

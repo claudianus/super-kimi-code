@@ -300,7 +300,7 @@ export class KimiTUI {
 
   public onExit?: (exitCode?: number) => Promise<void>;
 
-  /** URL opened in the browser just before exit (e.g. by `/web`); printed by onExit. */
+  /** URL opened in the browser just before exit; printed by onExit. */
   public exitOpenUrl: string | undefined;
 
   track(event: string, properties?: Parameters<KimiHarness['track']>[1]): void {

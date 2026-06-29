@@ -224,7 +224,7 @@ export function buildPreflightLines(status: PreflightStatus): string[] {
     `Browser-use age  ${freshnessSummary(status.freshness.browserUse)}`,
     `Computer-use age  ${freshnessSummary(status.freshness.computerUse)}`,
     `Boundary  ${status.bench.noSecret ? 'no secret-looking strings displayed' : 'review evidence before sharing'}`,
-    'No-web  apps/kimi-web not used',
+    'No-web  browser UI excluded',
     `Next  ${status.nextAction}`,
     `Loop cue  ${loopCueSummary(status)}`,
     `Loop command  ${loopCommandSummary(status)}`,

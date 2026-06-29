@@ -2,38 +2,19 @@
  * Build the clickable/copyable access URLs for the running server.
  *
  * Shared by the `server run` ready banner and `server rotate-token` so both
- * show the same Local/Network links. When a token is known it rides in the
- * `#token=` fragment (never sent to the server, so never logged), letting a
- * user open the link on another device and be authenticated automatically.
+ * show the same Local/Network API origins.
  */
 
 import { formatHostForUrl, listNetworkAddresses, type NetworkAddress } from './networks';
 
-/**
- * Build a directly-openable server URL. When the token is known it is appended
- * as `#token=<token>`; otherwise the bare origin (with a trailing slash) is
- * returned.
- */
-export function buildOpenableUrl(bareOrigin: string, token: string | undefined): string {
+export function buildServerOriginUrl(bareOrigin: string): string {
   const base = bareOrigin.endsWith('/') ? bareOrigin.slice(0, -1) : bareOrigin;
-  return token === undefined ? `${base}/` : `${base}/#token=${token}`;
-}
-
-/**
- * Split a full URL into the part before `#token=` and the `#token=…` fragment
- * itself, so callers can render the fragment in a de-emphasized color. Returns
- * `[fullUrl, '']` when there is no token fragment.
- */
-export function splitTokenFragment(fullUrl: string): [string, string] {
-  const marker = '#token=';
-  const idx = fullUrl.indexOf(marker);
-  return idx < 0 ? [fullUrl, ''] : [fullUrl.slice(0, idx), fullUrl.slice(idx)];
+  return `${base}/`;
 }
 
 export interface AccessUrlLine {
   /** Fixed-width label including trailing padding, e.g. `"Local:    "`. */
   label: string;
-  /** Full URL, carrying `#token=` when a token is known. */
   url: string;
 }
 
@@ -62,24 +43,23 @@ function hostOrigin(host: string, port: number): string {
 export function accessUrlLines(
   host: string,
   port: number,
-  token: string | undefined,
   networkAddresses?: NetworkAddress[],
 ): AccessUrlLine[] {
   if (isWildcard(host)) {
     const lines: AccessUrlLine[] = [
-      { label: 'Local:    ', url: buildOpenableUrl(`http://localhost:${port}`, token) },
+      { label: 'Local:    ', url: buildServerOriginUrl(`http://localhost:${port}`) },
     ];
     const addrs = networkAddresses ?? listNetworkAddresses();
     for (const addr of addrs) {
       lines.push({
         label: 'Network:  ',
-        url: buildOpenableUrl(`http://${formatHostForUrl(addr.address, addr.family)}:${port}`, token),
+        url: buildServerOriginUrl(`http://${formatHostForUrl(addr.address, addr.family)}:${port}`),
       });
     }
     return lines;
   }
   if (isLoopbackHost(host)) {
-    return [{ label: 'Local:    ', url: buildOpenableUrl(hostOrigin(host, port), token) }];
+    return [{ label: 'Local:    ', url: buildServerOriginUrl(hostOrigin(host, port)) }];
   }
-  return [{ label: 'URL:      ', url: buildOpenableUrl(hostOrigin(host, port), token) }];
+  return [{ label: 'URL:      ', url: buildServerOriginUrl(hostOrigin(host, port)) }];
 }

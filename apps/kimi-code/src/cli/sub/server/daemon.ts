@@ -1,8 +1,8 @@
 /**
- * `kimi web` daemon orchestration — parent (spawner) side.
+ * `kimi server run` daemon orchestration — parent (spawner) side.
  *
  * Ensures a single background server daemon exists for this device, then
- * returns its origin so the caller can open the web UI. The flow:
+ * returns its origin so the caller can print the API endpoint. The flow:
  *
  *   1. Read `~/.kimi-code/server/lock`. If it names a *live* daemon, reuse it
  *      (wait for it to be healthy) — never spawn a second one.

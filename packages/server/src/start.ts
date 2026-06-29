@@ -45,7 +45,6 @@ import { resolvePasswordHash } from '#/services/auth/password';
 import { createSecurityHeadersHook } from '#/services/auth/securityHeaders';
 import { createTokenStore } from '#/services/auth/tokenStore';
 import { getServerVersion } from './version';
-import { registerWebAssetRoutes } from './routes/webAssets';
 
 export interface ServerStartOptions {
   host: string;
@@ -92,7 +91,6 @@ export interface ServerStartOptions {
    */
   allowRemoteTerminals?: boolean;
 
-  webAssetsDir?: string;
 
   /**
    * Extra `Host` header values to allow, in addition to the default allowlist
@@ -344,10 +342,6 @@ export async function startServer(opts: ServerStartOptions): Promise<RunningServ
     const openApiDocument = (app as unknown as { swagger(): unknown }).swagger();
     return reply.type('application/json').send(openApiDocument);
   });
-
-  if (opts.webAssetsDir !== undefined) {
-    await registerWebAssetRoutes(app, opts.webAssetsDir);
-  }
 
   try {
     await app.ready();
@@ -698,10 +692,10 @@ export async function listenWithPortRetry(
         );
       }
       return { address, port };
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
       if (code !== 'EADDRINUSE' || attempt >= maxRetries || port >= 65535) {
-        throw err;
+        throw error;
       }
       const next = port + 1;
       opts.logger.warn(

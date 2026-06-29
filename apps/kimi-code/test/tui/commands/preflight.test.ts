@@ -104,7 +104,7 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Browser-use age  fresh; 0m');
     expect(text).toContain('Computer-use age  fresh; 0m');
     expect(text).toContain('Boundary  no secret-looking strings displayed');
-    expect(text).toContain('No-web  apps/kimi-web not used');
+    expect(text).toContain('No-web  browser UI excluded');
     expect(text).toContain('Next  Ready: run the next bounded Ultrawork loop from this preflight.');
     expect(text).toContain('Loop cue  run_next_loop; refresh_due unknown');
     expect(text).toContain('Loop command  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2');
@@ -238,7 +238,7 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Freshness  blocked; window 24h');
     expect(text).toContain('Bench age  missing');
     expect(text).toContain('Boundary  review evidence before sharing');
-    expect(text).toContain('No-web  apps/kimi-web not used');
+    expect(text).toContain('No-web  browser UI excluded');
     expect(text).toContain('Next  Run node scripts/kimi-agent-bench.mjs, then open /bench again.');
     expect(text).toContain('Loop cue  refresh_now; refresh_due 23h');
     expect(text).toContain('Loop command  node scripts/kimi-preflight-refresh.mjs');

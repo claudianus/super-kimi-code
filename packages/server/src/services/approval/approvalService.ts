@@ -114,7 +114,7 @@ export class ApprovalService extends Disposable implements IApprovalService {
 
     const approvalId = ulid();
     const createdAt = new Date().toISOString();
-    // `expires_at` is still populated for the protocol/web contract, but the
+    // `expires_at` is still populated for the protocol REST/WS contract, but the
     // broker no longer enforces it — approvals wait until the user resolves
     // them or the server shuts down.
     const expiresAt = new Date(Date.now() + APPROVAL_DEFAULT_TIMEOUT_MS).toISOString();

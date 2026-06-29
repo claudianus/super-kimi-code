@@ -19,8 +19,6 @@ import {
   type ServiceStatus,
 } from '@moonshot-ai/server';
 
-import { openUrl as defaultOpenUrl } from '#/utils/open-url';
-
 import {
   DEFAULT_LOG_LEVEL,
   DEFAULT_SERVER_HOST,
@@ -36,7 +34,6 @@ export interface InstallCliOptions {
   port?: string;
   logLevel?: string;
   force?: boolean;
-  open?: boolean;
   json?: boolean;
 }
 
@@ -46,14 +43,12 @@ export interface JsonCliOptions {
 
 export interface LifecycleCommandDeps {
   resolveManager(): ServiceManager;
-  openUrl(url: string): void;
   stdout: Pick<NodeJS.WriteStream, 'write'>;
   stderr: Pick<NodeJS.WriteStream, 'write'>;
 }
 
 const DEFAULT_DEPS: LifecycleCommandDeps = {
   resolveManager: resolveServiceManager,
-  openUrl: defaultOpenUrl,
   stdout: process.stdout,
   stderr: process.stderr,
 };
@@ -70,7 +65,6 @@ export function addLifecycleCommands(parent: Command, deps: LifecycleCommandDeps
       DEFAULT_LOG_LEVEL,
     )
     .option('--force', 'Reinstall and overwrite if already installed', false)
-    .option('--no-open', 'Do not open the web UI after install.', true)
     .option('--json', 'Output JSON', false)
     .action(async (opts: InstallCliOptions) => {
       await runLifecycle(deps, opts.json === true, async (mgr) => {
@@ -91,9 +85,6 @@ export function addLifecycleCommands(parent: Command, deps: LifecycleCommandDeps
           taskName: result.taskName,
           message: result.message,
         }, status, args);
-        if (opts.json !== true && opts.open !== false && enriched.running === true && typeof enriched.url === 'string') {
-          deps.openUrl(enriched.url);
-        }
         return enriched;
       });
     });

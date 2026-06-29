@@ -15,7 +15,7 @@ The Kimi Code server. It hosts `agent-core` sessions and exposes them over REST 
 ## Layout (`src/`)
 
 - Top level: `start.ts`, `index.ts`, `envelope.ts`, `error-handler.ts`, `lock.ts`, `request-id.ts`, `version.ts`.
-- `routes/` — REST domain modules, the `registerApiV1Routes.ts` aggregator, `webAssets.ts`, and `action-suffix.ts`.
+- `routes/` — REST domain modules, the `registerApiV1Routes.ts` aggregator, and `action-suffix.ts`.
 - `services/` — server-owned DI adapters: `approval/`, `question/`, `gateway/` (`rest`/`ws`/`broadcast`/`connectionRegistry`/`sessionClients`/`sessionEventJournal`/`inFlightTurnTracker`), `pinoLoggerService.ts`, `serviceCollection.ts`.
 - `ws/` — `connection.ts` (`WsConnection`), `protocol.ts` (frame builders), `rawData.ts`.
 - `middleware/` — `defineRoute.ts`, `schema.ts`, `validate.ts`. `openapi/transforms.ts`.
@@ -33,7 +33,7 @@ Service conventions (naming, file layout, registration) live in `packages/agent-
 
 - REST is **Fastify**. All v1 routes are registered under `/api/v1` in `routes/registerApiV1Routes.ts`. Declare routes with `middleware/defineRoute.ts`: one object carries the Zod validators and the OpenAPI response schema; the `200` schema is expanded into the envelope `oneOf`.
 - `start.ts` neuters Fastify's validator/serializer compilers — validation happens in `defineRoute` preHandlers, not in Fastify's own pipeline.
-- Doc/meta endpoints in `start.ts`: `/openapi.json` (`@fastify/swagger`, lazily imported), `/asyncapi.json` (`createAsyncApiDocument` from `@moonshot-ai/protocol`), `/healthz`. `webAssetsDir` enables `registerWebAssetRoutes`.
+- Doc/meta endpoints in `start.ts`: `/openapi.json` (`@fastify/swagger`, lazily imported), `/asyncapi.json` (`createAsyncApiDocument` from `@moonshot-ai/protocol`), `/healthz`.
 - WebSocket uses the `ws` package; frames/envelopes live in `ws/protocol.ts` (`server_hello`, `ack`, `event`, `resync_required`, per-session `seq`).
 
 ## Commands

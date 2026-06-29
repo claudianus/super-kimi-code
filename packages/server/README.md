@@ -11,8 +11,6 @@ it ships inside the `kimi` CLI (`apps/kimi-code`) and is launched via
 - Hosts `agent-core` sessions, prompts, tools, approvals, questions, and
   workspaces in process.
 - Exposes them over **REST** (Fastify) and **WebSocket** (`ws`) under `/api/v1`.
-- Serves the built-in web UI (`apps/kimi-web`) as static assets when a
-  `webAssetsDir` is provided.
 - Publishes machine-readable contract docs: `/openapi.json`, `/asyncapi.json`.
 
 ## Running it
@@ -40,10 +38,9 @@ By default the server listens on `127.0.0.1:58627`; e2e clients target it with
 ## Architecture
 
 ```
-apps/kimi-code (CLI)            apps/kimi-web (browser)
-        │                              │
-        └──────────┬───────────────────┘
-                   │  REST + WebSocket, /api/v1
+apps/kimi-code (CLI/TUI)
+        │
+        │  REST + WebSocket, /api/v1
         ┌──────────▼───────────┐
         │  @moonshot-ai/server │
         │  Fastify REST        │

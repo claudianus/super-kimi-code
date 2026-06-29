@@ -13,7 +13,7 @@ import type { Command } from 'commander';
 import { darkColors } from '#/tui/theme/colors';
 import { getDataDir } from '#/utils/paths';
 
-import { accessUrlLines, splitTokenFragment } from './access-urls';
+import { accessUrlLines } from './access-urls';
 import { DEFAULT_SERVER_HOST } from './shared';
 
 export function registerRotateTokenCommand(server: Command): void {
@@ -39,14 +39,8 @@ export function registerRotateTokenCommand(server: Command): void {
         const lock = getLiveLock();
         if (lock !== undefined) {
           const host = lock.host ?? DEFAULT_SERVER_HOST;
-          for (const { label, url: href } of accessUrlLines(host, lock.port, token)) {
-            // De-emphasize the `#token=…` fragment so the host/port stands out.
-            const [base, frag] = splitTokenFragment(href);
-            const rendered =
-              frag === ''
-                ? chalk.hex(darkColors.accent)(base)
-                : chalk.hex(darkColors.accent)(base) + chalk.hex(darkColors.textDim)(frag);
-            process.stdout.write(`  ${chalk.dim(label)}${rendered}\n`);
+          for (const { label, url: href } of accessUrlLines(host, lock.port)) {
+            process.stdout.write(`  ${chalk.dim(label)}${chalk.hex(darkColors.accent)(href)}\n`);
           }
         }
       } catch (error) {
