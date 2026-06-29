@@ -108,8 +108,9 @@ describe('built-in slash command registry', () => {
     expect(ultrawork?.aliases).toEqual(['uw']);
     expect(diagnosticNames).toEqual(expect.arrayContaining(['bench', 'export-debug-zip', 'preflight']));
     const help = findBuiltInSlashCommand('help') as KimiSlashCommand | undefined;
-    expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced', 'diagnostics']);
-    expect(help?.argumentHint).toBe('[advanced|diagnostics]');
+    expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced']);
+    expect(helpArgumentCompletions('d')?.map((item) => item.value)).toEqual(['diagnostics']);
+    expect(help?.argumentHint).toBe('[advanced]');
   });
 
   it('puts core vibe-coding controls first in primary help order', () => {

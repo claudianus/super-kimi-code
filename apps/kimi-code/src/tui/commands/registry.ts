@@ -34,6 +34,9 @@ const HELP_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'advanced', description: 'Show manual workflow commands' },
   { value: 'diagnostics', description: 'Show internal QA and diagnostics commands' },
 ];
+const HELP_PRIMARY_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
+  { value: 'advanced', description: 'Show manual workflow commands' },
+];
 
 const ADD_DIR_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'list', description: 'Show configured additional workspace directories' },
@@ -82,6 +85,9 @@ export function ultraworkArgumentCompletions(argumentPrefix: string): Autocomple
 }
 
 export function helpArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
+  if (argumentPrefix.trim().length === 0) {
+    return completeLeadingArg(HELP_PRIMARY_ARG_COMPLETIONS, argumentPrefix);
+  }
   return completeLeadingArg(HELP_ARG_COMPLETIONS, argumentPrefix);
 }
 
@@ -288,7 +294,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: ['h', '?'],
     description: 'Show available commands and shortcuts',
     priority: 80,
-    argumentHint: '[advanced|diagnostics]',
+    argumentHint: '[advanced]',
     completeArgs: helpArgumentCompletions,
     availability: 'always',
   },
