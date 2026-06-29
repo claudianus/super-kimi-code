@@ -544,10 +544,10 @@ function nextPreflightAction(
   if (memory.query.length === 0) return 'Run /preflight --query=<recall query> to verify Kimi Recall retrieval.';
   if (memory.searchError !== undefined) return 'Fix recall search, then rerun /preflight.';
   if ((memory.searchResults?.length ?? 0) === 0) return `Run ${preflightRecallMemoryCommand(memory.query)}, then rerun /preflight.`;
-  if (!memory.evidence.llmWiki.ready) return 'Add llm-wiki or durable-memory evidence under .omo/evidence.';
-  if (!memory.evidence.knowledgeMap.ready) return 'Capture Kimi Knowledge Map evidence under .omo/evidence.';
-  if (!memory.evidence.browserUse.ready) return 'Capture browser-use evidence under .omo/evidence.';
-  if (!memory.evidence.computerUse.ready) return 'Capture computer-use evidence under .omo/evidence.';
+  if (!memory.evidence.llmWiki.ready) return preflightRuntimeEvidenceAction('llm-wiki/durable-memory');
+  if (!memory.evidence.knowledgeMap.ready) return preflightRuntimeEvidenceAction('Kimi Knowledge Map');
+  if (!memory.evidence.browserUse.ready) return preflightRuntimeEvidenceAction('browser-use');
+  if (!memory.evidence.computerUse.ready) return preflightRuntimeEvidenceAction('computer-use');
   if (!freshness.ready) {
     return 'Run the Refresh commands below, recapture runtime evidence, then rerun /preflight.';
   }
@@ -557,6 +557,10 @@ function nextPreflightAction(
 function preflightRecallMemoryCommand(query: string): string {
   const content = query.trim().length === 0 ? DEFAULT_PREFLIGHT_RECALL_QUERY : query.trim();
   return `/memory remember ${PREFLIGHT_RECALL_MEMORY_SUBJECT} :: ${content}`;
+}
+
+function preflightRuntimeEvidenceAction(label: string): string {
+  return `Capture ${label} evidence under ${PREFLIGHT_RUNTIME_EVIDENCE_ROOT}, then run Refresh command below.`;
 }
 
 function buildPreflightRefreshPlan(

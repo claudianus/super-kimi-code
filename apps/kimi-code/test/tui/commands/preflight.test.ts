@@ -388,6 +388,64 @@ describe('preflight slash command status surface', () => {
     );
   });
 
+  it('points missing runtime evidence at the preflight readiness evidence root', () => {
+    const status = buildPreflightStatus({
+      bench: {
+        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        status: 'PASS',
+        score: 1,
+        passRate: 1,
+        holdout: 'active',
+        providerBlock: 'not blocked',
+        redaction: 'PASS',
+        noSecret: true,
+        nextAction: 'Run the next bounded Ultrawork loop.',
+        warnings: [],
+      },
+      memory: {
+        stats: memoryStats({ total: 1, active: 1 }),
+        query: 'super kimi harness readiness',
+        searchResults: [
+          {
+            score: 0.93,
+            reasons: ['subject'],
+            memory: memoryRecord('super kimi harness readiness'),
+          },
+        ],
+        evidence: {
+          sourceRoot: '/repo/.omo/evidence',
+          llmWiki: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No llm-wiki or durable-memory evidence found.',
+          },
+          knowledgeMap: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No Kimi Knowledge Map evidence found.',
+          },
+          browserUse: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No browser-use evidence found.',
+          },
+          computerUse: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No computer-use evidence found.',
+          },
+          warnings: [],
+        },
+      },
+      freshness: preflightFreshness('missing'),
+    });
+    const text = buildPreflightLines(status).join('\n');
+
+    expect(text).toContain(
+      'Next  Capture llm-wiki/durable-memory evidence under .omo/evidence/preflight-readiness, then run Refresh command below.',
+    );
+  });
+
   it('blocks otherwise ready preflight state when evidence is stale', () => {
     const status = buildPreflightStatus({
       bench: {
