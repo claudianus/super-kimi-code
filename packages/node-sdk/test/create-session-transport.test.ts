@@ -53,6 +53,8 @@ max_context_size = 1000
 
 class StubRpc extends SDKRpcClientBase {
   resumeCalls: Array<{ input: ResumeSessionInput; kaos: Kaos; persistenceKaos?: Kaos }> = [];
+  planMode = false;
+  setPlanModeCalls = 0;
 
   protected async getRpc(): Promise<never> {
     throw new Error('not used');
@@ -66,6 +68,24 @@ class StubRpc extends SDKRpcClientBase {
       createdAt: 1,
       updatedAt: 1,
     };
+  }
+
+  override async getStatus() {
+    return {
+      model: 'k2',
+      thinkingLevel: 'off',
+      permission: 'manual' as const,
+      planMode: this.planMode,
+      contextTokens: 0,
+      maxContextTokens: 100,
+      contextUsage: 0,
+    };
+  }
+
+  override async setPlanMode() {
+    this.setPlanModeCalls += 1;
+    if (this.planMode) throw new Error('Already in plan mode');
+    this.planMode = true;
   }
 
   override async resumeSessionWithKaos(input: ResumeSessionInput, kaos: Kaos, persistenceKaos?: Kaos): Promise<ResumedSessionSummary> {
@@ -684,6 +704,29 @@ effort = "medium"
       kaos,
       persistenceKaos: undefined,
     });
+  });
+
+  it('does not re-enter plan mode when a created session is already in plan mode', async () => {
+    const records: TelemetryRecord[] = [];
+    const rpc = new StubRpc();
+    rpc.planMode = true;
+    const harness = new KimiHarness(rpc, {
+      homeDir: '/tmp/home',
+      configPath: '/tmp/config.toml',
+      auth: { status: async () => ({ providers: [] }) } as never,
+      telemetry: recordingTelemetry(records),
+      ensureConfigFile: async () => undefined,
+      onClose: () => undefined,
+    });
+
+    const session = await harness.createSession({
+      id: 'ses_plan_already_enabled',
+      workDir: '/tmp/work',
+      planMode: true,
+    });
+
+    expect(session.id).toBe('ses_plan_already_enabled');
+    expect(rpc.setPlanModeCalls).toBe(0);
   });
 });
 

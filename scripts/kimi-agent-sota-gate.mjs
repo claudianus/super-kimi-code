@@ -1223,6 +1223,9 @@ function inspectTuiScreenText(scenario, output) {
   if (!hasKimiTuiChrome(normalized)) {
     failures.push('capture does not show recognizable Kimi TUI chrome/content');
   }
+  if (/Already in plan mode/i.test(normalized)) {
+    failures.push('capture shows internal plan-mode re-entry error');
+  }
 
   switch (scenario) {
     case 'startup':
@@ -1241,7 +1244,17 @@ function inspectTuiScreenText(scenario, output) {
       }
       break;
     case 'autocomplete':
-      if (!matchesAny(normalized, [/\/help/i, /\/clear/i, /commands?/i, /autocomplete/i, /\bauto\b.*\bmodel\b.*\bpermission\b/i, /\(\d+\/\d+\)/])) {
+      if (
+        !matchesAny(normalized, [
+          /\/help/i,
+          /\/clear/i,
+          /commands?/i,
+          /autocomplete/i,
+          /\bauto\b.*\bmodel\b.*\bpermission\b/i,
+          /\(\d+\/\d+\)/,
+          />\s*\/\w+\s+\[[^\]]+\]/,
+        ])
+      ) {
         failures.push('autocomplete capture does not show slash-command suggestions');
       }
       break;
