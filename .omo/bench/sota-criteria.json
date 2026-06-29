@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "name": "super-kimi-agent-sota-gate-wave-1",
+  "budgetDefaults": {
+    "wallClockMs": 30000,
+    "commandCount": 10,
+    "estimatedTokens": 800
+  },
+  "requiredTuiScenarios": [
+    "startup",
+    "help",
+    "clear",
+    "autocomplete",
+    "prompt-entry",
+    "escape-cancel",
+    "permission-mode",
+    "exit"
+  ],
+  "references": [
+    {
+      "name": "Terminal-Bench",
+      "url": "https://www.tbench.ai/",
+      "principle": "terminal-native tasks should be evaluated by executable command traces and artifacts"
+    },
+    {
+      "name": "SWE-bench Verified / holdout",
+      "url": "https://www.swebench.com/",
+      "principle": "agent benchmarks need verified tasks, held-out coverage, and programmatic pass/fail checks"
+    },
+    {
+      "name": "OSWorld",
+      "url": "https://os-world.github.io/",
+      "principle": "live UI agents require inspectable environment evidence instead of claimed interaction"
+    },
+    {
+      "name": "tau-bench",
+      "url": "https://github.com/sierra-research/tau-bench",
+      "principle": "tool-using agents should be judged on disciplined tool calls and task outcomes"
+    },
+    {
+      "name": "VeRO",
+      "url": "https://arxiv.org/abs/2602.22480",
+      "principle": "agent harnesses need versioned snapshots, structured traces, and budget-controlled evaluation"
+    },
+    {
+      "name": "Meta-Harness",
+      "url": "https://yoonholee.com/meta-harness/",
+      "principle": "benchmark harnesses should preserve traces, budgets, and holdout-style controls while optimizing only against verifiable evidence"
+    }
+  ]
+}
