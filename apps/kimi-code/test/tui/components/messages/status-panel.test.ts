@@ -74,6 +74,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('Readiness');
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
+    expect(output).toMatch(/Workflow\s+Kimi chooses planning, goal tracking, or team mode as needed\./);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
@@ -114,6 +115,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('No context window data available.');
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
+    expect(output).toMatch(/Workflow\s+Kimi chooses planning, goal tracking, or team mode as needed\./);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
