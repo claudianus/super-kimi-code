@@ -86,16 +86,32 @@ function contextValues(options: StatusReportOptions): {
   };
 }
 
-function readinessNextAction(options: StatusReportOptions): string {
+const READINESS_CHECKS = 'inspect -> change -> verify -> summarize';
+
+function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   const model = (options.status?.model ?? options.model).trim();
-  if (model.length === 0) return 'Run /login or /model before starting work.';
+  if (model.length === 0) {
+    return [
+      { label: 'State', value: 'Model needed', severity: 'error' },
+      { label: 'Checks', value: READINESS_CHECKS },
+      { label: 'Next', value: 'Run /login or /model before work.' },
+    ];
+  }
 
   const { ratio, maxTokens } = contextValues(options);
   if (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) {
-    return 'Run /compact before long work.';
+    return [
+      { label: 'State', value: 'Context high' },
+      { label: 'Checks', value: READINESS_CHECKS },
+      { label: 'Next', value: 'Run /compact before long work.' },
+    ];
   }
 
-  return 'Ready: describe the task and Kimi will check the workspace as needed.';
+  return [
+    { label: 'State', value: 'Ready' },
+    { label: 'Checks', value: READINESS_CHECKS },
+    { label: 'Next', value: 'Describe the task to start.' },
+  ];
 }
 
 export function buildStatusReportLines(options: StatusReportOptions): string[] {
@@ -147,7 +163,7 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
   lines.push(accent('Readiness'));
   addFieldRows(
     lines,
-    [{ label: 'Next', value: readinessNextAction(options) }],
+    readinessRows(options),
     muted,
     value,
     errorStyle,

@@ -62,7 +62,9 @@ describe('status panel report lines', () => {
     expect(output).toContain('25.0%');
     expect(output).toContain('(3.0k / 12.0k)');
     expect(output).toContain('Readiness');
-    expect(output).toMatch(/Next\s+Ready: describe the task and Kimi will check the workspace as needed\./);
+    expect(output).toMatch(/State\s+Ready/);
+    expect(output).toMatch(/Checks\s+inspect -> change -> verify -> summarize/);
+    expect(output).toMatch(/Next\s+Describe the task to start\./);
     expect(output).not.toContain('Advanced');
     expect(output).not.toContain('manual workflow commands');
     expect(output).not.toContain('Diagnostics');
@@ -96,6 +98,29 @@ describe('status panel report lines', () => {
     expect(output).toContain('Session      none');
     expect(output).toContain('Warning      No active session');
     expect(output).toContain('No context window data available.');
-    expect(output).toMatch(/Next\s+Run \/login or \/model before starting work\./);
+    expect(output).toMatch(/State\s+Model needed/);
+    expect(output).toMatch(/Checks\s+inspect -> change -> verify -> summarize/);
+    expect(output).toMatch(/Next\s+Run \/login or \/model before work\./);
+  });
+
+  it('surfaces context pressure as the next readiness action', () => {
+    const lines = buildStatusReportLines({
+      version: '1.2.3',
+      model: 'k2',
+      workDir: '/tmp/project',
+      sessionId: 'ses-1',
+      sessionTitle: null,
+      thinking: true,
+      permissionMode: 'manual',
+      planMode: false,
+      contextUsage: 0.9,
+      contextTokens: 9000,
+      maxContextTokens: 10000,
+      availableModels: {},
+    }).map(strip);
+
+    const output = lines.join('\n');
+    expect(output).toMatch(/State\s+Context high/);
+    expect(output).toMatch(/Next\s+Run \/compact before long work\./);
   });
 });
