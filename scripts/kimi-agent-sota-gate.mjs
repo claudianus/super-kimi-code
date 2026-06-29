@@ -22,6 +22,17 @@ const OBSERVATION_ONLY_TUI_SCENARIOS = new Set(['startup', 'permission-mode']);
 const REQUIRED_TUI_INPUT_SCENARIOS = Object.freeze(
   REQUIRED_TUI_SCENARIOS.filter((scenario) => !OBSERVATION_ONLY_TUI_SCENARIOS.has(scenario)),
 );
+const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
+const TUI_VIBE_MODE_TEXT = 'Vibe mode: ON';
+const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
+  { name: 'kimi', pattern: /\bkimi\b/i },
+  { name: 'moonshot', pattern: /moonshot/i },
+  { name: 'slash-command', pattern: /\/(?:help|clear|exit|vibe)/i },
+  { name: 'editor', pattern: /\b(?:ask|message|editor|prompt)\b/i },
+  { name: 'auto-permission', pattern: /\bauto\b|\bpermission\b|\bapproval\b/i },
+  { name: 'vibe-mode', pattern: /vibe mode/i },
+  { name: 'prompt-entry', pattern: /visible qa prompt entry only/i },
+]);
 const DEFAULT_BUDGETS = Object.freeze({
   wallClockMs: 30_000,
   commandCount: 10,
@@ -236,6 +247,7 @@ async function buildReport(options, outputDir, runId) {
     inputs,
     budgets,
     requiredTuiScenarios: REQUIRED_TUI_SCENARIOS,
+    requiredTuiObservationScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
     gates,
     rubricReferences: criteria.references ?? [],
@@ -312,11 +324,12 @@ async function evaluateTuiGate(summary) {
     const file = capture?.path;
     const artifact = file === undefined ? { exists: false, bytes: 0 } : await fileStatus(file);
     const capturePassed = capture?.status === 'PASS' && artifact.exists && artifact.bytes > 0;
+    const screenValidation = await validateTuiScreenArtifact(scenario, file, artifact);
     const inputTrace = inputTraces.find((entry) => entry.scenario === scenario);
     const inputValidation = validateTuiInputTrace(scenario, inputTrace);
     const inputPassed =
       inputValidation.status === 'PASS' || inputValidation.status === 'NOT_REQUIRED';
-    const passed = capturePassed && inputPassed;
+    const passed = capturePassed && screenValidation.status === 'PASS' && inputPassed;
     if (!passed) failures.push(`missing passing live TUI scenario: ${scenario}`);
     scenarioResults.push({
       scenario,
@@ -324,6 +337,10 @@ async function evaluateTuiGate(summary) {
       captureStatus: capture?.status,
       path: file,
       bytes: artifact.bytes,
+      screenObservationStatus: screenValidation.status,
+      screenObservationReason: screenValidation.reason,
+      screenObservationSignals: screenValidation.signals,
+      visibleTextSample: screenValidation.visibleTextSample,
       inputTraceStatus: inputValidation.status,
       inputTraceReason: inputValidation.reason,
       inputSteps: inputValidation.steps,
@@ -336,15 +353,158 @@ async function evaluateTuiGate(summary) {
     required: true,
     reason:
       failures.length === 0
-        ? 'All required live TUI scenarios have passing capture artifacts and input traces.'
+        ? 'All required live TUI scenarios have passing capture artifacts, screen observations, and input traces.'
         : failures.join('; '),
     observed: {
       summaryStatus: summary.status,
       exitSessionClosed: summary.validations?.exitSessionClosed?.status,
+      requiredObservationScenarios: REQUIRED_TUI_SCENARIOS,
       requiredInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
       scenarios: scenarioResults,
     },
   };
+}
+
+async function validateTuiScreenArtifact(scenario, file, artifact) {
+  if (file === undefined) {
+    return {
+      status: 'FAIL',
+      reason: 'missing screen capture path for scenario.',
+      signals: [],
+      visibleTextSample: undefined,
+    };
+  }
+  if (!artifact.exists || artifact.bytes <= 0) {
+    return {
+      status: 'FAIL',
+      reason: 'screen capture artifact is missing or empty.',
+      signals: [],
+      visibleTextSample: undefined,
+    };
+  }
+  try {
+    return inspectTuiScreenText(scenario, await readFile(file, 'utf8'));
+  } catch (error) {
+    return {
+      status: 'FAIL',
+      reason: `failed to read screen capture: ${error instanceof Error ? error.message : String(error)}`,
+      signals: [],
+      visibleTextSample: undefined,
+    };
+  }
+}
+
+function inspectTuiScreenText(scenario, output) {
+  const normalized = normalizeScreenText(output);
+  const lines = output.split(/\r?\n/);
+  const nonBlankLineCount = lines.filter((line) => line.trim().length > 0).length;
+  const signals = detectTuiScreenSignals(normalized);
+  const failures = [];
+  if (normalized.length === 0) failures.push('visible text sample is empty');
+  if (nonBlankLineCount === 0) failures.push('capture has no non-blank screen lines');
+  if (!hasKimiTuiChrome(normalized)) {
+    failures.push('capture does not show recognizable Kimi TUI chrome/content');
+  }
+
+  switch (scenario) {
+    case 'startup':
+      if (!matchesAny(normalized, [/kimi/i, /ask/i, /message/i, /editor/i, /auto/i])) {
+        failures.push('startup capture does not show a Kimi startup/editor state');
+      }
+      break;
+    case 'help':
+      if (!matchesAny(normalized, [/\/help/i, /\bhelp\b/i, /commands?/i])) {
+        failures.push('help capture does not show help or slash-command content');
+      }
+      break;
+    case 'clear':
+      if (!matchesAny(normalized, [/kimi/i, /message/i, /editor/i, /prompt/i])) {
+        failures.push('clear capture does not show a returned Kimi prompt/editor state');
+      }
+      break;
+    case 'vibe-mode':
+      if (!normalized.includes(TUI_VIBE_MODE_TEXT)) {
+        failures.push(`vibe-mode capture does not show local Vibe mode activation: "${TUI_VIBE_MODE_TEXT}"`);
+      }
+      if (!matchesAny(normalized, [/direct coding/i, /no plan gate/i, /plan mode disabled/i])) {
+        failures.push('vibe-mode capture does not show direct-coding/no-plan feedback');
+      }
+      break;
+    case 'autocomplete':
+      if (!matchesAny(normalized, [/\/help/i, /\/clear/i, /commands?/i, /autocomplete/i, /\bauto\b.*\bmodel\b.*\bpermission\b/i, /\(\d+\/\d+\)/])) {
+        failures.push('autocomplete capture does not show slash-command suggestions');
+      }
+      break;
+    case 'prompt-entry':
+      if (!normalized.includes(TUI_PROMPT_ENTRY_TEXT)) {
+        failures.push(`prompt-entry capture does not reflect typed text: "${TUI_PROMPT_ENTRY_TEXT}"`);
+      }
+      break;
+    case 'escape-cancel':
+      if (normalized.includes(TUI_PROMPT_ENTRY_TEXT)) {
+        failures.push('escape-cancel capture still shows the cancelled prompt text');
+      }
+      break;
+    case 'permission-mode':
+      if (!matchesAny(normalized, [/\bauto\b/i, /permission/i, /approval/i])) {
+        failures.push('permission-mode capture does not show auto/permission mode chrome');
+      }
+      break;
+    case 'exit':
+      if (!normalized.includes('/exit')) {
+        failures.push('exit capture does not show the /exit command before submission');
+      }
+      break;
+    default:
+      failures.push(`unexpected TUI capture scenario: ${scenario}`);
+      break;
+  }
+  if (signals.length === 0) failures.push('screen signals are missing');
+  return {
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failures.length === 0
+        ? 'screen transcript has readable Kimi TUI scenario evidence.'
+        : failures.join('; '),
+    signals,
+    visibleTextSample: truncateScreenSample(normalized),
+    lineCount: lines.length,
+    nonBlankLineCount,
+  };
+}
+
+function detectTuiScreenSignals(output) {
+  return TUI_SCREEN_SIGNAL_PATTERNS.filter((entry) => entry.pattern.test(output)).map(
+    (entry) => entry.name,
+  );
+}
+
+function truncateScreenSample(output) {
+  const maxLength = 240;
+  if (output.length <= maxLength) return output;
+  return `${output.slice(0, maxLength - 3)}...`;
+}
+
+function normalizeScreenText(output) {
+  return output
+    .replaceAll(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+}
+
+function hasKimiTuiChrome(output) {
+  return matchesAny(output, [
+    /\bkimi\b/i,
+    /moonshot/i,
+    /\/help/i,
+    /\/clear/i,
+    /\/exit/i,
+    /ask kimi/i,
+  ]);
+}
+
+function matchesAny(output, patterns) {
+  return patterns.some((pattern) => pattern.test(output));
 }
 
 function validateTuiInputTrace(scenario, trace) {
