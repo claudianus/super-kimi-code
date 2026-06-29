@@ -117,7 +117,7 @@ describe('built-in slash command registry', () => {
       (command) => command.name,
     );
 
-    expect(primaryNames.slice(0, 4)).toEqual(['auto', 'model', 'plan', 'yolo']);
+    expect(primaryNames.slice(0, 6)).toEqual(['auto', 'model', 'plan', 'status', 'usage', 'yolo']);
   });
 
   it('describes long-work controls without telling users to start with command names', () => {

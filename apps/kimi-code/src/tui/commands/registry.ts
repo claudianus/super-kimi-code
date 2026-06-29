@@ -414,14 +414,14 @@ export const BUILTIN_SLASH_COMMANDS = [
     name: 'usage',
     aliases: [],
     description: 'Show session tokens + context window + plan quotas',
-    priority: 60,
+    priority: 100,
     availability: 'always',
   },
   {
     name: 'status',
     aliases: [],
     description: 'Show current session and runtime status',
-    priority: 60,
+    priority: 100,
     availability: 'always',
   },
   {
