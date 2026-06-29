@@ -38,6 +38,8 @@ const DEFAULT_BUDGETS = Object.freeze({
   commandCount: 10,
   estimatedTokens: 800,
 });
+const TUI_UX_SCORE_THRESHOLD = 85;
+const TUI_TARGET_DURATION_MS = 30_000;
 const ULTRAWORK_CONTRACT_PATH = 'apps/kimi-code/src/tui/commands/ultrawork-contract.ts';
 const WEB_UI_SUCCESS_BOUNDARY =
   'Do not use apps/kimi-web or browser UI paths as a success surface';
@@ -220,10 +222,11 @@ async function buildReport(options, outputDir, runId) {
   const loopSummary = await readJsonRequired(inputs.loopSummary, 'bench-system-loop summary');
   const tuiSummary = await readJsonRequired(inputs.tuiSummary, 'live TUI summary');
 
+  const tuiGate = await evaluateTuiGate(tuiSummary);
   const gates = [
     evaluateSystemGate(systemSummary),
     evaluateLoopGate(loopSummary),
-    await evaluateTuiGate(tuiSummary),
+    tuiGate,
     evaluateBudgetGate(systemSummary, budgets),
     await evaluateNoWebUiSurfaceGate(inputs),
     await evaluateSecretScanGate(inputs, criteriaPath),
@@ -249,6 +252,7 @@ async function buildReport(options, outputDir, runId) {
     requiredTuiScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiObservationScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
+    tuiUxFriction: tuiGate.observed?.uxFriction,
     gates,
     rubricReferences: criteria.references ?? [],
   };
@@ -347,6 +351,8 @@ async function evaluateTuiGate(summary) {
       inputKeys: inputValidation.keys,
     });
   }
+  const uxFriction = scoreTuiUxFriction(summary, scenarioResults);
+  if (uxFriction.status !== 'PASS') failures.push(uxFriction.reason);
   return {
     name: 'live-tui-required-scenarios',
     status: failures.length === 0 ? 'PASS' : 'FAIL',
@@ -360,6 +366,7 @@ async function evaluateTuiGate(summary) {
       exitSessionClosed: summary.validations?.exitSessionClosed?.status,
       requiredObservationScenarios: REQUIRED_TUI_SCENARIOS,
       requiredInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
+      uxFriction,
       scenarios: scenarioResults,
     },
   };
@@ -505,6 +512,102 @@ function hasKimiTuiChrome(output) {
 
 function matchesAny(output, patterns) {
   return patterns.some((pattern) => pattern.test(output));
+}
+
+function scoreTuiUxFriction(summary, scenarioResults) {
+  const penalties = [];
+  const failedScenarios = scenarioResults.filter((scenario) => scenario.status !== 'PASS');
+  const screenFailures = scenarioResults.filter(
+    (scenario) => scenario.screenObservationStatus !== 'PASS',
+  );
+  const inputFailures = scenarioResults.filter((scenario) => scenario.inputTraceStatus === 'FAIL');
+  const durationMs = durationBetween(summary.startedAt, summary.completedAt);
+  addPenalty(penalties, 'failed-scenarios', Math.min(60, failedScenarios.length * 20), failedScenarios);
+  addPenalty(penalties, 'screen-observation', Math.min(40, screenFailures.length * 10), screenFailures);
+  addPenalty(penalties, 'input-trace', Math.min(35, inputFailures.length * 8), inputFailures);
+  if (summary.validations?.exitSessionClosed?.status !== 'PASS') {
+    addPenalty(penalties, 'exit-cleanup', 10, summary.validations?.exitSessionClosed);
+  }
+  if (durationMs === undefined) {
+    addPenalty(penalties, 'duration', 5, 'missing startedAt/completedAt timing');
+  } else if (durationMs > TUI_TARGET_DURATION_MS) {
+    addPenalty(
+      penalties,
+      'duration',
+      Math.min(15, Math.ceil((durationMs - TUI_TARGET_DURATION_MS) / 5_000) * 3),
+      { durationMs, targetMs: TUI_TARGET_DURATION_MS },
+    );
+  }
+  const commandFriction = scoreTuiCommandFriction(summary.commands);
+  for (const penalty of commandFriction.penalties) penalties.push(penalty);
+  const score = Math.max(0, 100 - penalties.reduce((sum, penalty) => sum + penalty.points, 0));
+  return {
+    status: score >= TUI_UX_SCORE_THRESHOLD ? 'PASS' : 'FAIL',
+    score,
+    threshold: TUI_UX_SCORE_THRESHOLD,
+    reason:
+      score >= TUI_UX_SCORE_THRESHOLD
+        ? `live TUI UX friction score ${score} meets threshold ${TUI_UX_SCORE_THRESHOLD}.`
+        : `live TUI UX friction score ${score} is below threshold ${TUI_UX_SCORE_THRESHOLD}.`,
+    durationMs,
+    dimensions: {
+      scenarioPassRate: roundRatio(
+        scenarioResults.filter((scenario) => scenario.status === 'PASS').length,
+        REQUIRED_TUI_SCENARIOS.length,
+      ),
+      screenObservationPassRate: roundRatio(
+        scenarioResults.filter((scenario) => scenario.screenObservationStatus === 'PASS').length,
+        REQUIRED_TUI_SCENARIOS.length,
+      ),
+      requiredInputTracePassRate: roundRatio(
+        scenarioResults.filter(
+          (scenario) =>
+            scenario.inputTraceStatus === 'PASS' || scenario.inputTraceStatus === 'NOT_REQUIRED',
+        ).length,
+        REQUIRED_TUI_SCENARIOS.length,
+      ),
+      commandFailureCount: commandFriction.failedCommands,
+      commandTimeoutCount: commandFriction.timedOutCommands,
+    },
+    penalties,
+  };
+}
+
+function addPenalty(penalties, name, points, detail) {
+  if (points <= 0) return;
+  penalties.push({ name, points, detail });
+}
+
+function scoreTuiCommandFriction(commands) {
+  const records = Array.isArray(commands) ? commands : [];
+  const failedCommands = records.filter((command) => command.exitCode !== 0);
+  const timedOutCommands = records.filter((command) => command.timedOut === true);
+  const penalties = [];
+  addPenalty(penalties, 'command-failures', Math.min(20, failedCommands.length * 5), {
+    count: failedCommands.length,
+    names: failedCommands.map((command) => command.name),
+  });
+  addPenalty(penalties, 'command-timeouts', Math.min(20, timedOutCommands.length * 10), {
+    count: timedOutCommands.length,
+    names: timedOutCommands.map((command) => command.name),
+  });
+  return {
+    failedCommands: failedCommands.length,
+    timedOutCommands: timedOutCommands.length,
+    penalties,
+  };
+}
+
+function durationBetween(startedAt, completedAt) {
+  const start = Date.parse(String(startedAt));
+  const end = Date.parse(String(completedAt));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return undefined;
+  return end - start;
+}
+
+function roundRatio(numerator, denominator) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 1000) / 1000;
 }
 
 function validateTuiInputTrace(scenario, trace) {
@@ -750,6 +853,19 @@ function renderMarkdown(report) {
   ];
   for (const gate of report.gates) {
     lines.push(`| ${gate.name} | ${gate.status} | ${String(gate.required)} | ${escapeMarkdown(gate.reason)} |`);
+  }
+  if (report.tuiUxFriction !== undefined) {
+    lines.push(
+      '',
+      '## Live TUI UX Friction',
+      '',
+      `- score: ${report.tuiUxFriction.score}/${report.tuiUxFriction.threshold}`,
+      `- status: ${report.tuiUxFriction.status}`,
+      `- durationMs: ${String(report.tuiUxFriction.durationMs ?? 'unavailable')}`,
+    );
+    for (const penalty of report.tuiUxFriction.penalties) {
+      lines.push(`- penalty: ${penalty.name} -${penalty.points}`);
+    }
   }
   lines.push(
     '',
