@@ -112,6 +112,12 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain(
       'Do not use apps/kimi-web or browser UI paths as a success surface',
     );
+    expect(prompt).toContain('XP-lite / Definition of Done');
+    expect(prompt).toContain('Inspect the relevant files, tests, and project rules before editing');
+    expect(prompt).toContain('Keep each change small, focused, and free of unrelated refactors');
+    expect(prompt).toContain('Update or add focused tests before core logic changes when practical');
+    expect(prompt).toContain('Run the relevant tests, typecheck, lint, build, and real-surface checks');
+    expect(prompt).toContain('Summarize changed files, behavior, verification results, and remaining risks');
     expect(prompt).toContain('use only AskUserQuestion or NextPhase');
     expect(prompt).toContain('at most 4 options per question');
     expect(prompt).toContain('Never ask more than 3 total interview questions');

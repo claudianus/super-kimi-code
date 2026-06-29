@@ -50,6 +50,15 @@ const ULTRAWORK_BENCH_GUIDANCE = [
   '- Adopt external CLI, MCP, skill, and harness patterns only when source-backed, rebranded into Super Kimi internals, and validated by the local gate.',
   '- Do not use apps/kimi-web or browser UI paths as a success surface for TUI/CLI benchmark work.',
 ].join('\n');
+const ULTRAWORK_XP_DOD_GUIDANCE = [
+  'XP-lite / Definition of Done:',
+  '- Inspect the relevant files, tests, and project rules before editing; treat code and observed behavior as the source of truth.',
+  '- Keep each change small, focused, and free of unrelated refactors; delete or simplify only when the call sites and tests prove it is safe.',
+  '- Update or add focused tests before core logic changes when practical, then implement the minimum code needed to make the contract true.',
+  '- Run the relevant tests, typecheck, lint, build, and real-surface checks for the changed behavior; fix failures or report exact external blockers.',
+  '- Do not claim completion until related tests pass, typecheck/lint/build gates that apply are accounted for, no unrelated files are changed, and public behavior is covered by tests unless the change is cosmetic or docs-only.',
+  '- Summarize changed files, behavior, verification results, and remaining risks before finishing.',
+].join('\n');
 
 export function parseUltraworkCommand(rawArgs: string): ParsedUltraworkCommand {
   if (rawArgs.trim().length === 0) {
@@ -116,6 +125,7 @@ export function buildUltraworkPrompt(
     `- ${ULTRAWORK_LEAN_CONTEXT_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
+    `- ${ULTRAWORK_XP_DOD_GUIDANCE.replaceAll('\n', '\n  ')}`,
     '- Interview the user only when a missing decision blocks correctness; otherwise proceed with best judgment.',
     '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',
     '- When using AskUserQuestion, ask 1-3 focused questions and provide at most 4 options per question.',
