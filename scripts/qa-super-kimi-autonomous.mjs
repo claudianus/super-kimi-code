@@ -3832,6 +3832,10 @@ function buildTmuxKeyboardSetupCommand(tmuxSession) {
   ].join('; ') + ';';
 }
 
+function buildTuiDevShellCommand(kimiCodeDir) {
+  return `corepack pnpm --silent -C ${kimiCodeDir} run dev --`;
+}
+
 async function runTuiLaunchPhase(context) {
   const startedAt = new Date().toISOString();
   const tuiDir = path.join(context.evidenceRoot, 'tui');
@@ -3866,6 +3870,7 @@ async function runTuiLaunchPhase(context) {
       'KIMI_CODE_HOME=<tmp-home>',
       'corepack',
       'pnpm',
+      '--silent',
       '-C',
       'apps/kimi-code',
       'run',
@@ -3960,7 +3965,7 @@ async function runTuiLaunchPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
-      'corepack pnpm -C apps/kimi-code run dev --',
+      buildTuiDevShellCommand('apps/kimi-code'),
       '--auto',
       '--add-dir',
       shellQuote(context.targetWorktree),
@@ -4294,7 +4299,7 @@ async function runTuiRealWorkflowPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
-      `corepack pnpm -C ${shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))} run dev --`,
+      buildTuiDevShellCommand(shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))),
       '--auto',
       '--add-dir',
       shellQuote(context.targetWorktree),
@@ -4787,7 +4792,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
-      `corepack pnpm -C ${shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))} run dev --`,
+      buildTuiDevShellCommand(shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))),
       '--auto',
       '--add-dir',
       shellQuote(context.targetWorktree),
@@ -7668,6 +7673,9 @@ function inspectTuiCapture(scenario, output) {
   }
   if (/tmux extended-keys is off|tmux extended-keys-format is xterm/i.test(normalized)) {
     failures.push('capture shows tmux keyboard protocol warning');
+  }
+  if (/^>\s*@moonshot-ai\/kimi-code@.*\bdev\b/m.test(output) || /^>\s*node scripts\/dev\.mjs\b/m.test(output)) {
+    failures.push('capture shows pnpm dev script header');
   }
 
   switch (scenario) {
