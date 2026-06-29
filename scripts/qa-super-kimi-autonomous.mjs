@@ -120,6 +120,7 @@ const BOOLEAN_OPTIONS = new Set([
   '--print-plan',
   '--install',
   '--simulate-missing-auth',
+  '--use-real-kimi-home',
 ]);
 const VALUE_OPTIONS = new Set([
   '--phase',
@@ -186,6 +187,7 @@ Options:
   --port <port>                       Record the intended loopback port.
   --tmux-session <name>               Record the intended tmux session name.
   --kimi-code-home <dir>              Record the intended KIMI_CODE_HOME.
+  --use-real-kimi-home                Use the real ~/.kimi-code home for live TUI workflow auth/model checks.
   --require-computer-use <available|missing>
                                       Record expected computer-use availability.
   --simulate-missing-auth             Record a missing-auth simulation request.
@@ -225,6 +227,7 @@ function parseArgs(argv) {
     tmuxSession: undefined,
     tuiAfter: undefined,
     tuiBefore: undefined,
+    useRealKimiHome: false,
   };
   const errors = [];
 
@@ -272,6 +275,9 @@ function parseArgs(argv) {
   if (options.phase !== undefined && !SUPPORTED_PHASES.includes(options.phase)) {
     errors.push(`Invalid phase: ${options.phase}`);
   }
+  if (options.kimiCodeHome !== undefined && options.useRealKimiHome) {
+    errors.push('--kimi-code-home cannot be combined with --use-real-kimi-home');
+  }
 
   if (
     options.requireComputerUse !== undefined &&
@@ -318,6 +324,9 @@ function setBooleanOption(options, flag) {
       break;
     case '--simulate-missing-auth':
       options.simulateMissingAuth = true;
+      break;
+    case '--use-real-kimi-home':
+      options.useRealKimiHome = true;
       break;
   }
 }
@@ -374,7 +383,16 @@ async function runHarness(options, runId) {
   const sourceCheckout = resolveSourceCheckout();
   const nodeRuntime = resolveRequiredNodeRuntime(sourceCheckout);
   const tempRoot = path.join(os.tmpdir(), 'super-kimi-autonomous-qa', runId);
-  const plannedKimiCodeHome = path.resolve(options.kimiCodeHome ?? path.join(tempRoot, 'kimi-home'));
+  const plannedKimiCodeHome = path.resolve(
+    options.useRealKimiHome
+      ? defaultRealKimiCodeHome()
+      : options.kimiCodeHome ?? path.join(tempRoot, 'kimi-home'),
+  );
+  const kimiCodeHomeMode = options.useRealKimiHome
+    ? 'real-user-opt-in'
+    : options.kimiCodeHome === undefined
+      ? 'generated-temp-home'
+      : 'caller-supplied';
   const targetWorktree = path.join(tempRoot, 'target-worktree');
   const titlePrefix = createTerminalTitlePrefix(runId);
   const selectedPort = await selectPort(options.port);
@@ -439,6 +457,7 @@ async function runHarness(options, runId) {
     sourceCheckout,
     nodeRuntime,
     kimiCodeHome: plannedKimiCodeHome,
+    kimiCodeHomeMode,
     selectedPort: selectedPort.port,
     selectedPortSource: selectedPort.source,
     baselinePath,
@@ -463,6 +482,7 @@ async function runHarness(options, runId) {
     evidenceRoot,
     options,
     plannedKimiCodeHome,
+    kimiCodeHomeMode,
     preflight,
     redactionPolicy,
     runId,
@@ -3340,6 +3360,44 @@ function validateDirectCliIsolation(context) {
   };
 }
 
+function defaultRealKimiCodeHome() {
+  return path.join(os.homedir(), '.kimi-code');
+}
+
+async function inspectKimiCodeHomeForLiveWorkflow(kimiCodeHome) {
+  const resolvedPath = path.resolve(kimiCodeHome);
+  if (resolvedPath === path.resolve(os.homedir())) {
+    return {
+      status: 'FAIL',
+      reason: 'real workflow KIMI_CODE_HOME must not point at the user home directory itself.',
+      path: resolvedPath,
+    };
+  }
+  let info;
+  try {
+    info = await stat(resolvedPath);
+  } catch {
+    return {
+      status: 'BLOCKED',
+      reason: `real KIMI_CODE_HOME does not exist: ${resolvedPath}`,
+      path: resolvedPath,
+    };
+  }
+  if (!info.isDirectory()) {
+    return {
+      status: 'FAIL',
+      reason: `real KIMI_CODE_HOME is not a directory: ${resolvedPath}`,
+      path: resolvedPath,
+    };
+  }
+  return {
+    status: 'PASS',
+    reason:
+      'Real KIMI_CODE_HOME exists and will be used by explicit opt-in without reading or copying secret contents.',
+    path: resolvedPath,
+  };
+}
+
 async function createDisposableGitWorktree(context) {
   await mkdir(path.dirname(context.targetWorktree), { recursive: true });
   const result = runBoundedCommand(
@@ -3541,6 +3599,7 @@ async function runTuiLaunchPhase(context) {
     targetWorkspace: context.targetWorktree,
     targetWorkspaceKind: 'disposable-git-worktree',
     kimiCodeHome: context.plannedKimiCodeHome,
+    kimiCodeHomeMode: context.kimiCodeHomeMode,
     tmuxSession,
     terminalTitle: context.titlePrefix,
     launchCommand: [
@@ -3566,6 +3625,7 @@ async function runTuiLaunchPhase(context) {
   let tempHomeCreated = false;
   let tempRootCreated = false;
   let tmuxSessionCreated = false;
+  let migrationSkipMarker;
 
   await mkdir(tuiDir, { recursive: true });
   await writeTuiAttachHelpers(context, tmuxSession);
@@ -3600,15 +3660,40 @@ async function runTuiLaunchPhase(context) {
 
     await mkdir(context.tempRoot, { recursive: true });
     tempRootCreated = true;
-    await mkdir(context.plannedKimiCodeHome, { recursive: true, mode: 0o700 });
-    tempHomeCreated = true;
-    const migrationSkipMarker = path.join(context.plannedKimiCodeHome, '.skip-migration-from-kimi-cli');
-    await writeFile(migrationSkipMarker, '', 'utf8');
-    summary.migrationPromptSuppressed = {
-      status: 'PASS',
-      reason: 'Temporary QA KIMI_CODE_HOME includes the first-launch migration skip marker.',
-      markerPath: migrationSkipMarker,
-    };
+    if (context.kimiCodeHomeMode === 'real-user-opt-in') {
+      const realHomeProbe = await inspectKimiCodeHomeForLiveWorkflow(context.plannedKimiCodeHome);
+      summary.kimiCodeHomeProbe = realHomeProbe;
+      summary.validations.kimiCodeHomeReady = passFail(
+        realHomeProbe.status === 'PASS',
+        realHomeProbe.reason,
+      );
+      if (summary.validations.kimiCodeHomeReady.status !== 'PASS') {
+        summary.status = realHomeProbe.status === 'BLOCKED' ? 'BLOCKED' : 'FAIL';
+        summary.reason = realHomeProbe.reason;
+        return await finishTuiLaunchPhase(context, summary, cleanupOverrides);
+      }
+      summary.migrationPromptSuppressed = {
+        status: 'NOT_REQUIRED',
+        reason:
+          'Real user KIMI_CODE_HOME was selected by explicit opt-in; the harness did not write migration markers.',
+        markerPath: undefined,
+      };
+    } else {
+      await mkdir(context.plannedKimiCodeHome, { recursive: true, mode: 0o700 });
+      tempHomeCreated = true;
+      migrationSkipMarker = path.join(context.plannedKimiCodeHome, '.skip-migration-from-kimi-cli');
+      await writeFile(migrationSkipMarker, '', 'utf8');
+      summary.kimiCodeHomeProbe = {
+        status: 'PASS',
+        reason: 'Temporary isolated KIMI_CODE_HOME was created with migration prompt suppressed.',
+        path: context.plannedKimiCodeHome,
+      };
+      summary.migrationPromptSuppressed = {
+        status: 'PASS',
+        reason: 'Temporary QA KIMI_CODE_HOME includes the first-launch migration skip marker.',
+        markerPath: migrationSkipMarker,
+      };
+    }
     await createDisposableGitWorktree(context);
     targetWorktreeCreated = true;
 
@@ -3837,6 +3922,7 @@ async function runTuiRealWorkflowPhase(context) {
     targetWorkspace: context.targetWorktree,
     targetWorkspaceKind: 'disposable-git-worktree',
     kimiCodeHome: context.plannedKimiCodeHome,
+    kimiCodeHomeMode: context.kimiCodeHomeMode,
     tmuxSession,
     terminalTitle: context.titlePrefix,
     fixture: {
@@ -3848,6 +3934,13 @@ async function runTuiRealWorkflowPhase(context) {
     inputTraces: [],
     captures: [],
     validations: {},
+    evaluation: {
+      tier: 'real-tui-observed-workflow',
+      primaryUse: 'live TUI coding smoke gate',
+      limitation:
+        'This phase observes screens and sends ordered keyboard input, but does not yet adaptively steer mid-run like an expert vibe coder.',
+      nextTier: 'adaptive-vibecoder-operator-loop',
+    },
     workflow: {},
     workspace: {},
   };
@@ -3872,17 +3965,36 @@ async function runTuiRealWorkflowPhase(context) {
 
     await mkdir(context.tempRoot, { recursive: true });
     tempRootCreated = true;
-    await mkdir(context.plannedKimiCodeHome, { recursive: true, mode: 0o700 });
-    tempHomeCreated = true;
-    const migrationSkipMarker = path.join(context.plannedKimiCodeHome, '.skip-migration-from-kimi-cli');
-    await writeFile(migrationSkipMarker, '', 'utf8');
+    if (context.kimiCodeHomeMode === 'real-user-opt-in') {
+      const realHomeProbe = await inspectKimiCodeHomeForLiveWorkflow(context.plannedKimiCodeHome);
+      summary.kimiCodeHomeProbe = realHomeProbe;
+      summary.validations.kimiCodeHomeReady = passFail(
+        realHomeProbe.status === 'PASS',
+        realHomeProbe.reason,
+      );
+      if (summary.validations.kimiCodeHomeReady.status !== 'PASS') {
+        summary.status = realHomeProbe.status === 'BLOCKED' ? 'BLOCKED' : 'FAIL';
+        summary.reason = realHomeProbe.reason;
+        return await finishTuiRealWorkflowPhase(context, summary, cleanupOverrides);
+      }
+    } else {
+      await mkdir(context.plannedKimiCodeHome, { recursive: true, mode: 0o700 });
+      tempHomeCreated = true;
+      const migrationSkipMarker = path.join(context.plannedKimiCodeHome, '.skip-migration-from-kimi-cli');
+      await writeFile(migrationSkipMarker, '', 'utf8');
+      summary.kimiCodeHomeProbe = {
+        status: 'PASS',
+        reason: 'Temporary isolated KIMI_CODE_HOME was created with migration prompt suppressed.',
+        path: context.plannedKimiCodeHome,
+      };
+    }
     await createDisposableGitWorktree(context);
     targetWorktreeCreated = true;
     await writeFile(
       fixturePath,
       [
         'Super Kimi real TUI workflow fixture.',
-        'A real vibe-coding run must replace TODO_REAL_WORKFLOW below.',
+        'A real vibe-coding run must update the status line below.',
         'status=TODO_REAL_WORKFLOW',
         '',
       ].join('\n'),
@@ -4001,9 +4113,9 @@ async function runTuiRealWorkflowPhase(context) {
     );
     summary.validations.workspaceChanged = passFail(
       typeof fixtureText === 'string' &&
-        fixtureText.includes(TUI_REAL_WORKFLOW_SENTINEL) &&
-        !fixtureText.includes('TODO_REAL_WORKFLOW'),
-      'fixture must contain the requested sentinel and no longer contain TODO_REAL_WORKFLOW.',
+        fixtureText.includes(`status=${TUI_REAL_WORKFLOW_SENTINEL}`) &&
+        !fixtureText.includes('status=TODO_REAL_WORKFLOW'),
+      'fixture status line must contain the requested sentinel and no longer contain status=TODO_REAL_WORKFLOW.',
     );
     summary.validations.diffContainsSentinel = passFail(
       diffRecord.exitCode === 0 && diffRecord.stdout.includes(TUI_REAL_WORKFLOW_SENTINEL),
@@ -4017,6 +4129,9 @@ async function runTuiRealWorkflowPhase(context) {
       summary.captures.every((capture) => capture.status === 'PASS'),
       'startup, submitted, and after-wait screen captures must show recognizable TUI evidence.',
     );
+    summary.validations.kimiModelReady = await validateTuiRealWorkflowModelEvidence(
+      summary.captures,
+    );
     summary.workspace = {
       fixturePath,
       fixtureBytes: typeof fixtureText === 'string' ? Buffer.byteLength(fixtureText) : 0,
@@ -4024,6 +4139,8 @@ async function runTuiRealWorkflowPhase(context) {
       diffExitCode: diffRecord.exitCode,
       verificationExitCode: verificationRecord.exitCode,
     };
+    summary.operatorTrajectory = buildTuiRealWorkflowOperatorTrajectory(summary);
+    summary.validations.operatorTrajectory = validateTuiRealWorkflowOperatorTrajectory(summary);
 
     const failedValidation = Object.values(summary.validations).find(
       (validation) => validation.status !== 'PASS',
@@ -4098,15 +4215,25 @@ async function runTuiRealWorkflowPhase(context) {
         await rm(context.tempRoot, { recursive: true, force: true });
       }
     }
-    cleanupOverrides.tempHome = {
-      path: context.plannedKimiCodeHome,
-      created: tempHomeCreated,
-      removed: tempRootCreated && !context.options.keepTemp,
-      retained: tempRootCreated && context.options.keepTemp,
-      detail: tempHomeCreated
-        ? 'Real TUI workflow KIMI_CODE_HOME was created for isolated launch.'
-        : 'Real TUI workflow KIMI_CODE_HOME was not created before block/failure.',
-    };
+    cleanupOverrides.tempHome =
+      context.kimiCodeHomeMode === 'real-user-opt-in'
+        ? {
+            path: context.plannedKimiCodeHome,
+            created: false,
+            removed: false,
+            retained: true,
+            detail:
+              'Real user KIMI_CODE_HOME was referenced by explicit opt-in only; the harness did not create, copy, or remove it.',
+          }
+        : {
+            path: context.plannedKimiCodeHome,
+            created: tempHomeCreated,
+            removed: tempRootCreated && !context.options.keepTemp,
+            retained: tempRootCreated && context.options.keepTemp,
+            detail: tempHomeCreated
+              ? 'Real TUI workflow KIMI_CODE_HOME was created for isolated launch.'
+              : 'Real TUI workflow KIMI_CODE_HOME was not created before block/failure.',
+          };
     cleanupOverrides.targetWorktree = cleanupOverrides.targetWorktree ?? {
       path: context.targetWorktree,
       created: targetWorktreeCreated,
@@ -4210,6 +4337,97 @@ function detectRealWorkflowScreenBlocker(output) {
     return 'Provider quota/rate limit blocked the real vibe-coding workflow.';
   }
   return undefined;
+}
+
+async function validateTuiRealWorkflowModelEvidence(captures) {
+  const readable = captures.filter((capture) => typeof capture.path === 'string');
+  for (const capture of readable) {
+    const raw = await readFileIfExists(capture.path);
+    if (typeof raw === 'string' && /Model:\s*K2\.7 Code/i.test(normalizeScreenText(raw))) {
+      return {
+        status: 'PASS',
+        reason: 'Live TUI screen evidence shows Model: K2.7 Code.',
+        path: capture.path,
+      };
+    }
+  }
+  return {
+    status: 'FAIL',
+    reason: 'Live TUI screen evidence must show Model: K2.7 Code.',
+    checkedCaptures: readable.map((capture) => capture.path),
+  };
+}
+
+function buildTuiRealWorkflowOperatorTrajectory(summary) {
+  const passedCaptures = new Set(
+    summary.captures
+      .filter((capture) => capture.status === 'PASS')
+      .map((capture) => capture.scenario),
+  );
+  const passedInputTraces = new Set(
+    summary.inputTraces
+      .filter((trace) => trace.status === 'PASS')
+      .map((trace) => trace.scenario),
+  );
+  const steps = [
+    {
+      name: 'observe-startup-screen',
+      status: passedCaptures.has('startup') ? 'PASS' : 'FAIL',
+      evidence: 'tui/startup.txt',
+    },
+    {
+      name: 'submit-coding-task-with-keyboard',
+      status: passedInputTraces.has('real-workflow-prompt') ? 'PASS' : 'FAIL',
+      evidence: 'inputTraces[real-workflow-prompt]',
+    },
+    {
+      name: 'observe-submitted-workflow-screen',
+      status: passedCaptures.has('real-workflow-submitted') ? 'PASS' : 'FAIL',
+      evidence: 'tui/real-workflow-submitted.txt',
+    },
+    {
+      name: 'observe-workflow-result-screen',
+      status: passedCaptures.has('real-workflow-after-wait') ? 'PASS' : 'FAIL',
+      evidence: 'tui/real-workflow-after-wait.txt',
+    },
+    {
+      name: 'review-workspace-diff',
+      status: summary.workspace?.diffExitCode === 0 ? 'PASS' : 'FAIL',
+      evidence: 'workflow/git-diff.patch',
+    },
+    {
+      name: 'run-verification-command',
+      status: summary.workspace?.verificationExitCode === 0 ? 'PASS' : 'FAIL',
+      evidence: 'commands[real-workflow-verification]',
+    },
+  ];
+  return {
+    tier: 'real-tui-observed-workflow',
+    verdict: 'real-screen-and-keyboard-smoke-not-full-vibecoder-benchmark',
+    principle:
+      'A vibe-coder gate must observe the TUI and operate it through visible input, not score only a hidden prompt/final-output exchange.',
+    steps,
+    limitation:
+      'The current phase still waits for the model outcome instead of making adaptive mid-run steering decisions from screen state.',
+    nextTier: 'adaptive-vibecoder-operator-loop',
+  };
+}
+
+function validateTuiRealWorkflowOperatorTrajectory(summary) {
+  const trajectory = buildTuiRealWorkflowOperatorTrajectory(summary);
+  const failedSteps = trajectory.steps.filter((step) => step.status !== 'PASS');
+  return {
+    status: failedSteps.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failedSteps.length === 0
+        ? 'Real TUI workflow includes visible screen observation, ordered keyboard input, diff review, and verification evidence; adaptive steering remains the next-tier requirement.'
+        : `Real TUI workflow is too close to blind prompting; missing operator evidence: ${failedSteps
+            .map((step) => step.name)
+            .join(', ')}.`,
+    tier: trajectory.tier,
+    limitation: trajectory.limitation,
+    failedSteps,
+  };
 }
 
 function buildTuiRealWorkflowPrompt(fixturePath) {
@@ -7719,6 +7937,7 @@ function manifestOptions(options) {
     tmuxSession: options.tmuxSession,
     tuiAfter: options.tuiAfter,
     tuiBefore: options.tuiBefore,
+    useRealKimiHome: options.useRealKimiHome,
   };
 }
 

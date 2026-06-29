@@ -615,15 +615,23 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate) {
   if (actions.length === 0) {
     addAction(
       'expand-to-real-vibe-coding-task',
-      'Current live TUI smoke interaction evidence passes; the next loop should drive one realistic coding change through the TUI and score screen state, key trace, diff, tests, and cleanup as the primary evidence.',
+      'Current live TUI smoke interaction evidence passes; the next loop must drive an observed realistic coding change through the TUI, then upgrade toward adaptive screen-driven steering rather than blind prompt/result scoring.',
       {
         currentScore: uxFriction?.score,
         deltaVerdict: tuiUxDeltaGate?.observed?.verdict ?? 'not-compared',
+        requiredOperatorEvidence: [
+          'startup screen observation',
+          'ordered keyboard prompt submission',
+          'submitted/result screen observation',
+          'workspace diff review',
+          'verification command',
+        ],
+        nextTier: 'adaptive-vibecoder-operator-loop',
         passingScenarios: scenarios
           .filter((scenario) => scenario.status === 'PASS')
           .map((scenario) => scenario.scenario),
       },
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-real-workflow --evidence-root .omo/evidence/<real-vibe-coding-before-after>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-real-workflow --use-real-kimi-home --evidence-root .omo/evidence/<real-vibe-coding-before-after>',
     );
   }
 
