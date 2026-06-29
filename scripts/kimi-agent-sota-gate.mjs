@@ -30,10 +30,13 @@ const TUI_REAL_WORKFLOW_GUIDANCE = 'real repository source/test workflow evidenc
 const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
   { name: 'kimi', pattern: /\bkimi\b/i },
   { name: 'moonshot', pattern: /moonshot/i },
-  { name: 'slash-command', pattern: /\/(?:help|clear|exit)/i },
+  { name: 'slash-command', pattern: /\/(?:help|status|clear|exit)/i },
   { name: 'editor', pattern: /\b(?:ask|message|editor|prompt)\b/i },
   { name: 'auto-permission', pattern: /\bauto\b|\bpermission\b|\bapproval\b/i },
   { name: 'prompt-entry', pattern: /visible qa prompt entry only/i },
+  { name: 'status-readiness', pattern: /\breadiness\b.*\bstate\b.*\bchecks\b.*\bnext\b/i },
+  { name: 'xp-dod-readiness', pattern: /\bScope\b.*\bCoverage\b.*\bScreen check\b.*\bDone gate\b/i },
+  { name: 'done-gate', pattern: /\bDone gate\b\s+tests\/typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i },
 ]);
 const DEFAULT_BUDGETS = Object.freeze({
   wallClockMs: 30_000,
