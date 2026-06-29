@@ -601,7 +601,7 @@ function unavailableStatus(sourcePath: string, warning: string): BenchStatus {
   };
 }
 
-function readJson(path: string): unknown | null {
+function readJson(path: string): unknown {
   try {
     return JSON.parse(readFileSync(path, 'utf8')) as unknown;
   } catch {

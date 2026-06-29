@@ -68,7 +68,6 @@ export function renderAnchor(anchor: AnchorDocument): string {
 }
 
 export function extractAnchorDiff(summary: string): Partial<AnchorDocument> {
-  const diff: Partial<AnchorDocument> = {};
   const lines = summary.split('\n');
 
   const changes: string[] = [];

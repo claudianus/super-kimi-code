@@ -12,7 +12,9 @@ export interface SkillMetadata {
   readonly [key: string]: unknown;
 }
 
-export type SkillRisk = 'low' | 'medium' | 'high' | 'unknown' | string;
+type CustomSkillRisk = string & { readonly __customSkillRisk?: never };
+
+export type SkillRisk = 'low' | 'medium' | 'high' | 'unknown' | CustomSkillRisk;
 
 export interface SkillDefinition {
   readonly name: string;

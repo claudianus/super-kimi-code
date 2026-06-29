@@ -89,7 +89,7 @@ async function buildCatalog() {
         // Extract tags from name and description
         const tags = [
           division,
-          ...(meta.name || '').toLowerCase().split(/[\s\/]+/),
+          ...(meta.name || '').toLowerCase().split(/[\s/]+/),
           ...(meta.description || '').toLowerCase().split(/\s+/)
         ].filter((v, i, a) => a.indexOf(v) === i && v.length > 2).slice(0, 20);
 

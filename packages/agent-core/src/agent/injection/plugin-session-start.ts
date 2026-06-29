@@ -58,7 +58,7 @@ export class PluginSessionStartInjector extends DynamicInjector {
       this.injectedAt = replayedAt;
       return undefined;
     }
-    return await renderPluginSessionStartReminder({
+    return renderPluginSessionStartReminder({
       sessionStarts: this.agent.pluginSessionStarts,
       registry: this.agent.skills?.registry,
       log: this.agent.log,

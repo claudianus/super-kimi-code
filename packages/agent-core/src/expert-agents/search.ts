@@ -95,7 +95,7 @@ export class ExpertSearchEngine {
     if (queryTerms.length === 0) return [];
 
     const scores = new Map<string, number>();
-    for (const [id, embedding] of this.embeddingCache) {
+    for (const id of this.embeddingCache.keys()) {
       const expert = this.expertById.get(id);
       if (!expert) continue;
       const text = `${expert.name} ${expert.description} ${expert.vibe} ${expert.tags.join(' ')} ${expert.capabilities.join(' ')}`.toLowerCase();

@@ -98,7 +98,6 @@ export class MicroCompaction {
   compact(messages: readonly ContextMessage[]): readonly ContextMessage[] {
     if (!this.agent.experimentalFlags.enabled('micro_compaction')) return messages;
 
-    const config = this.config;
     const result: ContextMessage[] = [];
     let i = 0;
     for (const msg of messages) {

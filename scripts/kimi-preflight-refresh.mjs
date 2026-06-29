@@ -173,7 +173,7 @@ function main() {
   }
 
   if (parsed.options.expectStatus !== undefined && status !== parsed.options.expectStatus) {
-    console.error(`Expected status ${parsed.options.expectStatus}, got ${status}`);
+    console.error(`Expected status ${String(parsed.options.expectStatus)}, got ${status}`);
     process.exitCode = 1;
     return;
   }
