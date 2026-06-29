@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const DEFAULT_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
 const DEFAULT_OUTPUT_BASE = '.omo/evidence/kimi-agent-sota-gate';
+const DEFAULT_EVIDENCE_ROOT = '.omo/evidence';
+const SOTA_SUMMARY_FILENAME = 'sota-gate-summary.json';
+const AUTO_BASELINE_SCAN_LIMIT = 20_000;
 const REQUIRED_TUI_SCENARIOS = Object.freeze([
   'startup',
   'help',
@@ -68,6 +71,7 @@ Options:
   --max-command-count <n>             System benchmark command-count budget.
   --max-estimated-tokens <n>          System benchmark estimated-token budget.
   --baseline-sota-summary <path>      Optional prior SOTA gate summary for live TUI UX delta checks.
+                                       When omitted, the latest prior PASS summary under ${DEFAULT_EVIDENCE_ROOT} is used when available.
   --require-cleanup-receipt           Fail when cleanup receipts are missing.
 
 Reports:
@@ -217,21 +221,17 @@ async function buildReport(options, outputDir, runId) {
       criteria.budgetDefaults?.estimatedTokens ??
       DEFAULT_BUDGETS.estimatedTokens,
   };
-  const inputs = {
+  const evidenceInputs = {
     systemSummary: path.resolve(options.systemSummary),
     loopSummary: path.resolve(options.loopSummary),
     tuiSummary: path.resolve(options.tuiSummary),
   };
-  if (options.baselineSotaSummary !== undefined) {
-    inputs.baselineSotaSummary = path.resolve(options.baselineSotaSummary);
-  }
-  const systemSummary = await readJsonRequired(inputs.systemSummary, 'bench-system summary');
-  const loopSummary = await readJsonRequired(inputs.loopSummary, 'bench-system-loop summary');
-  const tuiSummary = await readJsonRequired(inputs.tuiSummary, 'live TUI summary');
-  const baselineSotaSummary =
-    inputs.baselineSotaSummary === undefined
-      ? undefined
-      : await readJsonRequired(inputs.baselineSotaSummary, 'baseline SOTA gate summary');
+  const baselineSelection = await selectBaselineSotaSummary(options, outputDir);
+  const inputs = { ...evidenceInputs };
+  if (baselineSelection !== undefined) inputs.baselineSotaSummary = baselineSelection.path;
+  const systemSummary = await readJsonRequired(evidenceInputs.systemSummary, 'bench-system summary');
+  const loopSummary = await readJsonRequired(evidenceInputs.loopSummary, 'bench-system-loop summary');
+  const tuiSummary = await readJsonRequired(evidenceInputs.tuiSummary, 'live TUI summary');
 
   const tuiGate = await evaluateTuiGate(tuiSummary);
   const gates = [
@@ -239,14 +239,14 @@ async function buildReport(options, outputDir, runId) {
     evaluateLoopGate(loopSummary),
     tuiGate,
     evaluateBudgetGate(systemSummary, budgets),
-    await evaluateNoWebUiSurfaceGate(inputs),
+    await evaluateNoWebUiSurfaceGate(evidenceInputs),
     await evaluateSecretScanGate(inputs, criteriaPath),
-    await evaluateCleanupReceiptGate(inputs, options.requireCleanupReceipt),
+    await evaluateCleanupReceiptGate(evidenceInputs, options.requireCleanupReceipt),
   ];
   const tuiUxDelta =
-    baselineSotaSummary === undefined
+    baselineSelection === undefined
       ? undefined
-      : evaluateTuiUxDeltaGate(baselineSotaSummary, tuiGate.observed?.uxFriction);
+      : evaluateTuiUxDeltaGate(baselineSelection.summary, tuiGate.observed?.uxFriction);
   if (tuiUxDelta !== undefined) gates.push(tuiUxDelta);
   const status = gates.every((gate) => gate.status === 'PASS' || gate.required === false) ? 'PASS' : 'FAIL';
   return {
@@ -268,6 +268,7 @@ async function buildReport(options, outputDir, runId) {
     requiredTuiScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiObservationScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
+    tuiUxBaseline: baselineSelection?.metadata,
     tuiUxFriction: tuiGate.observed?.uxFriction,
     tuiUxDelta: tuiUxDelta?.observed,
     gates,
@@ -332,6 +333,88 @@ function evaluateLoopGate(summary) {
       wallClockMs: bench?.wallClockMs,
     },
   };
+}
+
+async function selectBaselineSotaSummary(options, outputDir) {
+  if (options.baselineSotaSummary !== undefined) {
+    const baselinePath = path.resolve(options.baselineSotaSummary);
+    const summary = await readJsonRequired(baselinePath, 'baseline SOTA gate summary');
+    return buildBaselineSelection('explicit', baselinePath, summary);
+  }
+  return findLatestAutoBaselineSotaSummary(path.resolve(DEFAULT_EVIDENCE_ROOT), outputDir);
+}
+
+async function findLatestAutoBaselineSotaSummary(evidenceRoot, outputDir) {
+  const candidates = await findSotaSummaryFiles(evidenceRoot, {
+    excludeDir: outputDir,
+    limit: AUTO_BASELINE_SCAN_LIMIT,
+  });
+  for (const candidate of candidates) {
+    const summary = await readJsonIfFile(candidate.path);
+    if (!isUsableSotaBaseline(summary)) continue;
+    return buildBaselineSelection('auto', candidate.path, summary, candidate.modifiedAt);
+  }
+  return undefined;
+}
+
+async function findSotaSummaryFiles(rootDir, options) {
+  const files = [];
+  const stack = [''];
+  while (stack.length > 0 && files.length < options.limit) {
+    const relativeDir = stack.pop();
+    const absoluteDir = path.join(rootDir, relativeDir);
+    let entries;
+    try {
+      entries = await readdir(absoluteDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const relativePath = path.join(relativeDir, entry.name);
+      const absolutePath = path.join(rootDir, relativePath);
+      if (isPathInside(absolutePath, options.excludeDir)) continue;
+      if (entry.isDirectory()) {
+        stack.push(relativePath);
+        continue;
+      }
+      if (!entry.isFile() || entry.name !== SOTA_SUMMARY_FILENAME) continue;
+      const info = await fileStatOrUndefined(absolutePath);
+      if (info === undefined) continue;
+      files.push({ path: absolutePath, modifiedAt: info.mtimeMs });
+      if (files.length >= options.limit) break;
+    }
+  }
+  return files.toSorted((left, right) => right.modifiedAt - left.modifiedAt);
+}
+
+function buildBaselineSelection(mode, baselinePath, summary, modifiedAt) {
+  const friction = extractTuiUxFriction(summary);
+  return {
+    mode,
+    path: baselinePath,
+    summary,
+    metadata: {
+      status: 'FOUND',
+      mode,
+      path: baselinePath,
+      runId: summary.runId,
+      reportStatus: summary.status,
+      score: friction?.score,
+      frictionStatus: friction?.status,
+      durationMs: friction?.durationMs,
+      modifiedAt,
+    },
+  };
+}
+
+function isUsableSotaBaseline(summary) {
+  const friction = extractTuiUxFriction(summary);
+  return (
+    summary?.gate === 'super-kimi-agent-sota-gate' &&
+    summary.status === 'PASS' &&
+    friction?.status === 'PASS' &&
+    typeof friction.score === 'number'
+  );
 }
 
 async function evaluateTuiGate(summary) {
@@ -882,12 +965,35 @@ function cleanupReceiptPathFor(inputPath) {
   return undefined;
 }
 
+function isPathInside(childPath, parentPath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(childPath));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
 async function fileStatus(file) {
   try {
     const info = await stat(file);
     return { exists: info.isFile(), bytes: info.size };
   } catch {
     return { exists: false, bytes: 0 };
+  }
+}
+
+async function fileStatOrUndefined(file) {
+  try {
+    return await stat(file);
+  } catch {
+    return undefined;
+  }
+}
+
+async function readJsonIfFile(file) {
+  try {
+    const text = await readFile(file, 'utf8');
+    if (text.trim() === '') return undefined;
+    return JSON.parse(text);
+  } catch {
+    return undefined;
   }
 }
 
@@ -946,6 +1052,17 @@ function renderMarkdown(report) {
     for (const penalty of report.tuiUxFriction.penalties) {
       lines.push(`- penalty: ${penalty.name} -${penalty.points}`);
     }
+  }
+  if (report.tuiUxBaseline !== undefined) {
+    lines.push(
+      '',
+      '## Live TUI UX Baseline',
+      '',
+      `- mode: ${report.tuiUxBaseline.mode}`,
+      `- score: ${String(report.tuiUxBaseline.score ?? 'unavailable')}`,
+      `- status: ${report.tuiUxBaseline.reportStatus}`,
+      `- path: ${report.tuiUxBaseline.path}`,
+    );
   }
   if (report.tuiUxDelta !== undefined) {
     lines.push(

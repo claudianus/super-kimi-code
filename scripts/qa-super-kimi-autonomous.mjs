@@ -12,6 +12,9 @@ import os from 'node:os';
 import net from 'node:net';
 
 const DEFAULT_EVIDENCE_BASE = '.omo/evidence/super-kimi-autonomous-qa-env';
+const DEFAULT_SOTA_TUI_SUMMARY_PATH =
+  '.omo/evidence/kimi-agent-bench/system-suite/tui-launch-tmux/tui/summary.json';
+const SOTA_TUI_SUMMARY_SCAN_LIMIT = 2_000;
 const REQUIRED_NODE_VERSION = '24.15.0';
 const REQUIRED_PNPM_VERSION = '10.33.0';
 const UNSUPPORTED_ENGINE_PATTERNS = Object.freeze([
@@ -864,6 +867,7 @@ async function runSotaGatePhase(context) {
   const nodePath = context.nodeRuntime.status === 'PASS' ? context.nodeRuntime.nodePath : process.execPath;
   const reportDir = path.join(context.evidenceRoot, 'bench', 'sota-gate');
   await mkdir(reportDir, { recursive: true });
+  const tuiSummarySelection = await selectSotaTuiSummary(context);
   const args = [
     'scripts/kimi-agent-sota-gate.mjs',
     '--system-summary',
@@ -871,7 +875,7 @@ async function runSotaGatePhase(context) {
     '--loop-summary',
     '.omo/evidence/super-kimi-autonomous-qa-env/bench-system-loop-with-live-tui/bench/system-loop-summary.json',
     '--tui-summary',
-    '.omo/evidence/kimi-agent-bench/system-suite/tui-launch-tmux/tui/summary.json',
+    tuiSummarySelection.path,
     '--require-cleanup-receipt',
     '--output-dir',
     reportDir,
@@ -907,6 +911,7 @@ async function runSotaGatePhase(context) {
     startedAt,
     completedAt,
     command: argv,
+    tuiSummarySelection,
     summaryFile: summaryPath,
     markdownFile: markdownPath,
     gateSummary,
@@ -936,6 +941,7 @@ async function runSotaGatePhase(context) {
     stderrPath: `${basePath}.stderr.txt`,
     exitCodePath: `${basePath}.exit-code.txt`,
     summaryFile: summaryPath,
+    tuiSummarySelection,
     reportFile,
   };
   const line = `${JSON.stringify(record)}\n`;
@@ -963,6 +969,99 @@ async function runSotaGatePhase(context) {
       proofCommands: [commandProof(result)],
     },
   };
+}
+
+async function selectSotaTuiSummary(context) {
+  const auto = await findLatestSotaTuiSummary(context);
+  if (auto !== undefined) return auto;
+  const fallbackPath = path.resolve(context.sourceCheckout, DEFAULT_SOTA_TUI_SUMMARY_PATH);
+  const fallbackSummary = await readJsonIfFile(fallbackPath);
+  return {
+    status: 'FALLBACK',
+    source: 'legacy-fixed-path',
+    path: fallbackPath,
+    reason: 'No newer passing live TUI launch summary was found; using the legacy fixed SOTA TUI summary path.',
+    summaryStatus: fallbackSummary?.status,
+    captures: Array.isArray(fallbackSummary?.captures) ? fallbackSummary.captures.length : 0,
+    inputTraces: Array.isArray(fallbackSummary?.inputTraces) ? fallbackSummary.inputTraces.length : 0,
+  };
+}
+
+async function findLatestSotaTuiSummary(context) {
+  const evidenceRoot = path.join(context.sourceCheckout, '.omo', 'evidence');
+  const candidates = await findTuiSummaryCandidates(evidenceRoot, context.evidenceRoot);
+  for (const candidate of candidates) {
+    const summary = await readJsonIfFile(candidate.path);
+    if (!isUsableSotaTuiSummary(summary)) continue;
+    return {
+      status: 'FOUND',
+      source: 'auto-latest-pass',
+      path: candidate.path,
+      reason: 'Selected the latest passing live TUI launch summary with required scenarios and input traces.',
+      summaryStatus: summary.status,
+      captures: summary.captures.length,
+      inputTraces: summary.inputTraces.length,
+      modifiedAt: candidate.modifiedAt,
+    };
+  }
+  return undefined;
+}
+
+async function findTuiSummaryCandidates(evidenceRoot, excludeDir) {
+  const files = [];
+  const stack = [''];
+  while (stack.length > 0 && files.length < SOTA_TUI_SUMMARY_SCAN_LIMIT) {
+    const relativeDir = stack.pop();
+    const absoluteDir = path.join(evidenceRoot, relativeDir);
+    let entries;
+    try {
+      entries = readdirSync(absoluteDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const relativePath = path.join(relativeDir, entry.name);
+      const absolutePath = path.join(evidenceRoot, relativePath);
+      if (isPathInside(absolutePath, excludeDir)) continue;
+      if (entry.isDirectory()) {
+        stack.push(relativePath);
+        continue;
+      }
+      if (!entry.isFile() || !isTuiSummaryCandidate(relativePath)) continue;
+      const info = await statFileOrUndefined(absolutePath);
+      if (info === undefined) continue;
+      files.push({ path: absolutePath, modifiedAt: info.mtimeMs });
+      if (files.length >= SOTA_TUI_SUMMARY_SCAN_LIMIT) break;
+    }
+  }
+  return files.toSorted((left, right) => right.modifiedAt - left.modifiedAt);
+}
+
+function isTuiSummaryCandidate(relativePath) {
+  const normalized = relativePath.split(path.sep).join('/');
+  return normalized.endsWith('/tui-launch.json') || normalized.endsWith('/tui/summary.json');
+}
+
+function isUsableSotaTuiSummary(summary) {
+  if (summary?.phase !== 'tui-launch' || summary.status !== 'PASS') return false;
+  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
+  const capturesByScenario = new Map(summary.captures.map((capture) => [capture.scenario, capture]));
+  const missingCapture = REQUIRED_TUI_CAPTURE_SCENARIOS.some(
+    (scenario) => capturesByScenario.get(scenario)?.status !== 'PASS',
+  );
+  if (missingCapture) return false;
+  const traceScenarios = new Set(summary.inputTraces.map((trace) => trace.scenario));
+  return ['help', 'clear', 'vibe-mode', 'autocomplete', 'prompt-entry', 'escape-cancel', 'exit'].every(
+    (scenario) => traceScenarios.has(scenario),
+  );
+}
+
+async function statFileOrUndefined(filePath) {
+  try {
+    return await stat(filePath);
+  } catch {
+    return undefined;
+  }
 }
 
 async function runInternalBenchCommand(context, spec) {
