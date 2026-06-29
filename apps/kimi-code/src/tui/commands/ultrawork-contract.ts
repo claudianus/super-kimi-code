@@ -52,9 +52,11 @@ const ULTRAWORK_BENCH_GUIDANCE = [
 ].join('\n');
 const ULTRAWORK_XP_DOD_GUIDANCE = [
   'XP-lite / Definition of Done:',
+  '- Treat this as the harness-level work contract, not optional style advice; automated readiness, QA gates, and final reports must reflect it.',
   '- Inspect the relevant files, tests, and project rules before editing; treat code and observed behavior as the source of truth.',
   '- Keep each change small, focused, and free of unrelated refactors; delete or simplify only when the call sites and tests prove it is safe.',
   '- Update or add focused tests before core logic changes when practical, then implement the minimum code needed to make the contract true.',
+  '- Public behavior changes need focused tests unless they are cosmetic or docs-only.',
   '- Run the relevant tests, typecheck, lint, build, and real-surface checks for the changed behavior; fix failures or report exact external blockers.',
   '- Do not claim completion until related tests pass, typecheck/lint/build gates that apply are accounted for, no unrelated files are changed, and public behavior is covered by tests unless the change is cosmetic or docs-only.',
   '- Summarize changed files, behavior, verification results, and remaining risks before finishing.',

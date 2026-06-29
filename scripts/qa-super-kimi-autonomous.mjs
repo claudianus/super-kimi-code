@@ -7740,7 +7740,7 @@ function inspectTuiCapture(scenario, output) {
           break;
         }
       }
-      if (!/inspect\s*->\s*change\s*->\s*verify\s*->\s*summarize/i.test(normalized)) {
+      if (!/inspect\s*->\s*(?:test\s*->\s*)?change\s*->\s*verify\s*->\s*summarize/i.test(normalized)) {
         failures.push('status capture does not show the readiness check flow');
       }
       break;

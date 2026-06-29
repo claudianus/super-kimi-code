@@ -92,13 +92,15 @@ function formatWorktreeStatus(status: GitStatus): string {
   return `${formatGitBadgeBase(status)} ${status.dirty ? 'dirty' : 'clean'}`;
 }
 
-const READINESS_CHECKS = 'read -> test -> change -> verify -> TUI check';
+const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
+const COVERAGE_GATE = 'public behavior covered by tests';
 const SCREEN_CHECK_GATE = 'open changed screen before finishing';
 const DONE_GATE = 'tests/typecheck/lint/build + clean diff + TUI';
 const READINESS_GATE_ROWS: readonly FieldRow[] = [
   { label: 'Checks', value: READINESS_CHECKS },
   { label: 'Scope', value: SCOPE_GATE },
+  { label: 'Coverage', value: COVERAGE_GATE },
   { label: 'Screen check', value: SCREEN_CHECK_GATE },
   { label: 'Done gate', value: DONE_GATE },
 ];
