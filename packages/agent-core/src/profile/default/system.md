@@ -113,17 +113,17 @@ The applicable `AGENTS.md` instructions are:
 ```````
 
 {% if KIMI_SKILLS %}
+{% if KIMI_SKILL_PROMPT_MODE == "legacy-list" %}
 # Skills
 
-Skills are reusable, composable capabilities that enhance your abilities. Each skill is either a self-contained directory with a `SKILL.md` file or a standalone `.md` file that contains instructions, examples, and/or reference material.
+{{ KIMI_SKILLS }}
+{% else %}
+# Skill Runtime
 
-Identify the skills relevant to your current task and read the skill file for its instructions; only read further skill details when needed, to conserve the context window.
-
-## Available skills
-
-Skills are grouped by scope (`Project`, `User`, `Extra`, `Built-in`) so you can tell where each came from. When the user refers to "the skill in this project" or "the user-scope skill", use the scope heading to disambiguate. When multiple scopes define a skill with the same name, the more specific scope takes precedence: **Project overrides User overrides Extra overrides Built-in**.
+Skills are reusable, composable capabilities that enhance your abilities. The full skill catalog is intentionally not listed in this prompt. Discover skills with SearchSkill, then load a chosen skill with Skill.
 
 {{ KIMI_SKILLS }}
+{% endif %}
 {% endif %}
 
 # Ultimate Reminders

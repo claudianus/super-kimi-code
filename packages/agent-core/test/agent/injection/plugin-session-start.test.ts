@@ -15,7 +15,7 @@ interface StubSessionStartAgent {
     registry: {
       getSkill: (name: string) => SkillDefinition | undefined;
       getPluginSkill: (pluginId: string, name: string) => SkillDefinition | undefined;
-      renderSkillPrompt: (skill: SkillDefinition, args: string) => string;
+      renderSkillPrompt: (skill: SkillDefinition, args: string) => Promise<string>;
     };
   };
   log: {
@@ -72,7 +72,7 @@ function sessionStartAgent(input: {
         getSkill: (name) => byName.get(name.toLowerCase()),
         getPluginSkill: (pluginId, name) =>
           byPluginAndName.get(`${pluginId}\0${name.toLowerCase()}`),
-        renderSkillPrompt: (skill) => {
+        renderSkillPrompt: async (skill) => {
           const plugin = skill.plugin;
           if (plugin === undefined) return skill.content;
           const instructions = plugin.instructions;
@@ -224,12 +224,12 @@ describe('renderPluginSessionStartReminder', () => {
     return {
       getPluginSkill: (pluginId: string, name: string) =>
         byPluginAndName.get(`${pluginId}\0${name.toLowerCase()}`),
-      renderSkillPrompt: (s: SkillDefinition) => s.content,
+      renderSkillPrompt: async (s: SkillDefinition) => s.content,
     };
   }
 
-  it('renders a block per resolvable sessionStart', () => {
-    const text = renderPluginSessionStartReminder({
+  it('renders a block per resolvable sessionStart', async () => {
+    const text = await renderPluginSessionStartReminder({
       sessionStarts: [{ pluginId: 'superpowers', skillName: 'using-superpowers' }],
       registry: registryFor([
         skill('using-superpowers', 'plugin body', { id: 'superpowers' }),
@@ -241,24 +241,24 @@ describe('renderPluginSessionStartReminder', () => {
     expect(text).toContain('plugin body');
   });
 
-  it('returns undefined when there are no sessionStarts', () => {
+  it('returns undefined when there are no sessionStarts', async () => {
     expect(
-      renderPluginSessionStartReminder({ sessionStarts: [], registry: registryFor([]) }),
+      await renderPluginSessionStartReminder({ sessionStarts: [], registry: registryFor([]) }),
     ).toBeUndefined();
   });
 
-  it('returns undefined when the registry is unavailable', () => {
+  it('returns undefined when the registry is unavailable', async () => {
     expect(
-      renderPluginSessionStartReminder({
+      await renderPluginSessionStartReminder({
         sessionStarts: [{ pluginId: 'demo', skillName: 'x' }],
         registry: undefined,
       }),
     ).toBeUndefined();
   });
 
-  it('returns undefined and warns when the skill cannot be resolved', () => {
+  it('returns undefined and warns when the skill cannot be resolved', async () => {
     const warnings: Array<{ message: string; payload?: unknown }> = [];
-    const text = renderPluginSessionStartReminder({
+    const text = await renderPluginSessionStartReminder({
       sessionStarts: [{ pluginId: 'demo', skillName: 'missing' }],
       registry: registryFor([]),
       log: { warn: (message, payload) => warnings.push({ message, payload }) },

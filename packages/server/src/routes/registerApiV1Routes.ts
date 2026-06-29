@@ -12,6 +12,7 @@ import { registerFsRoutes } from './fs';
 import { registerMessagesRoutes } from './messages';
 import { registerMetaRoute } from './meta';
 import { registerModelCatalogRoutes } from './modelCatalog';
+import { registerMemoriesRoutes } from './memories';
 import { registerOAuthRoutes } from './oauth';
 import { registerPromptsRoutes } from './prompts';
 import { registerQuestionsRoutes } from './questions';
@@ -105,6 +106,7 @@ export async function registerApiV1Routes(
       ix,
     );
     registerToolsRoutes(apiV1 as unknown as Parameters<typeof registerToolsRoutes>[0], ix);
+    registerMemoriesRoutes(apiV1 as unknown as Parameters<typeof registerMemoriesRoutes>[0], ix);
     registerSkillsRoutes(apiV1 as unknown as Parameters<typeof registerSkillsRoutes>[0], ix);
     registerTasksRoutes(apiV1 as unknown as Parameters<typeof registerTasksRoutes>[0], ix);
     if (opts.enableTerminals !== false) {

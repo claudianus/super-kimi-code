@@ -1,5 +1,5 @@
 import { ErrorCodes, KimiError } from '#/errors';
-import type { SessionWarning } from '@super-kimi/protocol';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import type {
   ActivateSkillPayload,
   AddAdditionalDirPayload,
@@ -12,6 +12,7 @@ import type {
   CreateGoalPayload,
   DetachBackgroundPayload,
   EmptyPayload,
+  EnterPlanPayload,
   EnterSwarmPayload,
   GetBackgroundOutputPayload,
   GetBackgroundPayload,
@@ -22,12 +23,14 @@ import type {
   ReconnectMcpServerPayload,
   RenameSessionPayload,
   RegisterToolPayload,
+  SearchSkillsPayload,
   SessionAPI,
   SetActiveToolsPayload,
   SetModelPayload,
   SetPermissionPayload,
   SetThinkingPayload,
   SkillSummary,
+  SkillSearchResult,
   SteerPayload,
   StopBackgroundPayload,
   UndoHistoryPayload,
@@ -77,6 +80,10 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
 
   listSkills(_payload: EmptyPayload): Promise<readonly SkillSummary[]> {
     return this.session.listSkills();
+  }
+
+  searchSkills(payload: SearchSkillsPayload): Promise<readonly SkillSearchResult[]> {
+    return this.session.searchSkills(payload.query, payload.limit);
   }
 
   listMcpServers(_payload: EmptyPayload): readonly McpServerInfo[] {

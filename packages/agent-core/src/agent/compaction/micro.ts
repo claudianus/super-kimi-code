@@ -106,11 +106,16 @@ export class MicroCompaction {
         i < this.cutoff &&
         msg.role === 'tool' &&
         msg.toolCallId !== undefined &&
-        estimateTokensForContentParts(msg.content) >= config.minContentTokens
+        this.shouldClearToolResult(msg, messages)
       ) {
         result.push({
           ...msg,
-          content: [{ type: 'text', text: config.truncatedMarker } satisfies ContentPart],
+          content: [
+            {
+              type: 'text',
+              text: this.markerFor(msg, messages),
+            } satisfies ContentPart,
+          ],
         });
       } else {
         result.push(msg);
@@ -124,7 +129,6 @@ export class MicroCompaction {
     messages: readonly ContextMessage[],
     cutoff: number,
   ) {
-    let markerTokenCount: number | undefined;
     let truncatedToolResultCount = 0;
     let truncatedToolResultTokensBefore = 0;
     let truncatedToolResultTokensAfter = 0;
@@ -135,9 +139,8 @@ export class MicroCompaction {
       const contentTokens = estimateTokensForContentParts(message.content);
       if (contentTokens < this.config.minContentTokens) continue;
 
-      markerTokenCount ??= estimateTokensForContentParts([
-        { type: 'text', text: this.config.truncatedMarker },
-      ]);
+      const markerTokenCount = this.markerTokenCount(message, messages);
+      if (markerTokenCount >= contentTokens) continue;
       truncatedToolResultCount += 1;
       truncatedToolResultTokensBefore += contentTokens;
       truncatedToolResultTokensAfter += markerTokenCount;
@@ -148,4 +151,68 @@ export class MicroCompaction {
       truncatedToolResultTokensAfter,
     };
   }
+
+  private markerFor(
+    message: ContextMessage,
+    messages: readonly ContextMessage[],
+  ): string {
+    const toolCallId = message.toolCallId ?? 'unknown';
+    const toolName = this.toolNameFor(toolCallId, messages) ?? 'unknown';
+    const tokenCount = estimateTokensForContentParts(message.content);
+    const preview = truncateForMarker(contentPreview(message.content), 80);
+    return [
+      this.config.truncatedMarker,
+      `toolCallId=${toolCallId}`,
+      `toolName=${toolName}`,
+      `tokensBeforeClearing=${String(tokenCount)}`,
+      `isError=${message.isError === true ? 'true' : 'false'}`,
+      'rawResult=replay',
+      `preview=${preview}`,
+    ].join('\n');
+  }
+
+  private shouldClearToolResult(
+    message: ContextMessage,
+    messages: readonly ContextMessage[],
+  ): boolean {
+    const contentTokens = estimateTokensForContentParts(message.content);
+    return (
+      contentTokens >= this.config.minContentTokens &&
+      this.markerTokenCount(message, messages) < contentTokens
+    );
+  }
+
+  private markerTokenCount(
+    message: ContextMessage,
+    messages: readonly ContextMessage[],
+  ): number {
+    return estimateTokensForContentParts([
+      { type: 'text', text: this.markerFor(message, messages) },
+    ]);
+  }
+
+  private toolNameFor(
+    toolCallId: string,
+    messages: readonly ContextMessage[],
+  ): string | undefined {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const match = messages[i]?.toolCalls.find((toolCall) => toolCall.id === toolCallId);
+      if (match !== undefined) return match.name;
+    }
+    return undefined;
+  }
+}
+
+function contentPreview(parts: readonly ContentPart[]): string {
+  return parts.map(contentPartPreview).join('\n').trim();
+}
+
+function contentPartPreview(part: ContentPart): string {
+  if (part.type === 'text') return part.text;
+  return `[${part.type}]`;
+}
+
+function truncateForMarker(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
 }

@@ -11,6 +11,7 @@ tools:
   - Edit
   - Grep
   - Glob
+  - KimiContext
   - Bash
   - TaskList
   - TaskOutput

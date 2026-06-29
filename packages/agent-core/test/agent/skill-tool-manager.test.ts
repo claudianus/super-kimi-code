@@ -132,7 +132,7 @@ describe('ToolManager SkillTool registration', () => {
     const skills: AgentSkillRegistry = {
       getSkill: (name) => (name === skill.name ? skill : undefined),
       getPluginSkill: () => undefined,
-      renderSkillPrompt: () => skill.content,
+      renderSkillPrompt: async () => skill.content,
       listInvocableSkills: () => [skill],
       getSkillRoots: () => ['/skills/review'],
       getModelSkillListing: () => '- review: desc for review',

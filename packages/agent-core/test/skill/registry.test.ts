@@ -98,36 +98,91 @@ describe('skill registry prompt rendering', () => {
   });
 });
 
-describe('getModelSkillListing description truncation', () => {
-  it('keeps descriptions at or below the 250-char limit unchanged', () => {
-    const description = 'a'.repeat(250);
-    const rendered = makeRegistry([makeSkill('demo', 'user', description)]).getModelSkillListing();
-
-    expect(rendered).toContain(`- demo: ${description}`);
-    expect(rendered).not.toContain('…');
-  });
-
-  it('appends an ellipsis and stays within the limit when a description is truncated', () => {
-    const description = 'a'.repeat(300);
-    const rendered = makeRegistry([makeSkill('demo', 'user', description)]).getModelSkillListing();
-
-    expect(rendered).toContain(`- demo: ${'a'.repeat(249)}…`);
-    expect(rendered).not.toContain('a'.repeat(250));
-  });
-
-  it('does not split a grapheme cluster at the truncation boundary', () => {
-    // The 250-char budget cuts at code-unit 249; the emoji spans 248-249, so a
-    // naive slice would leave a dangling surrogate. Grapheme-safe truncation
-    // must drop the whole emoji instead.
-    const description = `${'a'.repeat(248)}😀${'b'.repeat(100)}`;
-    const rendered = makeRegistry([makeSkill('demo', 'user', description)]).getModelSkillListing();
-
-    expect(rendered).toContain(`- demo: ${'a'.repeat(248)}…`);
-    expect(rendered).not.toContain('😀');
-    // no lone high or low surrogate should remain in the rendered output
-    expect(rendered).not.toMatch(
-      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
+describe('model skill runtime prompt', () => {
+  it('does not expand many registered skills into the model prompt', () => {
+    const registry = makeRegistry(
+      Array.from({ length: 1500 }, (_, index) =>
+        makeSkill(`skill-${index}`, 'user', `description ${index}`),
+      ),
     );
+
+    const rendered = registry.getModelSkillListing();
+
+    expect(rendered).toContain('SearchSkill');
+    expect(rendered).toContain('Skill tool');
+    expect(rendered).not.toContain('skill-1499');
+    expect(rendered).not.toContain('description 1499');
+    expect(rendered.length).toBeLessThan(1000);
+  });
+
+  it('returns an empty model prompt when no skills are invocable', () => {
+    const registry = makeRegistry([
+      makeSkill('private', 'user', 'private', undefined, {
+        type: 'prompt',
+        disableModelInvocation: true,
+      }),
+    ]);
+
+    expect(registry.getModelSkillListing()).toBe('');
+  });
+});
+
+describe('skill search', () => {
+  it('returns exact, prefix, and description matches deterministically', async () => {
+    const registry = makeRegistry([
+      makeSkill('docs-review', 'user', 'Review API documentation'),
+      makeSkill('docs-generate', 'user', 'Generate documentation'),
+      makeSkill('api-helper', 'user', 'Build REST endpoints'),
+    ]);
+
+    const exact = await registry.searchByQuery('docs-review');
+    const prefix = await registry.searchByQuery('docs');
+    const description = await registry.searchByQuery('REST endpoints');
+
+    expect(exact[0]?.name).toBe('docs-review');
+    expect(prefix.slice(0, 2).map((skill) => skill.name)).toEqual([
+      'docs-generate',
+      'docs-review',
+    ]);
+    expect(description[0]?.name).toBe('api-helper');
+  });
+
+  it('excludes private, high-risk, sub-skill, and non-inline skills from model search', async () => {
+    const registry = makeRegistry([
+      makeSkill('safe-match', 'user', 'secret audit helper'),
+      makeSkill('private-match', 'user', 'secret audit helper', undefined, {
+        type: 'prompt',
+        disableModelInvocation: true,
+      }),
+      makeSkill('danger-match', 'user', 'secret audit helper', undefined, {
+        type: 'prompt',
+        risk: 'high',
+      }),
+      makeSkill('child-match', 'user', 'secret audit helper', undefined, {
+        type: 'prompt',
+        isSubSkill: true,
+      }),
+      makeSkill('flow-match', 'user', 'secret audit helper', undefined, {
+        type: 'flow',
+      }),
+    ]);
+
+    const names = (await registry.searchByQuery('secret audit')).map((skill) => skill.name);
+
+    expect(names).toEqual(['safe-match']);
+  });
+
+  it('uses configured default and max limits', async () => {
+    const registry = new SessionSkillRegistry({
+      defaultSearchLimit: 2,
+      maxSearchLimit: 3,
+    });
+    for (let index = 0; index < 5; index += 1) {
+      registry.register(makeSkill(`match-${index}`, 'user', 'limit test'));
+    }
+
+    expect(await registry.searchByQuery('match')).toHaveLength(2);
+    expect(await registry.searchByQuery('match', 99)).toHaveLength(3);
   });
 });
 
@@ -142,6 +197,7 @@ function makeSkill(
   source: SkillSource,
   description = 'desc',
   skillPath?: string,
+  metadata: SkillDefinition['metadata'] = { type: 'prompt' },
 ): SkillDefinition {
   const finalPath = skillPath ?? `/tmp/${source}/${name}/SKILL.md`;
   return {
@@ -150,7 +206,7 @@ function makeSkill(
     path: finalPath,
     dir: finalPath.replace(/\/SKILL\.md$/, ''),
     content: '',
-    metadata: { type: 'prompt' },
+    metadata,
     source,
   };
 }

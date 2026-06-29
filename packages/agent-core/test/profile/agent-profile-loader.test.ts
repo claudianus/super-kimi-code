@@ -186,7 +186,7 @@ describe('default agent profiles', () => {
     expect(DEFAULT_AGENT_PROFILES['plan']?.tools).not.toContain('Bash');
   });
 
-  it('renders the model-invocable skill listing for bundled prompts', () => {
+  it('renders stable skill runtime guidance for bundled prompts', () => {
     const skills = new SessionSkillRegistry();
     skills.register(skill('review', { whenToUse: 'When code review is requested.' }));
     skills.register({
@@ -206,9 +206,11 @@ describe('default agent profiles', () => {
       skills,
     });
 
-    expect(prompt).toContain('Current available skills:');
-    expect(prompt).toContain('- review:');
-    expect(prompt).toContain('When to use: When code review is requested.');
+    expect(prompt).toContain('# Skill Runtime');
+    expect(prompt).toContain('Discover skills with SearchSkill');
+    expect(prompt).toContain('Load exactly one needed skill with the Skill tool');
+    expect(prompt).not.toContain('- review:');
+    expect(prompt).not.toContain('When to use: When code review is requested.');
     expect(prompt).not.toContain('- nested-review:');
     expect(prompt).not.toContain('Path: /skills/parent/nested-review/SKILL.md');
     expect(prompt).not.toContain('When to use: When nested review is requested.');
@@ -216,6 +218,23 @@ describe('default agent profiles', () => {
     expect(prompt).not.toContain('flow-only');
     expect(prompt).not.toContain('body of review');
     expect(prompt).not.toContain('Nested review body must not enter system prompt.');
+  });
+
+  it('can render the temporary legacy skill catalog prompt mode', () => {
+    const skills = new SessionSkillRegistry();
+    skills.register(skill('review', { whenToUse: 'When code review is requested.' }));
+
+    const prompt = DEFAULT_AGENT_PROFILES['agent']?.systemPrompt({
+      ...promptContext,
+      skills,
+      skillPromptMode: 'legacy-list',
+    });
+
+    expect(prompt).toContain('# Skills');
+    expect(prompt).toContain('Current available skills:');
+    expect(prompt).toContain('- review:');
+    expect(prompt).toContain('When to use: When code review is requested.');
+    expect(prompt).not.toContain('# Skill Runtime');
   });
 
   it('renders the bundled default prompt from the current runtime context', () => {
@@ -229,7 +248,7 @@ describe('default agent profiles', () => {
     });
 
     expect(first).toContain('You are Kimi Code CLI');
-    expect(first).toContain('Available skills');
+    expect(first).toContain('Skill Runtime');
     expect(first).toContain('/workspace/one');
     expect(second).toContain('/workspace/two');
     expect(second).not.toContain('/workspace/one');

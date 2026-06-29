@@ -1,6 +1,6 @@
-import type { Message } from "@moonshot-ai/kosong";
-import { estimateTokensForMessage } from "../../utils/tokens";
-import type { CompactionSource } from "./types";
+import type { Message } from '@moonshot-ai/kosong';
+import { estimateTokensForMessage } from '../../utils/tokens';
+import type { CompactionSource } from './types';
 
 export interface CompactionConfig {
   triggerRatio: number;
@@ -11,17 +11,28 @@ export interface CompactionConfig {
   maxRecentUserMessages: number;
   maxRecentSizeRatio: number;
   minOverflowReductionRatio: number;
+  absoluteTriggerTokens: number;
+  absoluteTriggerMinContextTokens?: number;
+  parallelBlockThreshold: number;
+  parallelBlockTarget: number;
+  absoluteTriggerBlocks?: boolean;
 }
+
+const DEFAULT_ABSOLUTE_TRIGGER_MIN_CONTEXT_TOKENS = 256_000;
 
 export const DEFAULT_COMPACTION_CONFIG: CompactionConfig = {
   triggerRatio: 0.85,
-  blockRatio: 0.85, // Same as triggerRatio to disable async compaction
+  blockRatio: 0.85,
   reservedContextSize: 50_000,
   maxCompactionPerTurn: Infinity,
   maxRecentMessages: 4,
   maxRecentUserMessages: Infinity,
   maxRecentSizeRatio: 0.2,
   minOverflowReductionRatio: 0.05,
+  absoluteTriggerTokens: 200_000,
+  absoluteTriggerMinContextTokens: DEFAULT_ABSOLUTE_TRIGGER_MIN_CONTEXT_TOKENS,
+  parallelBlockThreshold: 30_000,
+  parallelBlockTarget: 15_000,
 };
 
 export interface CompactionStrategy {
@@ -31,6 +42,8 @@ export interface CompactionStrategy {
   reduceCompactOnOverflow(messages: readonly Message[]): number;
   readonly checkAfterStep: boolean;
   readonly maxCompactionPerTurn: number;
+  readonly parallelBlockThreshold?: number;
+  readonly parallelBlockTarget?: number;
 }
 
 export class DefaultCompactionStrategy implements CompactionStrategy {
@@ -46,6 +59,7 @@ export class DefaultCompactionStrategy implements CompactionStrategy {
   shouldCompact(usedSize: number): boolean {
     if (this.maxSize <= 0) return false;
     return (
+      this.shouldTriggerAbsolute(usedSize) ||
       usedSize >= this.maxSize * this.config.triggerRatio ||
       this.shouldUseReservedContext(usedSize)
     );
@@ -54,9 +68,17 @@ export class DefaultCompactionStrategy implements CompactionStrategy {
   shouldBlock(usedSize: number): boolean {
     if (this.maxSize <= 0) return false;
     return (
+      (this.config.absoluteTriggerBlocks !== false && this.shouldTriggerAbsolute(usedSize)) ||
       usedSize >= this.maxSize * this.config.blockRatio ||
       this.shouldUseReservedContext(usedSize)
     );
+  }
+
+  private shouldTriggerAbsolute(usedSize: number): boolean {
+    const absolute = this.config.absoluteTriggerTokens;
+    const minContext =
+      this.config.absoluteTriggerMinContextTokens ?? DEFAULT_ABSOLUTE_TRIGGER_MIN_CONTEXT_TOKENS;
+    return absolute > 0 && this.maxSize >= minContext && usedSize >= absolute;
   }
 
   private shouldUseReservedContext(usedSize: number): boolean {
@@ -175,6 +197,114 @@ export class DefaultCompactionStrategy implements CompactionStrategy {
 
   get maxCompactionPerTurn(): number {
     return this.config.maxCompactionPerTurn;
+  }
+}
+
+export class PipelineStrategy implements CompactionStrategy {
+  constructor(
+    private readonly strategies: readonly CompactionStrategy[],
+    private readonly trigger: CompactionStrategy,
+  ) {}
+
+  shouldCompact(usedSize: number): boolean {
+    return this.trigger.shouldCompact(usedSize);
+  }
+
+  shouldBlock(usedSize: number): boolean {
+    return this.trigger.shouldBlock(usedSize);
+  }
+
+  computeCompactCount(messages: readonly Message[], source: CompactionSource): number {
+    let count = this.trigger.computeCompactCount(messages, source);
+    for (const strategy of this.strategies) {
+      if (count <= 0) break;
+      count = Math.min(count, strategy.computeCompactCount(messages, source));
+    }
+    return count;
+  }
+
+  reduceCompactOnOverflow(messages: readonly Message[]): number {
+    let count = this.trigger.reduceCompactOnOverflow(messages);
+    for (const strategy of this.strategies) {
+      if (count <= 1) break;
+      count = Math.min(count, strategy.reduceCompactOnOverflow(messages));
+    }
+    return count;
+  }
+
+  get checkAfterStep(): boolean {
+    return this.trigger.checkAfterStep;
+  }
+
+  get maxCompactionPerTurn(): number {
+    return this.trigger.maxCompactionPerTurn;
+  }
+}
+
+export class ToolCollapseStrategy implements CompactionStrategy {
+  constructor(
+    private readonly keepRecentToolGroups: number = 1,
+  ) {}
+
+  shouldCompact(): boolean { return true; }
+  shouldBlock(): boolean { return false; }
+  checkAfterStep = false;
+  maxCompactionPerTurn = Infinity;
+
+  computeCompactCount(messages: readonly Message[], _source: CompactionSource): number {
+    let toolGroupsSeen = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]!;
+      if (m.role === 'assistant' && m.toolCalls.length > 0) {
+        toolGroupsSeen++;
+        if (toolGroupsSeen > this.keepRecentToolGroups) {
+          let end = i;
+          for (let j = i + 1; j < messages.length && messages[j]!.role === 'tool'; j++) {
+            end = j;
+          }
+          return end + 1;
+        }
+      }
+    }
+    return 0;
+  }
+
+  reduceCompactOnOverflow(messages: readonly Message[]): number {
+    return this.computeCompactCount(messages, 'auto');
+  }
+}
+
+export class SlidingWindowStrategy implements CompactionStrategy {
+  constructor(
+    private readonly keepLastGroups: number = 20,
+  ) {}
+
+  shouldCompact(): boolean { return true; }
+  shouldBlock(): boolean { return false; }
+  checkAfterStep = false;
+  maxCompactionPerTurn = Infinity;
+
+  computeCompactCount(messages: readonly Message[], _source: CompactionSource): number {
+    let groupsKept = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]!;
+      if (m.role !== 'system') {
+        groupsKept++;
+        if (groupsKept >= this.keepLastGroups) {
+          for (let j = i - 1; j >= 0; j--) {
+            if (canSplitAfter(messages, j)) {
+              return j + 1;
+            }
+          }
+          return i;
+        }
+      }
+    }
+    return 0;
+  }
+
+  reduceCompactOnOverflow(messages: readonly Message[]): number {
+    return this.computeCompactCount(messages, 'auto');
   }
 }
 

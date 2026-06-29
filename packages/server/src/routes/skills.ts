@@ -1,9 +1,10 @@
 /**
  * `/sessions/{session_id}/skills*` REST routes.
  *
- * 2 endpoints:
+ * 3 endpoints:
  *
  *   GET  /sessions/{session_id}/skills                       data: {skills: SkillDescriptor[]}
+ *   POST /sessions/{session_id}/skills:search                body: {query, limit?} data: {skills: SkillSearchHit[]}
  *   POST /sessions/{session_id}/skills/{skill_name}:activate body: {args?}  data: {activated: true, skill_name}
  *
  * Skills are session-scoped: the registry is built per session (project
@@ -34,6 +35,8 @@ import {
   activateSkillRequestSchema,
   activateSkillResultSchema,
   listSkillsResponseSchema,
+  searchSkillsRequestSchema,
+  searchSkillsResponseSchema,
 } from '@moonshot-ai/protocol';
 import { ISkillService, SessionNotFoundError, SkillNotActivatableError, SkillNotFoundError, type IInstantiationService } from '@moonshot-ai/agent-core';
 import { z } from 'zod';
@@ -100,6 +103,39 @@ export function registerSkillsRoutes(
     listSkillsRoute.path,
     listSkillsRoute.options,
     listSkillsRoute.handler as Parameters<SkillsRouteHost['get']>[2],
+  );
+
+  const searchSkillsRoute = defineRoute(
+    {
+      method: 'POST',
+      path: '/sessions/{session_id}/skills::search',
+      body: searchSkillsRequestSchema,
+      params: sessionIdParamSchema,
+      success: { data: searchSkillsResponseSchema },
+      errors: {
+        [ErrorCode.VALIDATION_FAILED]: {},
+        [ErrorCode.SESSION_NOT_FOUND]: {},
+      },
+      description: 'Search session skills without injecting the full skill catalog into the model prompt',
+      tags: ['skills'],
+      operationId: 'searchSkills',
+    },
+    async (req, reply) => {
+      try {
+        const { session_id } = req.params;
+        const skills = await ix.invokeFunction((a) =>
+          a.get(ISkillService).search(session_id, req.body.query, req.body.limit),
+        );
+        reply.send(okEnvelope({ skills }, req.id));
+      } catch (err) {
+        sendMappedError(reply, req.id, err);
+      }
+    },
+  );
+  app.post(
+    searchSkillsRoute.path,
+    searchSkillsRoute.options,
+    searchSkillsRoute.handler as Parameters<SkillsRouteHost['post']>[2],
   );
 
   // POST /sessions/{session_id}/skills/{skill_name}:activate --------------

@@ -873,8 +873,14 @@ describe('resolveSkillRoots extra dirs', () => {
       },
     ]);
 
-    expect(registry.getSkill('using-superpowers')?.content).toBe('project body');
-    expect(registry.getPluginSkill('superpowers', 'using-superpowers')?.content).toBe(
+    const projectSkill = registry.getSkill('using-superpowers');
+    const pluginSkill = registry.getPluginSkill('superpowers', 'using-superpowers');
+    expect(projectSkill?.content).toBe('');
+    expect(pluginSkill?.content).toBe('');
+    expect(projectSkill && (await registry.renderSkillPrompt(projectSkill, ''))).toBe(
+      'project body',
+    );
+    expect(pluginSkill && (await registry.renderSkillPrompt(pluginSkill, ''))).toBe(
       'plugin body',
     );
   });

@@ -31,6 +31,10 @@ exports[`API surface snapshot > matches the documented v1 route table and meta e
     ],
     [
       "DELETE",
+      "/api/v1/memories/{memory_id}",
+    ],
+    [
+      "DELETE",
       "/api/v1/oauth/login",
     ],
     [
@@ -68,6 +72,18 @@ exports[`API surface snapshot > matches the documented v1 route table and meta e
     [
       "GET",
       "/api/v1/mcp/servers",
+    ],
+    [
+      "GET",
+      "/api/v1/memories",
+    ],
+    [
+      "GET",
+      "/api/v1/memories/{memory_id}",
+    ],
+    [
+      "GET",
+      "/api/v1/memories/stats",
     ],
     [
       "GET",
@@ -179,6 +195,10 @@ exports[`API surface snapshot > matches the documented v1 route table and meta e
     ],
     [
       "PATCH",
+      "/api/v1/memories/{memory_id}",
+    ],
+    [
+      "PATCH",
       "/api/v1/workspaces/{workspace_id}",
     ],
     [
@@ -192,6 +212,26 @@ exports[`API surface snapshot > matches the documented v1 route table and meta e
     [
       "POST",
       "/api/v1/mcp/servers/{tail}",
+    ],
+    [
+      "POST",
+      "/api/v1/memories",
+    ],
+    [
+      "POST",
+      "/api/v1/memories:consolidate",
+    ],
+    [
+      "POST",
+      "/api/v1/memories:export",
+    ],
+    [
+      "POST",
+      "/api/v1/memories:import",
+    ],
+    [
+      "POST",
+      "/api/v1/memories:search",
     ],
     [
       "POST",
@@ -256,6 +296,10 @@ exports[`API surface snapshot > matches the documented v1 route table and meta e
     [
       "POST",
       "/api/v1/sessions/{session_id}/questions/{tail}",
+    ],
+    [
+      "POST",
+      "/api/v1/sessions/{session_id}/skills:search",
     ],
     [
       "POST",

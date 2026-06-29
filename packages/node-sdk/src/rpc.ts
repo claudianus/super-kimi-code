@@ -16,8 +16,8 @@ import {
   type ToolCallRequest,
   type ToolCallResponse,
   type SwarmModeTrigger,
-} from '@super-kimi/agent-core';
-import type { Kaos } from '@super-kimi/kaos';
+} from '@moonshot-ai/agent-core';
+import type { Kaos } from '@moonshot-ai/kaos';
 
 import type { ApprovalHandler, QuestionHandler } from '#/events';
 import type {
@@ -36,6 +36,16 @@ import type {
   KimiConfig,
   KimiConfigPatch,
   ListSessionsOptions,
+  MemoryConsolidateResult,
+  MemoryCreateInput,
+  MemoryExportResult,
+  MemoryImportResult,
+  MemoryListRequest,
+  MemoryRecord,
+  MemorySearchRequest,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryUpdateInput,
   McpServerInfo,
   McpStartupMetrics,
   PermissionMode,
@@ -51,6 +61,7 @@ import type {
   ResumeSessionInput,
   ResumedSessionSummary,
   SessionSummary,
+  SkillSearchResult,
   SkillSummary,
   Unsubscribe,
 } from '#/types';
@@ -99,6 +110,11 @@ export type SetSessionSwarmModeRpcInput =
 export interface ActivateSkillRpcInput extends SessionIdRpcInput {
   readonly name: string;
   readonly args?: string | undefined;
+}
+
+export interface SearchSkillsRpcInput extends SessionIdRpcInput {
+  readonly query: string;
+  readonly limit?: number | undefined;
 }
 
 export interface ReconnectMcpServerRpcInput extends SessionIdRpcInput {
@@ -226,6 +242,56 @@ export abstract class SDKRpcClientBase {
   async removeProvider(providerId: string): Promise<KimiConfig> {
     const rpc = await this.getRpc();
     return rpc.removeKimiProvider({ providerId });
+  }
+
+  async memorySearch(input: MemorySearchRequest): Promise<readonly MemorySearchResult[]> {
+    const rpc = await this.getRpc();
+    return rpc.memorySearch(input);
+  }
+
+  async memoryList(input: MemoryListRequest = {}): Promise<readonly MemoryRecord[]> {
+    const rpc = await this.getRpc();
+    return rpc.memoryList(input);
+  }
+
+  async memoryGet(id: string): Promise<MemoryRecord | undefined> {
+    const rpc = await this.getRpc();
+    return rpc.memoryGet({ id });
+  }
+
+  async memoryCreate(input: MemoryCreateInput): Promise<MemoryRecord> {
+    const rpc = await this.getRpc();
+    return rpc.memoryCreate(input);
+  }
+
+  async memoryUpdate(id: string, patch: MemoryUpdateInput): Promise<MemoryRecord> {
+    const rpc = await this.getRpc();
+    return rpc.memoryUpdate({ id, patch });
+  }
+
+  async memoryForget(id: string): Promise<boolean> {
+    const rpc = await this.getRpc();
+    return rpc.memoryForget({ id });
+  }
+
+  async memoryStats(): Promise<MemoryStats> {
+    const rpc = await this.getRpc();
+    return rpc.memoryStats({});
+  }
+
+  async memoryExport(input: MemoryListRequest = {}): Promise<MemoryExportResult> {
+    const rpc = await this.getRpc();
+    return rpc.memoryExport(input);
+  }
+
+  async memoryImport(records: readonly MemoryRecord[]): Promise<MemoryImportResult> {
+    const rpc = await this.getRpc();
+    return rpc.memoryImport({ records });
+  }
+
+  async memoryConsolidate(): Promise<MemoryConsolidateResult> {
+    const rpc = await this.getRpc();
+    return rpc.memoryConsolidate({});
   }
 
   async prompt(input: SessionPromptRpcInput): Promise<void> {
@@ -483,6 +549,15 @@ export abstract class SDKRpcClientBase {
   async listSkills(input: SessionIdRpcInput): Promise<readonly SkillSummary[]> {
     const rpc = await this.getRpc();
     return rpc.listSkills({ sessionId: input.sessionId });
+  }
+
+  async searchSkills(input: SearchSkillsRpcInput): Promise<readonly SkillSearchResult[]> {
+    const rpc = await this.getRpc();
+    return rpc.searchSkills({
+      sessionId: input.sessionId,
+      query: input.query,
+      limit: input.limit,
+    });
   }
 
   async listBackgroundTasks(

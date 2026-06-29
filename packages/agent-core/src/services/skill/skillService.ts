@@ -4,7 +4,7 @@
 
 import { Disposable, InstantiationType, registerSingleton } from '../../di';
 import { ErrorCodes, KimiError } from '../../errors';
-import type { SkillDescriptor } from '@moonshot-ai/protocol';
+import type { SkillDescriptor, SkillSearchHit } from '@moonshot-ai/protocol';
 
 import { ICoreProcessService } from '../coreProcess/coreProcess';
 import { SessionNotFoundError } from '../session/session';
@@ -12,6 +12,7 @@ import {
   ISkillService,
   SkillNotActivatableError,
   SkillNotFoundError,
+  toProtocolSkillSearchHit,
   toProtocolSkill,
 } from './skill';
 
@@ -29,6 +30,16 @@ export class SkillService extends Disposable implements ISkillService {
     await this._requireLoadedSession(sessionId);
     const raw = await this.core.rpc.listSkills({ sessionId });
     return raw.map(toProtocolSkill);
+  }
+
+  async search(
+    sessionId: string,
+    query: string,
+    limit?: number,
+  ): Promise<readonly SkillSearchHit[]> {
+    await this._requireLoadedSession(sessionId);
+    const raw = await this.core.rpc.searchSkills({ sessionId, query, limit });
+    return raw.map(toProtocolSkillSearchHit);
   }
 
   async activate(sessionId: string, skillName: string, args?: string): Promise<void> {

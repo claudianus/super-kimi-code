@@ -1,0 +1,88 @@
+import type { ContextFile, RankedFile } from './context-types';
+
+interface RenderContextInput {
+  readonly query?: string | undefined;
+  readonly mode?: 'pack' | 'search' | 'map' | undefined;
+}
+
+export function renderContextPacket(
+  ranked: readonly RankedFile[],
+  input: RenderContextInput,
+  allFiles: readonly ContextFile[],
+): string {
+  const mode = input.mode ?? 'pack';
+  const rawChars = ranked.reduce((sum, item) => sum + item.file.content.length, 0);
+  const body = buildPacketBody(ranked, input, allFiles, mode);
+  const stats = computeStats(body, rawChars);
+  body.splice(5, 0, `raw_chars_indexed: ${rawChars}`);
+  body.splice(6, 0, `packet_chars: ${stats.packetChars}`);
+  body.splice(7, 0, `estimated_saved_percent: ${stats.estimatedSavedPercent}`);
+  body.push('</kimi_context_packet>');
+  return body.join('\n');
+}
+
+function buildPacketBody(
+  ranked: readonly RankedFile[],
+  input: RenderContextInput,
+  allFiles: readonly ContextFile[],
+  mode: 'pack' | 'search' | 'map',
+): string[] {
+  const body: string[] = [
+    `<kimi_context_packet version="1" mode="${mode}">`,
+    'strategy: lean-codegraph',
+    `query: ${input.query ?? '(paths only)'}`,
+    `files_considered: ${allFiles.length}`,
+    `files_returned: ${ranked.length}`,
+  ];
+  for (const item of ranked) {
+    body.push('');
+    body.push(`file: ${item.file.displayPath}`);
+    body.push(`lines: ${item.file.lineCount}`);
+    appendSymbols(body, item, mode);
+    appendMatches(body, item, mode);
+    body.push('expand: use Read with this file and the listed line numbers for exact source.');
+  }
+  return body;
+}
+
+function appendSymbols(
+  body: string[],
+  item: RankedFile,
+  mode: 'pack' | 'search' | 'map',
+): void {
+  if (mode === 'search') return;
+  body.push('symbols:');
+  if (item.symbols.length === 0) {
+    body.push('- (none detected)');
+    return;
+  }
+  for (const symbol of item.symbols) {
+    body.push(`- L${symbol.line} ${symbol.kind} ${symbol.name}: ${symbol.signature}`);
+  }
+}
+
+function appendMatches(
+  body: string[],
+  item: RankedFile,
+  mode: 'pack' | 'search' | 'map',
+): void {
+  if (mode === 'map') return;
+  body.push('matches:');
+  if (item.matches.length === 0) {
+    body.push('- (none)');
+    return;
+  }
+  for (const match of item.matches) {
+    body.push(`- L${match.line} ${match.text}`);
+  }
+}
+
+function computeStats(body: readonly string[], rawChars: number): {
+  readonly packetChars: number;
+  readonly estimatedSavedPercent: number;
+} {
+  const packetChars = [...body, '</kimi_context_packet>'].join('\n').length;
+  const estimatedSavedPercent =
+    rawChars === 0 ? 0 : Math.max(0, Math.round((1 - packetChars / rawChars) * 100));
+  return { packetChars, estimatedSavedPercent };
+}

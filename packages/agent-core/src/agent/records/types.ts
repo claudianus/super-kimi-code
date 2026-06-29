@@ -44,6 +44,7 @@ export interface AgentRecordEvents {
 
   'plan_mode.enter': {
     id: string;
+    ultra?: boolean;
   };
   'plan_mode.cancel': {
     id?: string;

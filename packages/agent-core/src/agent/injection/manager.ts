@@ -1,6 +1,7 @@
 import type { Agent } from '..';
 import { GoalInjector } from './goal';
 import type { DynamicInjector } from './injector';
+import { MemoryInjector } from './memory';
 import { PermissionModeInjector } from './permission-mode';
 import { PluginSessionStartInjector } from './plugin-session-start';
 import { PlanModeInjector } from './plan-mode';
@@ -18,6 +19,7 @@ export class InjectionManager {
   constructor(protected readonly agent: Agent) {
     this.injectors = [
       new PluginSessionStartInjector(agent),
+      new MemoryInjector(agent),
       new TodoListReminderInjector(agent),
       new PlanModeInjector(agent),
       new PermissionModeInjector(agent),

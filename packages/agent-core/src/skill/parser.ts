@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'pathe';
 
@@ -77,6 +78,29 @@ export async function parseSkillFromFile(options: ParseSkillOptions): Promise<Sk
     throw new SkillParseError(`Failed to read ${options.skillMdPath}`, error);
   }
   return parseSkillText({ ...options, text });
+}
+
+export async function parseSkillMetadataFromFile(
+  options: ParseSkillOptions,
+): Promise<SkillDefinition> {
+  let text: string;
+  try {
+    text = await readFile(options.skillMdPath, 'utf8');
+  } catch (error) {
+    throw new SkillParseError(`Failed to read ${options.skillMdPath}`, error);
+  }
+  const parsed = parseSkillText({ ...options, text });
+  const contentHash = createHash('sha256').update(parsed.content).digest('hex');
+  return {
+    ...parsed,
+    content: '',
+    contentHash,
+    headings: parseMarkdownHeadings(parsed.content),
+    loadContent: async () => {
+      const latest = await parseSkillFromFile(options);
+      return latest.content;
+    },
+  };
 }
 
 export function parseFrontmatter(text: string): ParsedFrontmatter {
@@ -165,6 +189,13 @@ export function parseMermaidFlowchart(markdown: string): string | undefined {
 
 export function parseD2Flowchart(markdown: string): string | undefined {
   return /```d2\r?\n([\s\S]*?)\r?\n```/.exec(markdown)?.[1];
+}
+
+export function parseMarkdownHeadings(markdown: string): readonly string[] {
+  return markdown
+    .split(/\r?\n/)
+    .map((line) => /^#{1,6}\s+(.+?)\s*$/.exec(line)?.[1]?.trim())
+    .filter((heading): heading is string => heading !== undefined && heading.length > 0);
 }
 
 /**

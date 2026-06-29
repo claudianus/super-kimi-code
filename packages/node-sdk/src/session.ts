@@ -4,7 +4,7 @@ import {
   type AgentContextData,
   type KimiErrorCode,
   type SwarmModeTrigger,
-} from '@super-kimi/agent-core';
+} from '@moonshot-ai/agent-core';
 
 import { type ApprovalHandler, type Event, type QuestionHandler } from '#/events';
 import type { SDKRpcClientBase } from '#/rpc';
@@ -18,6 +18,10 @@ import type {
   GoalToolResult,
   McpServerInfo,
   McpStartupMetrics,
+  MemoryCreateInput,
+  MemoryRecord,
+  MemorySearchRequest,
+  MemorySearchResult,
   PermissionMode,
   PluginInfo,
   PluginSummary,
@@ -30,6 +34,7 @@ import type {
   SessionStatus,
   SessionSummary,
   SessionUsage,
+  SkillSearchResult,
   SkillSummary,
   Unsubscribe,
 } from '#/types';
@@ -284,9 +289,51 @@ export class Session {
     return this.rpc.getStatus({ sessionId: this.id });
   }
 
+  async recall(
+    query: string,
+    options: Omit<MemorySearchRequest, 'query' | 'sessionId' | 'workspaceKey'> = {},
+  ): Promise<readonly MemorySearchResult[]> {
+    this.ensureOpen();
+    const memoryQuery = normalizeRequiredString(
+      query,
+      'Memory search query cannot be empty',
+      ErrorCodes.REQUEST_INVALID,
+    );
+    return this.rpc.memorySearch({
+      ...options,
+      query: memoryQuery,
+      sessionId: this.id,
+      workspaceKey: this.workDir,
+    });
+  }
+
+  async remember(input: MemoryCreateInput): Promise<MemoryRecord> {
+    this.ensureOpen();
+    const scopeKey = input.scopeKey ?? (input.scope === 'session' ? this.id : input.scope === 'workspace' ? this.workDir : undefined);
+    if (scopeKey === undefined) return this.rpc.memoryCreate(input);
+    return this.rpc.memoryCreate({ ...input, scopeKey });
+  }
+
   async listSkills(): Promise<readonly SkillSummary[]> {
     this.ensureOpen();
     return this.rpc.listSkills({ sessionId: this.id });
+  }
+
+  async searchSkills(
+    query: string,
+    options: { readonly limit?: number } = {},
+  ): Promise<readonly SkillSearchResult[]> {
+    this.ensureOpen();
+    const skillQuery = normalizeRequiredString(
+      query,
+      'Skill search query cannot be empty',
+      ErrorCodes.REQUEST_INVALID,
+    );
+    return this.rpc.searchSkills({
+      sessionId: this.id,
+      query: skillQuery,
+      limit: options.limit,
+    });
   }
 
   /**

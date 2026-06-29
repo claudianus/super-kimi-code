@@ -22,7 +22,7 @@ describe('default agent profiles', () => {
     const prompt = DEFAULT_AGENT_PROFILES['agent']?.systemPrompt(promptContext);
 
     expect(prompt).toContain('You are Kimi Code CLI');
-    expect(prompt).toContain('Available skills');
+    expect(prompt).toContain('Skill Runtime');
     expect(prompt).toContain('/workspace');
   });
 
@@ -35,7 +35,7 @@ describe('default agent profiles', () => {
     expect(prompt.indexOf('User instructions given directly in the conversation')).toBeLessThan(
       prompt.indexOf('AGENTS_MD_BODY'),
     );
-    expect(prompt.indexOf('Only read skill details when needed')).toBeLessThan(
+    expect(prompt.indexOf('Discover skills with SearchSkill')).toBeLessThan(
       prompt.indexOf('- test-skill: does things'),
     );
   });
@@ -50,6 +50,12 @@ describe('default agent profiles', () => {
     }
   });
 
+  it('exposes KimiContext to coding profiles as the default compact code-context surface', () => {
+    expect(DEFAULT_AGENT_PROFILES['agent']?.tools).toContain('KimiContext');
+    expect(DEFAULT_AGENT_PROFILES['coder']?.tools).toContain('KimiContext');
+    expect(DEFAULT_AGENT_PROFILES['plan']?.tools).not.toContain('KimiContext');
+  });
+
   it('fails loudly when an embedded system prompt source is missing', () => {
     expect(() =>
       loadAgentProfilesFromSources(['profile/default/agent.yaml'], {
@@ -58,19 +64,16 @@ describe('default agent profiles', () => {
     ).toThrow(/Embedded agent profile source missing: profile\/default\/missing\.md/);
   });
 
-  it('omits the Skills section for subagent profiles that lack the Skill tool', () => {
-    // The root agent has the Skill tool, so the Skills section and listing render.
+  it('omits the skill runtime section for subagent profiles that lack the Skill tool', () => {
     const agentPrompt = DEFAULT_AGENT_PROFILES['agent']?.systemPrompt(promptContext) ?? '';
-    expect(agentPrompt).toContain('# Skills');
+    expect(agentPrompt).toContain('# Skill Runtime');
     expect(agentPrompt).toContain('- test-skill: does things');
 
-    // Subagents (coder/explore/plan) lack the Skill tool, so neither the section
-    // heading nor the skill listing should appear in their prompt.
     for (const name of ['coder', 'explore', 'plan']) {
       const tools = DEFAULT_AGENT_PROFILES[name]?.tools ?? [];
       expect(tools).not.toContain('Skill');
       const prompt = DEFAULT_AGENT_PROFILES[name]?.systemPrompt(promptContext) ?? '';
-      expect(prompt).not.toContain('# Skills');
+      expect(prompt).not.toContain('# Skill Runtime');
       expect(prompt).not.toContain('- test-skill: does things');
     }
   });

@@ -1,10 +1,8 @@
 
-import {
-  type Message
-} from '@moonshot-ai/kosong';
+import type { Message } from '@moonshot-ai/kosong';
 import { describe, expect, it } from 'vitest';
 
-import { DefaultCompactionStrategy } from '../../../src/agent/compaction';
+import { DefaultCompactionStrategy, splitMessagesIntoTokenBlocks } from '../../../src/agent/compaction';
 import { estimateTokensForMessages } from '../../../src/utils/tokens';
 
 describe('DefaultCompactionStrategy', () => {
@@ -97,6 +95,28 @@ describe('DefaultCompactionStrategy', () => {
     expect(strategy.computeCompactCount(messages, 'auto')).toBe(2);
   });
 
+  it('splits v2 parallel summary blocks only at tool-call group boundaries', () => {
+    const messages: Message[] = [
+      textMessage('user', 'old user'),
+      {
+        role: 'assistant',
+        content: [],
+        toolCalls: [
+          { type: 'function', id: 'call_a', name: 'Lookup', arguments: '{}' },
+          { type: 'function', id: 'call_b', name: 'Lookup', arguments: '{}' },
+        ],
+      },
+      { role: 'tool', content: [{ type: 'text', text: 'a'.repeat(2_000) }], toolCalls: [], toolCallId: 'call_a' },
+      { role: 'tool', content: [{ type: 'text', text: 'b'.repeat(2_000) }], toolCalls: [], toolCallId: 'call_b' },
+      textMessage('user', 'next prompt'),
+    ];
+
+    const blocks = splitMessagesIntoTokenBlocks(messages, 10);
+    const toolBlock = blocks.find((block) => block.some((message) => message.role === 'tool'));
+
+    expect(toolBlock?.map((message) => message.role)).toEqual(['assistant', 'tool', 'tool']);
+  });
+
   it('shrinks auto compaction input to fit the model window', () => {
     const maxSize = 1_000;
     const strategy = testCompactionStrategy(maxSize);
@@ -144,12 +164,78 @@ describe('DefaultCompactionStrategy', () => {
       maxRecentUserMessages: Infinity,
       maxRecentSizeRatio: 0.2,
       minOverflowReductionRatio: 0.05,
+      absoluteTriggerTokens: 200_000,
+      parallelBlockThreshold: 30_000,
+      parallelBlockTarget: 15_000,
     });
 
     expect(strategy.shouldCompact(1)).toBe(false);
     expect(strategy.shouldBlock(1)).toBe(false);
     expect(strategy.shouldCompact(28_000)).toBe(true);
     expect(strategy.shouldBlock(28_000)).toBe(true);
+  });
+
+  it('triggers at absolute token threshold for large-context models', () => {
+    const strategy = new DefaultCompactionStrategy(() => 1_000_000, {
+      triggerRatio: 0.85,
+      blockRatio: 0.85,
+      reservedContextSize: 50_000,
+      maxCompactionPerTurn: 3,
+      maxRecentMessages: 3,
+      maxRecentUserMessages: Infinity,
+      maxRecentSizeRatio: 0.2,
+      minOverflowReductionRatio: 0.05,
+      absoluteTriggerTokens: 200_000,
+      parallelBlockThreshold: 30_000,
+      parallelBlockTarget: 15_000,
+    });
+
+    expect(strategy.shouldCompact(199_000)).toBe(false);
+    expect(strategy.shouldBlock(199_000)).toBe(false);
+
+    expect(strategy.shouldCompact(200_000)).toBe(true);
+    expect(strategy.shouldBlock(200_000)).toBe(true);
+  });
+
+  it('treats the absolute threshold as a soft trigger when v2 separates hard blocking', () => {
+    const strategy = new DefaultCompactionStrategy(() => 1_000_000, {
+      triggerRatio: 0.85,
+      blockRatio: 0.85,
+      reservedContextSize: 50_000,
+      maxCompactionPerTurn: 3,
+      maxRecentMessages: 3,
+      maxRecentUserMessages: Infinity,
+      maxRecentSizeRatio: 0.2,
+      minOverflowReductionRatio: 0.05,
+      absoluteTriggerTokens: 200_000,
+      parallelBlockThreshold: 30_000,
+      parallelBlockTarget: 15_000,
+      absoluteTriggerBlocks: false,
+    });
+
+    expect(strategy.shouldCompact(199_999)).toBe(false);
+    expect(strategy.shouldCompact(200_000)).toBe(true);
+    expect(strategy.shouldBlock(200_000)).toBe(false);
+    expect(strategy.shouldBlock(850_000)).toBe(true);
+  });
+
+  it('falls back to ratio trigger when the model window is below the large-context threshold', () => {
+    const strategy = new DefaultCompactionStrategy(() => 240_000, {
+      triggerRatio: 0.85,
+      blockRatio: 0.85,
+      reservedContextSize: 0,
+      maxCompactionPerTurn: 3,
+      maxRecentMessages: 3,
+      maxRecentUserMessages: Infinity,
+      maxRecentSizeRatio: 0.2,
+      minOverflowReductionRatio: 0.05,
+      absoluteTriggerTokens: 200_000,
+      parallelBlockThreshold: 30_000,
+      parallelBlockTarget: 15_000,
+    });
+
+    expect(strategy.shouldCompact(200_000)).toBe(false);
+    expect(strategy.shouldCompact(204_000)).toBe(true);
   });
 });
 
@@ -163,6 +249,9 @@ function testCompactionStrategy(maxSize: number = 1_000): DefaultCompactionStrat
     maxRecentUserMessages: Infinity,
     maxRecentSizeRatio: 0.2,
     minOverflowReductionRatio: 0.05,
+    absoluteTriggerTokens: 200_000,
+    parallelBlockThreshold: 30_000,
+    parallelBlockTarget: 15_000,
   });
 }
 
@@ -176,6 +265,9 @@ function overflowOnlyCompactionStrategy(maxSize: number = 14): DefaultCompaction
     maxRecentUserMessages: Infinity,
     maxRecentSizeRatio: 0.2,
     minOverflowReductionRatio: 0.05,
+    absoluteTriggerTokens: 200_000,
+    parallelBlockThreshold: 30_000,
+    parallelBlockTarget: 15_000,
   });
 }
 

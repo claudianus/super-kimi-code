@@ -32,8 +32,11 @@
  */
 
 import { createDecorator } from '../../di';
-import type { SkillSummary as AgentCoreSkillSummary } from '../../rpc';
-import type { SkillDescriptor } from '@moonshot-ai/protocol';
+import type {
+  SkillSearchResult as AgentCoreSkillSearchResult,
+  SkillSummary as AgentCoreSkillSummary,
+} from '../../rpc';
+import type { SkillDescriptor, SkillSearchHit } from '@moonshot-ai/protocol';
 
 // ---------------------------------------------------------------------------
 // Adapter helpers
@@ -55,6 +58,18 @@ export function toProtocolSkill(info: AgentCoreSkillSummary): SkillDescriptor {
   };
 }
 
+export function toProtocolSkillSearchHit(info: AgentCoreSkillSearchResult): SkillSearchHit {
+  const base = toProtocolSkill(info);
+  return {
+    ...base,
+    score: info.score,
+    match_reason: info.matchReason,
+    ...(info.isSubSkill !== undefined ? { is_sub_skill: info.isSubSkill } : {}),
+    ...(info.risk !== undefined ? { risk: String(info.risk) } : {}),
+    ...(info.category !== undefined ? { category: info.category } : {}),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Interface + errors
 // ---------------------------------------------------------------------------
@@ -67,6 +82,12 @@ export interface ISkillService {
    * builtin). Throws `SessionNotFoundError` (→ 40401) for unknown sessions.
    */
   list(sessionId: string): Promise<readonly SkillDescriptor[]>;
+
+  search(
+    sessionId: string,
+    query: string,
+    limit?: number,
+  ): Promise<readonly SkillSearchHit[]>;
 
   /**
    * Activate a skill by name in a session — the REST analogue of typing

@@ -145,7 +145,13 @@ function buildTemplateVars(
   const skills =
     typeof context.skills === 'string'
       ? context.skills
-      : (context.skills?.getModelSkillListing() ?? '');
+      : context.skillPromptMode === 'legacy-list'
+        ? (
+            context.skills?.getLegacyModelSkillListing?.() ??
+            context.skills?.getModelSkillListing() ??
+            ''
+          )
+        : (context.skills?.getModelSkillListing() ?? '');
   const now =
     context.now instanceof Date
       ? context.now.toISOString()
@@ -160,6 +166,7 @@ function buildTemplateVars(
     KIMI_WORK_DIR_LS: context.cwdListing ?? '',
     KIMI_AGENTS_MD: context.agentsMd ?? '',
     KIMI_SKILLS: tools.includes('Skill') ? skills : '',
+    KIMI_SKILL_PROMPT_MODE: context.skillPromptMode ?? 'search',
     KIMI_ADDITIONAL_DIRS_INFO: context.additionalDirsInfo ?? '',
     ROLE_ADDITIONAL:
       context.roleAdditional ?? promptVars['ROLE_ADDITIONAL'] ?? promptVars['roleAdditional'] ?? '',

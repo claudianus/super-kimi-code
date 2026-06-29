@@ -1,5 +1,5 @@
 import { uniq } from '@antfu/utils';
-import type { ChatProvider, Tool } from '@super-kimi/kosong';
+import type { ChatProvider, Tool } from '@moonshot-ai/kosong';
 import picomatch from 'picomatch';
 
 import type { Agent } from '..';
@@ -483,6 +483,7 @@ export class ToolManager {
         new b.EditTool(kaos, workspace),
         new b.GrepTool(kaos, workspace),
         new b.GlobTool(kaos, workspace),
+        new b.KimiContextTool(kaos, workspace),
         new b.BashTool(kaos, cwd, background, {
           allowBackground,
         }),
@@ -498,6 +499,7 @@ export class ToolManager {
         goalToolsEnabled && new b.UpdateGoalTool(this.agent),
         this.agent.rpc?.requestQuestion && new b.AskUserQuestionTool(this.agent),
         new b.TodoListTool(this.toolStore),
+        this.agent.memory && new b.MemoryTool(this.agent.memory),
         new b.TaskListTool(background),
         new b.TaskOutputTool(background),
         new b.TaskStopTool(background),
@@ -506,6 +508,8 @@ export class ToolManager {
         this.agent.cron && new b.CronDeleteTool(this.agent.cron),
         this.agent.skills?.registry.listInvocableSkills().length &&
           new b.SkillTool(this.agent),
+        this.agent.skills?.registry.listInvocableSkills().length &&
+          new b.SearchSkillTool(this.agent),
         this.agent.subagentHost &&
           new b.AgentTool(
             this.agent.subagentHost,
@@ -518,6 +522,8 @@ export class ToolManager {
           ),
         this.agent.subagentHost &&
           new b.AgentSwarmTool(this.agent.subagentHost, this.agent.swarmMode),
+        this.agent.subagentHost &&
+          new b.UltraSwarmTool(this.agent.subagentHost, this.agent.swarmMode),
         toolServices?.webSearcher && new b.WebSearchTool(toolServices.webSearcher),
         toolServices?.urlFetcher && new b.FetchURLTool(toolServices.urlFetcher),
       ]

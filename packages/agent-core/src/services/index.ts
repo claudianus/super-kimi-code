@@ -171,6 +171,9 @@ export {
 } from './tool/tool';
 export { ToolService } from './tool/toolService';
 
+export { IMemoryService } from './memory/memory';
+export { MemoryService } from './memory/memoryService';
+
 export {
   IMcpService,
   McpServerNotFoundError,

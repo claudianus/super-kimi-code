@@ -211,12 +211,7 @@ export class ContextMemory {
       ...result,
     });
     this.agent.replayBuilder.patchLast('compaction', {
-      result: {
-        summary: result.summary,
-        compactedCount: result.compactedCount,
-        tokensBefore: result.tokensBefore,
-        tokensAfter: result.tokensAfter,
-      },
+      result,
     });
     this._history = [
       {

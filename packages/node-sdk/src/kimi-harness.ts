@@ -20,6 +20,16 @@ import type {
   KimiConfigPatch,
   KimiHostIdentity,
   ListSessionsOptions,
+  MemoryConsolidateResult,
+  MemoryCreateInput,
+  MemoryExportResult,
+  MemoryImportResult,
+  MemoryListRequest,
+  MemoryRecord,
+  MemorySearchRequest,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryUpdateInput,
   RenameSessionInput,
   ResumeSessionInput,
   ReloadSessionInput,
@@ -45,6 +55,7 @@ export class KimiHarness {
   readonly homeDir: string;
   readonly configPath: string;
   readonly auth: KimiAuthFacade;
+  readonly memory: KimiMemoryClient;
 
   private readonly identity: KimiHostIdentity | undefined;
   private readonly uiMode: string;
@@ -64,6 +75,7 @@ export class KimiHarness {
     this.configPath = options.configPath;
     this.telemetry = options.telemetry;
     this.auth = options.auth;
+    this.memory = new KimiMemoryClient(rpc);
     this.ensureConfigFileImpl = options.ensureConfigFile;
     this.closeImpl = options.onClose;
     this.sessionStartedProperties = options.sessionStartedProperties ?? {};
@@ -270,6 +282,50 @@ export class KimiHarness {
       ui_mode: this.uiMode,
       resumed,
     });
+  }
+}
+
+export class KimiMemoryClient {
+  constructor(private readonly rpc: SDKRpcClientBase) {}
+
+  search(request: MemorySearchRequest): Promise<readonly MemorySearchResult[]> {
+    return this.rpc.memorySearch(request);
+  }
+
+  list(request: MemoryListRequest = {}): Promise<readonly MemoryRecord[]> {
+    return this.rpc.memoryList(request);
+  }
+
+  get(id: string): Promise<MemoryRecord | undefined> {
+    return this.rpc.memoryGet(id);
+  }
+
+  remember(input: MemoryCreateInput): Promise<MemoryRecord> {
+    return this.rpc.memoryCreate(input);
+  }
+
+  update(id: string, patch: MemoryUpdateInput): Promise<MemoryRecord> {
+    return this.rpc.memoryUpdate(id, patch);
+  }
+
+  forget(id: string): Promise<boolean> {
+    return this.rpc.memoryForget(id);
+  }
+
+  stats(): Promise<MemoryStats> {
+    return this.rpc.memoryStats();
+  }
+
+  exportMemories(request: MemoryListRequest = {}): Promise<MemoryExportResult> {
+    return this.rpc.memoryExport(request);
+  }
+
+  importMemories(records: readonly MemoryRecord[]): Promise<MemoryImportResult> {
+    return this.rpc.memoryImport(records);
+  }
+
+  consolidate(): Promise<MemoryConsolidateResult> {
+    return this.rpc.memoryConsolidate();
   }
 }
 

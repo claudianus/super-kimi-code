@@ -555,6 +555,7 @@ export class TurnFlow {
     if (errorEvent !== undefined) {
       this.agent.emitEvent(errorEvent);
     }
+    await this.recordTurnMemory(turnId, input, ended.reason);
     if (ended.reason !== 'completed') {
       this.trackTurnInterrupted(turnId, this.currentStepByTurn.get(turnId) ?? this.currentStep);
     }
@@ -563,6 +564,18 @@ export class TurnFlow {
     this.interruptedTelemetryTurnIds.delete(turnId);
     this.stepFailureByTurn.delete(turnId);
     return { event: ended, stopReason: completedStopReason, blockedByUserPromptHook };
+  }
+
+  private async recordTurnMemory(
+    turnId: number,
+    input: readonly ContentPart[],
+    reason: TurnEndReason,
+  ): Promise<void> {
+    try {
+      await this.agent.memory?.recordTurn({ turnId, input, reason });
+    } catch (error) {
+      this.agent.log.warn('kimi recall turn capture failed', error);
+    }
   }
 
   private async applyUserPromptHook(

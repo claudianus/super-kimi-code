@@ -52,7 +52,7 @@ export const SkillToolInputSchema: z.ZodType<SkillToolInput> = z.object({
   skill: z
     .string()
     .describe(
-      'The exact name of the skill to invoke, spelled as it appears in the current skill listing (e.g. "commit", "pdf").',
+      'The exact name of the skill to invoke, spelled as returned by SearchSkill or direct slash activation (e.g. "commit", "pdf").',
     ),
   args: z
     .string()
@@ -114,11 +114,11 @@ export class SkillTool implements BuiltinTool<SkillToolInput> {
 
     const skills = this.agent.skills;
     if (skills === null) {
-      return errorResult(`Skill "${args.skill}" not found in the current skill listing.`);
+      return errorResult(`Skill "${args.skill}" not found. Use SearchSkill to find an exact skill name.`);
     }
     const skill = skills.registry.getSkill(args.skill);
     if (skill === undefined) {
-      return errorResult(`Skill "${args.skill}" not found in the current skill listing.`);
+      return errorResult(`Skill "${args.skill}" not found. Use SearchSkill to find an exact skill name.`);
     }
     if (skill.metadata.disableModelInvocation === true) {
       // Keep the exact wording "can only be triggered by the user" so
@@ -138,7 +138,7 @@ export class SkillTool implements BuiltinTool<SkillToolInput> {
     const origin = skillOrigin(skill, skillArgs, currentDepth);
     const promptTrigger = origin.trigger === 'nested-skill' ? 'nested-skill' : 'model-tool';
     skills.recordActivation(origin);
-    const skillContent = skills.registry.renderSkillPrompt(skill, skillArgs);
+    const skillContent = await skills.registry.renderSkillPrompt(skill, skillArgs);
     this.agent.context.appendUserMessage(
       [
         {

@@ -7,7 +7,9 @@ import {
 import {
   APIEmptyResponseError,
   isRetryableGenerateError,
+  type ChatProvider,
   type GenerateResult,
+  type Message,
   type TokenUsage,
   APIContextOverflowError,
   createUserMessage,
@@ -30,14 +32,40 @@ import {
 } from '../../utils/completion-budget';
 import compactionInstructionTemplate from './compaction-instruction.md?raw';
 import { renderTodoList, type TodoItem } from '../../tools/builtin/state/todo-list';
-import type { CompactionBeginData, CompactionResult } from './types';
+import type {
+  CompactionBeginData,
+  CompactionResult,
+  CompactionResultAction,
+  CompactionResultRawRef,
+} from './types';
 import {
   DEFAULT_COMPACTION_CONFIG,
   DefaultCompactionStrategy,
   type CompactionStrategy,
 } from './strategy';
+import {
+  CompactionPlanner,
+  splitMessagesIntoTokenBlocks,
+  type CompactionPlan,
+} from './planner';
+import {
+  extractFactsFromSummary,
+  formatFactsAsMemoryBlock,
+  mergeFactSets,
+  parseStructuredCompactionMemory,
+  type ExtractedFact,
+} from './memory';
+import {
+  type AnchorDocument,
+  createAnchorDocument,
+  extractAnchorDiff,
+  mergeIntoAnchor,
+  renderAnchor,
+} from './anchor';
 
 export const MAX_COMPACTION_RETRY_ATTEMPTS = 5;
+const DEFAULT_PARALLEL_BLOCK_THRESHOLD = 30_000;
+const DEFAULT_PARALLEL_BLOCK_TARGET = 15_000;
 
 class CompactionTruncatedError extends Error {
   constructor() {
@@ -54,11 +82,15 @@ export class FullCompaction {
     blockedByTurn: boolean;
   } | null = null;
   protected readonly strategy: CompactionStrategy;
+  protected extractedFacts: ExtractedFact[] = [];
+  protected anchor: AnchorDocument | null = null;
+  protected readonly planner = new CompactionPlanner();
 
   constructor(
     protected readonly agent: Agent,
     strategy?: CompactionStrategy,
   ) {
+    const loopControl = agent.kimiConfig?.loopControl;
     this.strategy =
       strategy ??
       new DefaultCompactionStrategy(
@@ -66,10 +98,24 @@ export class FullCompaction {
         {
           ...DEFAULT_COMPACTION_CONFIG,
           reservedContextSize:
-            agent.kimiConfig?.loopControl?.reservedContextSize ??
+            loopControl?.reservedContextSize ??
             DEFAULT_COMPACTION_CONFIG.reservedContextSize,
+          absoluteTriggerTokens:
+            loopControl?.compactionTriggerTokens ??
+            DEFAULT_COMPACTION_CONFIG.absoluteTriggerTokens,
+          maxRecentMessages:
+            loopControl?.compactionMaxRecentMessages ??
+            DEFAULT_COMPACTION_CONFIG.maxRecentMessages,
+          absoluteTriggerBlocks: false,
         }
       );
+
+    const systemPrompt = agent.config?.systemPrompt?.trim();
+    if (systemPrompt && systemPrompt.length > 0) {
+      this.anchor = createAnchorDocument(
+        systemPrompt.slice(0, 500).replace(/\s+/g, ' ').trim()
+      );
+    }
   }
 
   get isCompacting(): boolean {
@@ -205,7 +251,10 @@ export class FullCompaction {
     compactedCount: number,
   ): Promise<void> {
     try {
-      const finalResult = {
+      const finalActions: CompactionResultAction[] = [];
+      const finalRawRefs: CompactionResultRawRef[] = [];
+      const finalQualityWarnings: string[] = [];
+      const finalResult: CompactionResult = {
         summary: '',
         compactedCount: 1,
         tokensBefore: 0,
@@ -220,11 +269,25 @@ export class FullCompaction {
         finalResult.compactedCount += result.compactedCount - 1;
         finalResult.tokensBefore += result.tokensBefore - finalResult.tokensAfter;
         finalResult.tokensAfter = result.tokensAfter;
+        finalResult.algorithmVersion = result.algorithmVersion;
+        finalResult.summaryTokens = result.summaryTokens;
+        finalResult.retainedTokens = result.retainedTokens;
+        finalResult.compactedTokens = result.compactedTokens;
+        if (result.actions !== undefined) finalActions.push(...result.actions);
+        if (result.rawRefs !== undefined) finalRawRefs.push(...result.rawRefs);
+        if (result.qualityWarnings !== undefined) {
+          finalQualityWarnings.push(...result.qualityWarnings);
+        }
 
         if (result.tokensBefore - result.tokensAfter < 1024) break;
         if (!this.strategy.shouldBlock(result.tokensAfter)) break;
         compactedCount = this.strategy.computeCompactCount(this.agent.context.history, data.source);
         if (compactedCount === 0) break;
+      }
+      if (finalActions.length > 0) finalResult.actions = finalActions;
+      if (finalRawRefs.length > 0) finalResult.rawRefs = finalRawRefs;
+      if (finalQualityWarnings.length > 0) {
+        finalResult.qualityWarnings = [...new Set(finalQualityWarnings)];
       }
       this.markCompleted();
       this.agent.emitEvent({ type: 'compaction.completed', result: finalResult });
@@ -254,7 +317,7 @@ export class FullCompaction {
     const startedAt = Date.now();
     const originalHistory = [...this.agent.context.history];
     const tokensBefore = estimateTokensForMessages(originalHistory);
-    let retryCount = 0;
+    const retryCount = { value: 0 };
     try {
       let compactedCount = initialCompactedCount;
 
@@ -269,48 +332,65 @@ export class FullCompaction {
         capability: this.agent.config.modelCapabilities,
       });
 
-      const delays = retryBackoffDelays(MAX_COMPACTION_RETRY_ATTEMPTS);
-      let usage: TokenUsage | null;
       let summary: string;
-      while (true) {
-        const messagesToCompact = originalHistory.slice(0, compactedCount);
-        const messages = [
-          ...this.agent.context.project(messagesToCompact),
-          createUserMessage(renderPrompt(compactionInstructionTemplate, { customInstruction: data.instruction ?? '' })),
-        ];
-        try {
-          const response = await this.agent.generate(
-            provider,
-            this.agent.config.systemPrompt,
-            [...this.agent.tools.loopTools],
-            messages,
-            undefined,
-            { signal },
+      let usage: TokenUsage | null = null;
+      const messagesToCompact = originalHistory.slice(0, compactedCount);
+      let plan = this.planner.plan(originalHistory, compactedCount);
+      const compactedTokens = estimateTokensForMessages(messagesToCompact);
+
+      const parallelThreshold = this.strategy.parallelBlockThreshold ?? DEFAULT_PARALLEL_BLOCK_THRESHOLD;
+      if (compactedTokens > parallelThreshold && messagesToCompact.length > 4) {
+        const blocks = this.splitIntoBlocks(messagesToCompact);
+        if (blocks.length > 1) {
+          const blockPrompt = renderPrompt(compactionInstructionTemplate, {
+            customInstruction: this.compactionInstruction(
+              data.instruction,
+              plan,
+              'This is one block of a larger conversation. Summarize only the events in this block.',
+            ),
+          });
+          const blockResults = await Promise.all(
+            blocks.map(async (block) => {
+              const messages = [
+                ...this.agent.context.project(block),
+                createUserMessage(blockPrompt),
+              ];
+              const response = await this.agent.generate(
+                provider,
+                this.agent.config.systemPrompt,
+                [...this.agent.tools.loopTools],
+                messages,
+                undefined,
+                { signal },
+              );
+              if (response.finishReason === 'truncated') {
+                throw new CompactionTruncatedError();
+              }
+              if (response.usage !== null) {
+                usage = mergeTokenUsage(usage, response.usage);
+              }
+              return extractCompactionSummary(response);
+            })
           );
-          if (response.finishReason === 'truncated') {
-            throw new CompactionTruncatedError();
-          }
-          usage = response.usage;
-          summary = extractCompactionSummary(response);
-          break;
-        } catch (error) {
-          if (
-            error instanceof APIContextOverflowError ||
-            error instanceof CompactionTruncatedError ||
-            error instanceof APIEmptyResponseError // e.g. think-only
-          ) {
-            compactedCount = this.strategy.reduceCompactOnOverflow(messagesToCompact);
-          }
-          else if (!isRetryableGenerateError(error)) {
-            throw error;
-          }
-          if (retryCount + 1 >= MAX_COMPACTION_RETRY_ATTEMPTS) {
-            throw error;
-          }
-          await sleepForRetry(delays[retryCount]!, signal);
-          retryCount += 1;
+          summary = `## Summary of Compacted History\n\n${blockResults.map((s, i) => `## Block ${i + 1}\n${s.trim()}`).join('\n\n')}`;
+        } else {
+          const seqResult = await this.sequentialSummarize(
+            signal, provider, messagesToCompact, this.compactionInstruction(data.instruction, plan), retryCount
+          );
+          summary = seqResult.summary;
+          usage = seqResult.usage;
+          compactedCount = seqResult.finalCompactedCount;
         }
+      } else {
+        const seqResult = await this.sequentialSummarize(
+          signal, provider, messagesToCompact, this.compactionInstruction(data.instruction, plan), retryCount
+        );
+        summary = seqResult.summary;
+        usage = seqResult.usage;
+        compactedCount = seqResult.finalCompactedCount;
       }
+
+      plan = this.planner.plan(originalHistory, compactedCount);
 
       if (usage !== null) {
         this.agent.usage.record(model, usage);
@@ -327,6 +407,24 @@ export class FullCompaction {
 
       summary = this.postProcessSummary(summary);
 
+      const newFacts = extractFactsFromSummary(summary);
+      this.extractedFacts = Array.from(mergeFactSets(this.extractedFacts, newFacts));
+      const memoryBlock = formatFactsAsMemoryBlock(this.extractedFacts);
+      if (memoryBlock.length > 0) {
+        summary = `${summary.trim()}\n\n${memoryBlock}`;
+      }
+
+      if (this.anchor !== null) {
+        const diff = extractAnchorDiff(summary);
+        this.anchor = mergeIntoAnchor(this.anchor, diff);
+        const anchorText = renderAnchor(this.anchor);
+        if (anchorText.length > 0) {
+          summary = `${anchorText}\n\n---\n\n${summary.trim()}`;
+        }
+      }
+
+      summary = this.renderStructuredV2Summary(summary, plan);
+
       const recent = originalHistory.slice(compactedCount);
       const tokensAfter = estimateTokens(summary) + estimateTokensForMessages(recent);
 
@@ -336,15 +434,38 @@ export class FullCompaction {
         tokensBefore,
         tokensAfter,
       };
+      result.algorithmVersion = plan.algorithmVersion;
+      result.actions = plan.actions;
+      result.rawRefs = plan.rawRefs;
+      result.summaryTokens = estimateTokens(summary);
+      result.retainedTokens = plan.retainedTokens;
+      result.compactedTokens = plan.compactedTokens;
+      result.qualityWarnings = plan.qualityWarnings;
 
       this.agent.telemetry.track('compaction_finished', {
         tokensBefore: result.tokensBefore,
         tokensAfter: result.tokensAfter,
         duration: Date.now() - startedAt,
         compactedCount: result.compactedCount,
-        retryCount,
+        retryCount: retryCount.value,
         round,
         thinkingLevel: this.agent.config.thinkingLevel,
+        ...usage,
+        ...data,
+      });
+      this.agent.telemetry.track('compaction_v2_finished', {
+        tokensBefore: result.tokensBefore,
+        tokensAfter: result.tokensAfter,
+        summaryTokens: result.summaryTokens,
+        retainedTokens: result.retainedTokens,
+        compactedTokens: result.compactedTokens,
+        duration: Date.now() - startedAt,
+        compactedCount: result.compactedCount,
+        retryCount: retryCount.value,
+        round,
+        thinkingLevel: this.agent.config.thinkingLevel,
+        actionTypes: result.actions?.map((action) => action.type).join(',') ?? '',
+        qualityWarnings: result.qualityWarnings?.join(',') ?? '',
         ...usage,
         ...data,
       });
@@ -357,13 +478,69 @@ export class FullCompaction {
         tokensBefore,
         duration: Date.now() - startedAt,
         round,
-        retryCount,
+        retryCount: retryCount.value,
         thinkingLevel: this.agent.config.thinkingLevel,
         errorType: error instanceof Error ? error.name : 'Unknown',
       });
       if (isKimiError(error) && error.code === ErrorCodes.AUTH_LOGIN_REQUIRED) throw error;
       throw new KimiError(ErrorCodes.COMPACTION_FAILED, String(error), { cause: error });
     }
+  }
+
+  private async sequentialSummarize(
+    signal: AbortSignal,
+    provider: ChatProvider,
+    messagesToCompact: readonly Message[],
+    instruction: string,
+    retryCountRef: { value: number },
+  ): Promise<{ summary: string; usage: TokenUsage | null; finalCompactedCount: number }> {
+    const delays = retryBackoffDelays(MAX_COMPACTION_RETRY_ATTEMPTS);
+    let compactedCount = messagesToCompact.length;
+    let usage: TokenUsage | null = null;
+
+    while (true) {
+      const currentPrefix = messagesToCompact.slice(0, compactedCount);
+      const messages = [
+        ...this.agent.context.project(currentPrefix),
+        createUserMessage(renderPrompt(compactionInstructionTemplate, { customInstruction: instruction })),
+      ];
+      try {
+        const response = await this.agent.generate(
+          provider,
+          this.agent.config.systemPrompt,
+          [...this.agent.tools.loopTools],
+          messages,
+          undefined,
+          { signal },
+        );
+        if (response.finishReason === 'truncated') {
+          throw new CompactionTruncatedError();
+        }
+        usage = response.usage;
+        return { summary: extractCompactionSummary(response), usage, finalCompactedCount: compactedCount };
+      } catch (error) {
+        if (
+          error instanceof APIContextOverflowError ||
+          error instanceof CompactionTruncatedError ||
+          error instanceof APIEmptyResponseError
+        ) {
+          compactedCount = this.strategy.reduceCompactOnOverflow(currentPrefix);
+        }
+        else if (!isRetryableGenerateError(error)) {
+          throw error;
+        }
+        if (retryCountRef.value + 1 >= MAX_COMPACTION_RETRY_ATTEMPTS) {
+          throw error;
+        }
+        await sleepForRetry(delays[retryCountRef.value]!, signal);
+        retryCountRef.value += 1;
+      }
+    }
+  }
+
+  private splitIntoBlocks(messages: readonly Message[]): readonly (readonly Message[])[] {
+    const target = this.strategy.parallelBlockTarget ?? DEFAULT_PARALLEL_BLOCK_TARGET;
+    return splitMessagesIntoTokenBlocks(messages, target);
   }
 
   private async triggerPreCompactHook(
@@ -405,6 +582,71 @@ export class FullCompaction {
     const todoMarkdown = renderTodoList(todos, '## TODO List');
     return `${summary.trim()}\n\n${todoMarkdown}`;
   }
+
+  private compactionInstruction(
+    instruction: string | undefined,
+    plan: CompactionPlan | undefined,
+    blockNote?: string,
+  ): string {
+    if (plan === undefined) return instruction ?? '';
+
+    const lines = [
+      instruction?.trim(),
+      blockNote,
+      'CONTEXT COMPACTION V2 OUTPUT CONTRACT:',
+      'Preserve task continuity over compression ratio. Use the exact sections: current_goal, last_known_state, decisions, files_touched, failed_attempts, open_questions, next_actions, raw_refs.',
+      'Mention uncertain facts as uncertain. Do not invent file paths, test results, or decisions.',
+      `Compacted tokens: ${String(plan.compactedTokens)}. Retained recent tokens: ${String(plan.retainedTokens)}.`,
+      `Raw refs available after compaction: ${plan.rawRefs.map(formatRawRef).join('; ') || 'none'}.`,
+    ];
+    return lines.filter((line): line is string => line !== undefined && line.length > 0).join('\n\n');
+  }
+
+  private renderStructuredV2Summary(summary: string, plan: CompactionPlan): string {
+    const structuredMemory = parseStructuredCompactionMemory(summary);
+    const filesTouched = this.extractedFacts.filter((fact) => fact.category === 'file');
+    const decisions = this.extractedFacts.filter((fact) => fact.category === 'decision');
+    const failures = this.extractedFacts.filter((fact) => fact.category === 'error');
+    const nextActions = mergeStringLists(structuredMemory.nextActions, extractNextActions(summary));
+    const currentGoal = structuredMemory.currentGoal ?? 'Continue the active user task from the compacted state.';
+    const lastKnownState = mergeStringLists(structuredMemory.lastKnownState, [
+      `${String(plan.compactedCount)} old messages were compacted; ${String(plan.retainedTokens)} estimated tokens remain in the recent live context.`,
+    ]);
+    const decisionItems = mergeStringLists(structuredMemory.decisions, factsToDetails(decisions));
+    const fileItems = mergeStringLists(structuredMemory.filesTouched, factsToDetails(filesTouched));
+    const failureItems = mergeStringLists(structuredMemory.failedAttempts, factsToDetails(failures));
+    const rawRefItems = mergeStringLists(structuredMemory.rawRefs, plan.rawRefs.map(formatRawRef));
+
+    return [
+      '# Super Kimi Context Compaction v2 Memory',
+      '',
+      '## Resume Preflight',
+      `- current_goal: ${currentGoal}`,
+      '- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.',
+      `- next_action: ${nextActions[0] ?? 'Inspect the retained recent context, then continue the pending implementation or verification step.'}`,
+      '',
+      '## Structured Working Memory',
+      'current_goal:',
+      `- ${currentGoal}`,
+      'last_known_state:',
+      formatStringList(lastKnownState),
+      'decisions:',
+      formatStringList(decisionItems),
+      'files_touched:',
+      formatStringList(fileItems),
+      'failed_attempts:',
+      formatStringList(failureItems),
+      'open_questions:',
+      formatStringList(structuredMemory.openQuestions),
+      'next_actions:',
+      formatStringList(nextActions),
+      'raw_refs:',
+      formatStringList(rawRefItems),
+      '',
+      '## Compacted Narrative',
+      summary.trim(),
+    ].join('\n');
+  }
 }
 
 function extractCompactionSummary(response: GenerateResult): string {
@@ -419,4 +661,67 @@ function extractCompactionSummary(response: GenerateResult): string {
     );
   }
   return summary;
+}
+
+function mergeTokenUsage(current: TokenUsage | null, next: TokenUsage): TokenUsage {
+  if (current === null) return next;
+  return {
+    inputOther: current.inputOther + next.inputOther,
+    output: current.output + next.output,
+    inputCacheRead: current.inputCacheRead + next.inputCacheRead,
+    inputCacheCreation: current.inputCacheCreation + next.inputCacheCreation,
+  };
+}
+
+function formatStringList(items: readonly string[]): string {
+  if (items.length === 0) return '- None captured during compaction.';
+  return items.slice(0, 12).map((item) => `- ${item}`).join('\n');
+}
+
+function factsToDetails(facts: readonly ExtractedFact[]): readonly string[] {
+  return facts.map((fact) => fact.detail);
+}
+
+function mergeStringLists(
+  primary: readonly string[],
+  fallback: readonly string[],
+): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of [...primary, ...fallback]) {
+    const normalized = item.trim();
+    if (normalized.length === 0) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+  return result;
+}
+
+function extractNextActions(summary: string): readonly string[] {
+  const lines = summary.split('\n');
+  const result: string[] = [];
+  let inNextSection = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^#{1,4}\s*(next steps?|todo|pending|active issues)/i.test(trimmed)) {
+      inNextSection = true;
+      continue;
+    }
+    if (inNextSection && /^#{1,4}\s+/.test(trimmed)) break;
+    if (!inNextSection) continue;
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      result.push(trimmed.slice(2));
+    }
+  }
+  return result;
+}
+
+function formatRawRef(ref: CompactionPlan['rawRefs'][number]): string {
+  const tools =
+    ref.toolNames !== undefined && ref.toolNames.length > 0
+      ? ` tools=${ref.toolNames.join(',')}`
+      : '';
+  return `${ref.kind}[${String(ref.messageStart)}-${String(ref.messageEnd)}] tokens=${String(ref.tokens)}${tools}`;
 }

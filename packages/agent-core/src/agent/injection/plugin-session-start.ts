@@ -8,7 +8,7 @@ export interface RenderPluginSessionStartReminderInput {
   readonly registry:
     | {
         getPluginSkill(pluginId: string, name: string): SkillDefinition | undefined;
-        renderSkillPrompt(skill: SkillDefinition, args: string): string;
+        renderSkillPrompt(skill: SkillDefinition, args: string): Promise<string>;
       }
     | undefined;
   readonly log?: { warn(message: string, payload?: unknown): void };
@@ -22,9 +22,9 @@ export interface RenderPluginSessionStartReminderInput {
  * Shared by the turn-loop injector (which dedups against history) and the
  * explicit `/reload` flow (which force-appends a fresh reminder).
  */
-export function renderPluginSessionStartReminder(
+export async function renderPluginSessionStartReminder(
   input: RenderPluginSessionStartReminderInput,
-): string | undefined {
+): Promise<string | undefined> {
   const { sessionStarts, registry, log } = input;
   if (sessionStarts.length === 0) return undefined;
   if (registry === undefined) return undefined;
@@ -38,7 +38,7 @@ export function renderPluginSessionStartReminder(
       });
       continue;
     }
-    blocks.push(renderSessionStartBlock(sessionStart, skill, registry.renderSkillPrompt(skill, '')));
+    blocks.push(renderSessionStartBlock(sessionStart, skill, await registry.renderSkillPrompt(skill, '')));
   }
   if (blocks.length === 0) return undefined;
   return blocks.join('\n');
@@ -58,7 +58,7 @@ export class PluginSessionStartInjector extends DynamicInjector {
       this.injectedAt = replayedAt;
       return undefined;
     }
-    return renderPluginSessionStartReminder({
+    return await renderPluginSessionStartReminder({
       sessionStarts: this.agent.pluginSessionStarts,
       registry: this.agent.skills?.registry,
       log: this.agent.log,

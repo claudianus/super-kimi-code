@@ -12,3 +12,12 @@ export const skillDescriptorSchema = z.object({
   disable_model_invocation: z.boolean().optional(),
 });
 export type SkillDescriptor = z.infer<typeof skillDescriptorSchema>;
+
+export const skillSearchHitSchema = skillDescriptorSchema.extend({
+  score: z.number(),
+  match_reason: z.string(),
+  is_sub_skill: z.boolean().optional(),
+  risk: z.string().optional(),
+  category: z.string().optional(),
+});
+export type SkillSearchHit = z.infer<typeof skillSearchHitSchema>;

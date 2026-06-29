@@ -18,7 +18,7 @@ export class SkillManager {
     public readonly registry: SkillRegistry,
   ) {}
 
-  activate(input: ActivateSkillPayload): void {
+  async activate(input: ActivateSkillPayload): Promise<void> {
     const skill = this.registry.getSkill(input.name);
     if (skill === undefined) {
       throw new KimiError(ErrorCodes.SKILL_NOT_FOUND, `Skill "${input.name}" was not found`);
@@ -28,7 +28,7 @@ export class SkillManager {
     }
 
     const skillArgs = input.args ?? '';
-    const skillContent = this.registry.renderSkillPrompt(skill, skillArgs);
+    const skillContent = await this.registry.renderSkillPrompt(skill, skillArgs);
     const wrapped = [
       {
         type: 'text' as const,

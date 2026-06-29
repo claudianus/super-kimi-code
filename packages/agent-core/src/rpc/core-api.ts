@@ -18,8 +18,21 @@ import type { KimiConfig, KimiConfigPatch, McpServerConfig } from '#/config';
 import type { ExperimentalFeatureState } from '#/flags';
 import type { ResumeSessionResult } from '#/rpc/resumed';
 import type { SessionMeta } from '#/session';
-import type { ContentPart } from '@super-kimi/kosong';
-import type { SessionWarning } from '@super-kimi/protocol';
+import type { SkillSearchHit } from '#/skill';
+import type {
+  MemoryConsolidateResult,
+  MemoryCreateInput,
+  MemoryExportResult,
+  MemoryImportResult,
+  MemoryListRequest,
+  MemoryRecord,
+  MemorySearchRequest,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryUpdateInput,
+} from '#/memory';
+import type { ContentPart } from '@moonshot-ai/kosong';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 
 import type { PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
 import type { UsageStatus } from './events';
@@ -270,6 +283,13 @@ export interface SkillSummary {
   readonly isSubSkill?: boolean | undefined;
 }
 
+export type SkillSearchResult = SkillSearchHit;
+
+export interface SearchSkillsPayload {
+  readonly query: string;
+  readonly limit?: number | undefined;
+}
+
 export interface ActivateSkillPayload {
   readonly name: string;
   readonly args?: string | undefined;
@@ -371,6 +391,40 @@ export interface RemoveKimiProviderPayload {
   readonly providerId: string;
 }
 
+export type {
+  MemoryConsolidateResult,
+  MemoryCreateInput,
+  MemoryExportResult,
+  MemoryImportResult,
+  MemoryListRequest,
+  MemoryRecord,
+  MemorySearchRequest,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryUpdateInput,
+};
+
+export type MemorySearchPayload = MemorySearchRequest;
+export type MemoryListPayload = MemoryListRequest;
+export type MemoryCreatePayload = MemoryCreateInput;
+
+export interface MemoryGetPayload {
+  readonly id: string;
+}
+
+export interface MemoryUpdatePayload {
+  readonly id: string;
+  readonly patch: MemoryUpdateInput;
+}
+
+export interface MemoryForgetPayload {
+  readonly id: string;
+}
+
+export interface MemoryImportPayload {
+  readonly records: readonly MemoryRecord[];
+}
+
 export interface AgentAPI {
   prompt: (payload: PromptPayload) => void;
   runShellCommand: (payload: RunShellCommandPayload) => Promise<ShellCommandResult>;
@@ -396,7 +450,7 @@ export interface AgentAPI {
   stopBackground: (payload: StopBackgroundPayload) => void;
   detachBackground: (payload: DetachBackgroundPayload) => BackgroundTaskInfo | undefined;
   clearContext: (payload: EmptyPayload) => void;
-  activateSkill: (payload: ActivateSkillPayload) => void;
+  activateSkill: (payload: ActivateSkillPayload) => Promise<void>;
   startBtw: (payload: EmptyPayload) => string;
   createGoal: (payload: CreateGoalPayload) => GoalSnapshot;
   getGoal: (payload: EmptyPayload) => GoalToolResult;
@@ -420,6 +474,7 @@ export interface SessionAPI extends AgentAPIWithId {
   updateSessionMetadata: (payload: UpdateSessionMetadataPayload) => void;
   getSessionMetadata: (payload: EmptyPayload) => SessionMeta;
   listSkills: (payload: EmptyPayload) => readonly SkillSummary[];
+  searchSkills: (payload: SearchSkillsPayload) => readonly SkillSearchResult[];
   listMcpServers: (payload: EmptyPayload) => readonly McpServerInfo[];
   getMcpStartupMetrics: (payload: EmptyPayload) => McpStartupMetrics;
   reconnectMcpServer: (payload: ReconnectMcpServerPayload) => void;
@@ -452,4 +507,14 @@ export interface CoreAPI extends SessionAPIWithId {
   removePlugin: (payload: RemovePluginPayload) => void;
   reloadPlugins: (payload: EmptyPayload) => ReloadPluginsResult;
   getPluginInfo: (payload: GetPluginInfoPayload) => PluginInfo;
+  memorySearch: (payload: MemorySearchPayload) => readonly MemorySearchResult[];
+  memoryList: (payload: MemoryListPayload) => readonly MemoryRecord[];
+  memoryGet: (payload: MemoryGetPayload) => MemoryRecord | undefined;
+  memoryCreate: (payload: MemoryCreatePayload) => MemoryRecord;
+  memoryUpdate: (payload: MemoryUpdatePayload) => MemoryRecord;
+  memoryForget: (payload: MemoryForgetPayload) => boolean;
+  memoryStats: (payload: EmptyPayload) => MemoryStats;
+  memoryExport: (payload: MemoryListPayload) => MemoryExportResult;
+  memoryImport: (payload: MemoryImportPayload) => MemoryImportResult;
+  memoryConsolidate: (payload: EmptyPayload) => MemoryConsolidateResult;
 }

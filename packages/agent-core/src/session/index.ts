@@ -45,6 +45,7 @@ import {
   resolveSkillRoots,
   summarizeSkill,
   type SkillRoot,
+  type SkillSearchHit,
   type SkillSummary,
 } from '../skill';
 import { noopTelemetryClient, type TelemetryClient } from '../telemetry';
@@ -52,6 +53,7 @@ import { SessionSubagentHost } from './subagent-host';
 import type { ToolServices } from '../tools/support/services';
 import { FlagResolver, type ExperimentalFlagResolver } from '../flags';
 import { abortError } from '../utils/abort';
+import type { SessionMemoryRuntime } from '../memory';
 
 export interface SessionOptions {
   readonly kaos: Kaos;
@@ -74,6 +76,7 @@ export interface SessionOptions {
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly additionalDirs?: readonly string[];
+  readonly memory?: SessionMemoryRuntime;
 }
 
 export interface SessionSkillConfig {
@@ -199,6 +202,8 @@ export class Session {
     this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
     this.skills = new SessionSkillRegistry({
       sessionId: options.id,
+      defaultSearchLimit: options.config?.skillSearchLimit,
+      maxSearchLimit: options.config?.skillSearchMaxLimit,
     });
     this.mcp = new McpConnectionManager({
       oauthService: new McpOAuthService({ kimiHomeDir: options.kimiHomeDir }),
@@ -562,7 +567,7 @@ export class Session {
   async appendPluginSessionStartReminder(): Promise<void> {
     await this.skillsReady;
     const mainAgent = this.requireMainAgent();
-    const reminder = renderPluginSessionStartReminder({
+    const reminder = await renderPluginSessionStartReminder({
       sessionStarts: mainAgent.pluginSessionStarts,
       registry: mainAgent.skills?.registry,
       log: mainAgent.log,
@@ -632,6 +637,11 @@ export class Session {
   async listSkills(): Promise<readonly SkillSummary[]> {
     await this.skillsReady;
     return this.skills.listSkills().map(summarizeSkill);
+  }
+
+  async searchSkills(query: string, limit?: number): Promise<readonly SkillSearchHit[]> {
+    await this.skillsReady;
+    return this.skills.searchByQuery(query, limit);
   }
 
   private async loadSkills(): Promise<void> {
@@ -737,6 +747,12 @@ export class Session {
       pluginSessionStarts: type === 'main' ? this.options.pluginSessionStarts : undefined,
       experimentalFlags: this.experimentalFlags,
       additionalDirs: parentAgent?.getAdditionalDirs() ?? this.additionalDirs,
+      memory: this.options.memory?.forAgent({
+        sessionId: this.options.id ?? '',
+        agentId: id,
+        agentType: type,
+        workDir: cwd,
+      }),
     });
   }
 

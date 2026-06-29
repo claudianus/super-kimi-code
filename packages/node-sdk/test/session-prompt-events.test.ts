@@ -209,7 +209,7 @@ describe('Session.prompt events', () => {
         }),
       );
       expect(fakeProviderState.calls[0]?.systemPrompt).toContain('You are Kimi Code CLI');
-      expect(fakeProviderState.calls[0]?.systemPrompt).toContain('Available skills');
+      expect(fakeProviderState.calls[0]?.systemPrompt).toContain('Skill Runtime');
       expect(fakeProviderState.providerConfigs[0]).toMatchObject({
         type: 'kimi',
         defaultHeaders: expect.objectContaining({

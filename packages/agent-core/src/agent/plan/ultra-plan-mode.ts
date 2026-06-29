@@ -78,6 +78,35 @@ export type InterviewPerspective =
 
 export type UltraPlanPhase = 'interview' | 'design' | 'review' | 'write' | 'exit';
 
+export type AmbiguityMilestone = 'initial' | 'progress' | 'refined' | 'ready';
+
+export interface InterviewRound {
+  readonly roundNumber: number;
+  readonly question: string;
+  readonly userResponse: string;
+  readonly timestamp: number;
+}
+
+export interface AmbiguityScoreBreakdown {
+  readonly name: string;
+  readonly clarityScore: number;
+  readonly weight: number;
+  readonly justification: string;
+}
+
+export interface AmbiguityScoreResult {
+  readonly overallScore: number;
+  readonly breakdown: readonly AmbiguityScoreBreakdown[];
+  readonly isReadyForSeed: boolean;
+  readonly milestone: AmbiguityMilestone;
+}
+
+export interface InterviewState {
+  readonly rounds: readonly InterviewRound[];
+  readonly initialContext: string;
+  readonly ambiguityScore: AmbiguityScoreResult | null;
+  readonly completionCandidateStreak: number;
+}
 
 export type StagnationPatternType =
   | 'spinning'
@@ -186,6 +215,16 @@ export class UltraPlanModeEngine {
       ambiguityScore: 0.15,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  generateSeedSpecFromInterview(
+    goal: string,
+    constraints: string[],
+    acceptanceCriteria: string[],
+    ontologyName: string,
+    ontologyFields: OntologyField[],
+  ): SeedSpec {
+    return this.buildSeedSpec(goal, constraints, acceptanceCriteria, ontologyName, ontologyFields);
   }
 
   calculateDrift(currentOutput: string, constraintViolations: string[]): DriftMetrics {
@@ -315,7 +354,7 @@ export class UltraPlanModeEngine {
     }
     const improvements: number[] = [];
     for (let i = 1; i < driftScores.length; i++) {
-      improvements.push(driftScores[i] - driftScores[i - 1]);
+      improvements.push((driftScores[i] ?? 0) - (driftScores[i - 1] ?? 0));
     }
     const last = improvements.slice(-threshold);
     const avgImprovement = last.reduce((a, b) => a + b, 0) / last.length;
@@ -456,7 +495,7 @@ export class UltraPlanModeEngine {
 
   advancePerspective(): void {
     const idx = this._perspectives.indexOf(this._currentPerspective);
-    this._currentPerspective = this._perspectives[(idx + 1) % this._perspectives.length];
+    this._currentPerspective = this._perspectives[(idx + 1) % this._perspectives.length] ?? 'researcher';
   }
 
   getPerspectiveDescription(): string {
@@ -619,17 +658,17 @@ export class UltraPlanModeEngine {
 
   private _extractGoal(text: string): string {
     const match = text.match(/goal[:\s]+(.+?)(?:\n|$)/i);
-    return match ? match[1].trim() : '';
+    return match?.[1]?.trim() ?? '';
   }
 
   private _extractConstraints(text: string): string[] {
     const matches = text.matchAll(/constraint[:\s]+(.+?)(?:\n|$)/gi);
-    return Array.from(matches).map((m) => m[1].trim()).filter(Boolean);
+    return Array.from(matches).map((m) => m[1]?.trim() ?? '').filter(Boolean);
   }
 
   private _extractAcceptanceCriteria(text: string): string[] {
     const matches = text.matchAll(/(?:criteria|requirement)[:\s]+(.+?)(?:\n|$)/gi);
-    return Array.from(matches).map((m) => m[1].trim()).filter(Boolean);
+    return Array.from(matches).map((m) => m[1]?.trim() ?? '').filter(Boolean);
   }
 
   private _extractOntologyFields(text: string): OntologyField[] {
@@ -655,12 +694,12 @@ export class UltraPlanModeEngine {
   }
 
   deserialize(data: Record<string, unknown>): void {
-    if (data.seedSpec) this._seedSpec = data.seedSpec as SeedSpec;
-    if (data.driftMetrics) this._driftMetrics = data.driftMetrics as DriftMetrics;
-    if (data.stagnationHistory)
-      this._stagnationHistory = data.stagnationHistory as StagnationHistoryEntry[];
-    if (data.evaluationPlan) this._evaluationPlan = data.evaluationPlan as EvaluationPlan;
-    if (data.lateralThinking) this._lateralThinking = data.lateralThinking as LateralThinkingResult;
-    if (data.interviewState) this._interviewState = data.interviewState as InterviewState;
+    if (data['seedSpec']) this._seedSpec = data['seedSpec'] as SeedSpec;
+    if (data['driftMetrics']) this._driftMetrics = data['driftMetrics'] as DriftMetrics;
+    if (data['stagnationHistory'])
+      this._stagnationHistory = data['stagnationHistory'] as StagnationHistoryEntry[];
+    if (data['evaluationPlan']) this._evaluationPlan = data['evaluationPlan'] as EvaluationPlan;
+    if (data['lateralThinking']) this._lateralThinking = data['lateralThinking'] as LateralThinkingResult;
+    if (data['interviewState']) this._interviewState = data['interviewState'] as InterviewState;
   }
 }

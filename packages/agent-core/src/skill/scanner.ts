@@ -1,7 +1,11 @@
 import { promises as fs } from 'node:fs';
 import path from 'pathe';
 
-import { SkillParseError, UnsupportedSkillTypeError, parseSkillFromFile } from './parser';
+import {
+  SkillParseError,
+  UnsupportedSkillTypeError,
+  parseSkillMetadataFromFile,
+} from './parser';
 import type { SkillDefinition, SkillRoot, SkillSource, SkippedSkill } from './types';
 import { normalizeSkillName } from './types';
 
@@ -135,7 +139,7 @@ export async function discoverSkills(
   const readdir = options.readdir ?? ((p: string) => fs.readdir(p));
   const isFile = options.isFile ?? defaultIsFile;
   const isDir = options.isDir ?? defaultIsDir;
-  const parse = options.parse ?? parseSkillFromFile;
+  const parse = options.parse ?? parseSkillMetadataFromFile;
   const warn = options.onWarning ?? (() => {});
   const skip = options.onSkippedByPolicy ?? (() => {});
   const byName = new Map<string, SkillDefinition>();
@@ -183,6 +187,9 @@ export async function discoverSkills(
         onDiscoveredSkill: options.onDiscoveredSkill,
         warn,
         skip,
+        readdir,
+        isFile,
+        isDir,
         subSkillParentName,
       });
       if (skill !== undefined && hasSubSkillEnabled(skill)) {
@@ -208,6 +215,9 @@ export async function discoverSkills(
             onDiscoveredSkill: options.onDiscoveredSkill,
             warn,
             skip,
+            readdir,
+            isFile,
+            isDir,
           });
         }
       }
@@ -233,6 +243,9 @@ export async function discoverSkills(
           onDiscoveredSkill: options.onDiscoveredSkill,
           warn,
           skip,
+          readdir,
+          isFile,
+          isDir,
         });
       }
     }
@@ -368,6 +381,9 @@ async function parseAndRegister(input: {
   readonly onDiscoveredSkill?: (skill: SkillDefinition) => void;
   readonly warn: (message: string, cause?: unknown) => void;
   readonly skip: (skill: SkippedSkill) => void;
+  readonly readdir: (p: string) => Promise<readonly string[]>;
+  readonly isFile: (p: string) => Promise<boolean>;
+  readonly isDir: (p: string) => Promise<boolean>;
   readonly subSkillParentName?: string;
 }): Promise<SkillDefinition | undefined> {
   try {
@@ -388,8 +404,16 @@ async function parseAndRegister(input: {
             },
           }
         : parsed;
-    const discovered = input.root.plugin === undefined ? skill : {
-      ...skill,
+    const resources = await collectSkillResources(skill, input);
+    const skillWithResources =
+      resources.length === 0
+        ? skill
+        : {
+            ...skill,
+            resources,
+          };
+    const discovered = input.root.plugin === undefined ? skillWithResources : {
+      ...skillWithResources,
       plugin: input.root.plugin,
     };
     input.onDiscoveredSkill?.(discovered);
@@ -412,6 +436,48 @@ async function parseAndRegister(input: {
     }
     return undefined;
   }
+}
+
+const RESOURCE_SCAN_MAX_DEPTH = 3;
+const RESOURCE_SCAN_MAX_FILES = 128;
+
+async function collectSkillResources(
+  skill: SkillDefinition,
+  input: {
+    readonly readdir: (p: string) => Promise<readonly string[]>;
+    readonly isFile: (p: string) => Promise<boolean>;
+    readonly isDir: (p: string) => Promise<boolean>;
+    readonly warn: (message: string, cause?: unknown) => void;
+  },
+): Promise<readonly string[]> {
+  if (path.basename(skill.path) !== 'SKILL.md') return [];
+  const out: string[] = [];
+
+  async function walk(dir: string, depth: number): Promise<void> {
+    if (depth > RESOURCE_SCAN_MAX_DEPTH || out.length >= RESOURCE_SCAN_MAX_FILES) return;
+    let entries: readonly string[];
+    try {
+      entries = [...(await input.readdir(dir))].toSorted();
+    } catch (error) {
+      input.warn(`Failed to read skill resources in ${dir}`, error);
+      return;
+    }
+    for (const entry of entries) {
+      if (out.length >= RESOURCE_SCAN_MAX_FILES) return;
+      if (entry === 'SKILL.md' || entry === 'node_modules' || entry.startsWith('.')) continue;
+      const entryPath = path.join(dir, entry);
+      if (await input.isFile(entryPath)) {
+        out.push(path.relative(skill.dir, entryPath).replaceAll('\\', '/'));
+        continue;
+      }
+      if (await input.isDir(entryPath)) {
+        await walk(entryPath, depth + 1);
+      }
+    }
+  }
+
+  await walk(skill.dir, 0);
+  return out;
 }
 
 function qualifySubSkillName(parentName: string, skillName: string): string {

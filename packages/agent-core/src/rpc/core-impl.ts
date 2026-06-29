@@ -33,6 +33,7 @@ import {
 } from '../flags';
 import type { Logger } from '../logging/types';
 import { resolveSessionMcpConfig, mergeCallerMcpServers, type SessionMcpConfig } from '../mcp';
+import { KimiRecallStore } from '../memory';
 import { Session, type SessionMeta, type SessionSkillConfig } from '../session';
 import { exportSessionDirectory } from '../session/export';
 import {
@@ -67,6 +68,7 @@ import type {
   DetachBackgroundPayload,
   ClientTelemetryInfo,
   EmptyPayload,
+  EnterPlanPayload,
   EnterSwarmPayload,
   GoalSnapshot,
   GoalToolResult,
@@ -79,12 +81,26 @@ import type {
   GetPluginInfoPayload,
   InstallPluginPayload,
   ListSessionsPayload,
+  MemoryConsolidateResult,
+  MemoryCreatePayload,
+  MemoryExportResult,
+  MemoryForgetPayload,
+  MemoryGetPayload,
+  MemoryImportResult,
+  MemoryImportPayload,
+  MemoryListPayload,
+  MemoryRecord,
+  MemorySearchPayload,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryUpdatePayload,
   McpServerInfo,
   McpStartupMetrics,
   PluginInfo,
   PluginSummary,
   PromptPayload,
   RunShellCommandPayload,
+  SearchSkillsPayload,
   ReconnectMcpServerPayload,
   RegisterToolPayload,
   ReloadSessionPayload,
@@ -102,6 +118,7 @@ import type {
   SetPluginEnabledPayload,
   SetPluginMcpServerEnabledPayload,
   SetThinkingPayload,
+  SkillSearchResult,
   SkillSummary,
   SteerPayload,
   StopBackgroundPayload,
@@ -111,14 +128,14 @@ import type {
 } from './core-api';
 import type { ResumedAgentState, ResumeSessionResult } from './resumed';
 import type { SDKRPC } from './sdk-api';
-import type { SessionWarning } from '@super-kimi/protocol';
+import { KIMI_CODE_PROVIDER_NAME } from '@moonshot-ai/kimi-code-oauth';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import { proxyWithExtraPayload } from './types';
-import { KaosShellNotFoundError, LocalKaos, type Kaos } from '@super-kimi/kaos';
+import { KaosShellNotFoundError, LocalKaos, type Kaos } from '@moonshot-ai/kaos';
 import type { ToolServices } from '../tools/support/services';
 
-const SUPER_KIMI_CODE_PROVIDER_NAME = 'managed:super-kimi-code';
-const SUPER_KIMI_CODE_BASE_URL_ENV = 'SUPER_KIMI_CODE_BASE_URL';
-const SUPER_KIMI_CODE_OAUTH_HOST_ENV = 'SUPER_KIMI_CODE_OAUTH_HOST';
+const KIMI_CODE_BASE_URL_ENV = 'KIMI_CODE_BASE_URL';
+const KIMI_CODE_OAUTH_HOST_ENV = 'KIMI_CODE_OAUTH_HOST';
 const KIMI_OAUTH_HOST_ENV = 'KIMI_OAUTH_HOST';
 type AgentScopedPayload<T> = T & { readonly agentId: string };
 type SessionScopedPayload<T> = T & { readonly sessionId: string };
@@ -159,6 +176,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
   private pluginsLoadError: Error | undefined;
   private readonly appVersion: string | undefined;
   private readonly experimentalFlags: FlagResolver;
+  private readonly memory: KimiRecallStore;
 
   constructor(
     protected readonly rpcClient: CoreRPCClient,
@@ -197,6 +215,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       this.config.experimental,
     );
     this.sessionStore = new SessionStore(this.homeDir);
+    this.memory = new KimiRecallStore({
+      homeDir: this.homeDir,
+      config: () => this.config.memory,
+    });
     this.plugins = new PluginManager({ kimiHomeDir: this.homeDir });
     // Capture the error rather than swallow it: mutators and explicit /plugins
     // reads rethrow so the user sees what's wrong; createSession/resumeSession
@@ -290,6 +312,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       pluginSessionStarts,
       appVersion: this.appVersion,
       additionalDirs,
+      memory: this.memory.runtimeForSession({ sessionId: summary.id, workDir }),
     });
     try {
       session.metadata = {
@@ -336,6 +359,46 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   getExperimentalFeatures(): readonly ExperimentalFeatureState[] {
     return this.experimentalFlags.explainAll();
+  }
+
+  async memorySearch(payload: MemorySearchPayload): Promise<readonly MemorySearchResult[]> {
+    return this.memory.search(payload);
+  }
+
+  async memoryList(payload: MemoryListPayload): Promise<readonly MemoryRecord[]> {
+    return this.memory.list(payload);
+  }
+
+  async memoryGet(payload: MemoryGetPayload): Promise<MemoryRecord | undefined> {
+    return this.memory.get(payload.id);
+  }
+
+  async memoryCreate(payload: MemoryCreatePayload): Promise<MemoryRecord> {
+    return this.memory.remember(payload);
+  }
+
+  async memoryUpdate(payload: MemoryUpdatePayload): Promise<MemoryRecord> {
+    return this.memory.update(payload.id, payload.patch);
+  }
+
+  async memoryForget(payload: MemoryForgetPayload): Promise<boolean> {
+    return this.memory.forget(payload.id);
+  }
+
+  async memoryStats(_payload: EmptyPayload): Promise<MemoryStats> {
+    return this.memory.stats();
+  }
+
+  async memoryExport(payload: MemoryListPayload): Promise<MemoryExportResult> {
+    return this.memory.exportRecords(payload);
+  }
+
+  async memoryImport(payload: MemoryImportPayload): Promise<MemoryImportResult> {
+    return this.memory.importRecords(payload.records);
+  }
+
+  async memoryConsolidate(_payload: EmptyPayload): Promise<MemoryConsolidateResult> {
+    return this.memory.consolidate();
   }
 
   async closeSession({ sessionId }: CloseSessionPayload): Promise<void> {
@@ -422,6 +485,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       pluginSessionStarts,
       appVersion: this.appVersion,
       additionalDirs,
+      memory: this.memory.runtimeForSession({ sessionId: summary.id, workDir: summary.workDir }),
     });
     let warning: string | undefined;
     try {
@@ -740,6 +804,13 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).listSkills(payload);
   }
 
+  searchSkills({
+    sessionId,
+    ...payload
+  }: SessionScopedPayload<SearchSkillsPayload>): Promise<readonly SkillSearchResult[]> {
+    return this.sessionApi(sessionId).searchSkills(payload);
+  }
+
   listMcpServers({
     sessionId,
     ...payload
@@ -956,16 +1027,16 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
   }
 
   private managedKimiCodeEnvForPlugins(): Record<string, string> {
-    const provider = this.config.providers[SUPER_KIMI_CODE_PROVIDER_NAME];
-    const envBaseUrl = process.env[SUPER_KIMI_CODE_BASE_URL_ENV];
-    const envOAuthHost = process.env[SUPER_KIMI_CODE_OAUTH_HOST_ENV] ?? process.env[KIMI_OAUTH_HOST_ENV];
+    const provider = this.config.providers[KIMI_CODE_PROVIDER_NAME];
+    const envBaseUrl = process.env[KIMI_CODE_BASE_URL_ENV];
+    const envOAuthHost = process.env[KIMI_CODE_OAUTH_HOST_ENV] ?? process.env[KIMI_OAUTH_HOST_ENV];
     const hasEnvOverride = envBaseUrl !== undefined || envOAuthHost !== undefined;
     const baseUrl =
       envBaseUrl !== undefined ? envBaseUrl.replace(/\/+$/, '') : provider?.baseUrl;
     const oauthHost = hasEnvOverride ? envOAuthHost : provider?.oauth?.oauthHost;
     const env: Record<string, string> = {};
-    if (baseUrl !== undefined) env[SUPER_KIMI_CODE_BASE_URL_ENV] = baseUrl;
-    if (oauthHost !== undefined) env[SUPER_KIMI_CODE_OAUTH_HOST_ENV] = oauthHost;
+    if (baseUrl !== undefined) env[KIMI_CODE_BASE_URL_ENV] = baseUrl;
+    if (oauthHost !== undefined) env[KIMI_CODE_OAUTH_HOST_ENV] = oauthHost;
     return env;
   }
 
@@ -1101,7 +1172,7 @@ function serviceCredentials(
     apiKey,
     tokenProvider:
       service.oauth !== undefined
-        ? resolveOAuthTokenProvider?.(SUPER_KIMI_CODE_PROVIDER_NAME, service.oauth)
+        ? resolveOAuthTokenProvider?.(KIMI_CODE_PROVIDER_NAME, service.oauth)
         : undefined,
     customHeaders: service.customHeaders,
   };

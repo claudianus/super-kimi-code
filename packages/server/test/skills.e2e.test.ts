@@ -32,6 +32,7 @@ import { pino } from 'pino';
 import {
   activateSkillResultSchema,
   listSkillsResponseSchema,
+  searchSkillsResponseSchema,
 } from '@moonshot-ai/protocol';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -164,6 +165,38 @@ describe('GET /api/v1/sessions/{sid}/skills', () => {
     const res = await appOf(r).inject({
       method: 'GET',
       url: '/api/v1/sessions/does-not-exist/skills',
+    });
+    const env = envelopeOf<unknown>(res.json());
+    expect(env.code).toBe(40401);
+  });
+});
+
+describe('POST /api/v1/sessions/{sid}/skills:search', () => {
+  it('searches project skills through the session-scoped REST route', async () => {
+    seedProjectSkill('e2e-greeting');
+    const r = await bootDaemon();
+    const sid = await createSession(r);
+    const res = await appOf(r).inject({
+      method: 'POST',
+      url: `/api/v1/sessions/${sid}/skills:search`,
+      payload: { query: 'greeting', limit: 5 },
+    });
+    expect(res.statusCode).toBe(200);
+    const env = envelopeOf<unknown>(res.json());
+    expect(env.code).toBe(0);
+    const parsed = searchSkillsResponseSchema.parse(env.data);
+    const seeded = parsed.skills.find((s) => s.name === 'e2e-greeting');
+    expect(seeded).toBeDefined();
+    expect(seeded?.source).toBe('project');
+    expect(seeded?.match_reason.length).toBeGreaterThan(0);
+  });
+
+  it('returns 40401 for an unknown session', async () => {
+    const r = await bootDaemon();
+    const res = await appOf(r).inject({
+      method: 'POST',
+      url: '/api/v1/sessions/does-not-exist/skills:search',
+      payload: { query: 'greeting' },
     });
     const env = envelopeOf<unknown>(res.json());
     expect(env.code).toBe(40401);

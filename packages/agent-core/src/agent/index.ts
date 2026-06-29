@@ -5,9 +5,10 @@ import { ErrorCodes, KimiError, makeErrorPayload } from '#/errors';
 import { log } from '#/logging/logger';
 import type { Logger } from '#/logging/types';
 import type { AgentAPI, AgentEvent, KimiConfig, SDKAgentRPC, UsageStatus } from '#/rpc';
-import { generate } from '@super-kimi/kosong';
+import { generate } from '@moonshot-ai/kosong';
 
 import type { EnabledPluginSessionStart } from '#/plugin';
+import type { AgentMemoryRuntime } from '#/memory';
 
 import type { McpConnectionManager } from '../mcp';
 import { FlagResolver, type ExperimentalFlagResolver } from '../flags';
@@ -49,7 +50,7 @@ import { KosongLLM } from './turn/kosong-llm';
 import { UsageRecorder } from './usage';
 import { LlmRequestLogger, splitGenerateOptions } from './llm-request-logger';
 import { resolveCompletionBudget } from '../utils/completion-budget';
-import type { Kaos } from '@super-kimi/kaos';
+import type { Kaos } from '@moonshot-ai/kaos';
 import type { ToolServices } from '../tools/support/services';
 
 export type { AgentRecord, AgentRecordPersistence } from './records';
@@ -82,6 +83,7 @@ export interface AgentOptions {
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly replay?: ReplayBuilderOptions;
   readonly additionalDirs?: readonly string[];
+  readonly memory?: AgentMemoryRuntime;
 }
 
 export class Agent {
@@ -105,6 +107,7 @@ export class Agent {
   readonly log: Logger;
   readonly telemetry: TelemetryClient;
   readonly experimentalFlags: ExperimentalFlagResolver;
+  readonly memory?: AgentMemoryRuntime;
 
   readonly llmRequestLogger: LlmRequestLogger;
   readonly blobStore: BlobStore | undefined;
@@ -144,6 +147,7 @@ export class Agent {
     this.log = options.log ?? log;
     this.telemetry = options.telemetry ?? noopTelemetryClient;
     this.experimentalFlags = options.experimentalFlags ?? new FlagResolver();
+    this.memory = options.memory;
     this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
 
     this.llmRequestLogger = new LlmRequestLogger(this.log);
@@ -253,6 +257,7 @@ export class Agent {
       osEnv: this.kaos.osEnv,
       cwd: this.config.cwd,
       skills: this.skills?.registry,
+      skillPromptMode: this.kimiConfig?.skillPromptMode,
       cwdListing: context?.cwdListing,
       agentsMd: context?.agentsMd,
       additionalDirsInfo: context?.additionalDirsInfo,
@@ -376,11 +381,11 @@ export class Agent {
       clearContext: () => {
         this.context.clear();
       },
-      activateSkill: (payload) => {
+      activateSkill: async (payload) => {
         if (this.skills === null) {
           throw new KimiError(ErrorCodes.SKILL_NOT_FOUND, `Skill "${payload.name}" was not found`);
         }
-        this.skills.activate(payload);
+        await this.skills.activate(payload);
       },
       startBtw: () => this.subagentHost!.startBtw(),
       createGoal: (payload) => this.goal.createGoal(payload),

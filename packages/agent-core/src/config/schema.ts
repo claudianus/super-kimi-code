@@ -91,6 +91,8 @@ export const LoopControlSchema = z.object({
   maxRalphIterations: z.number().int().min(-1).optional(),
   reservedContextSize: z.number().int().min(0).optional(),
   compactionTriggerRatio: z.number().min(0.5).max(0.99).optional(),
+  compactionTriggerTokens: z.number().int().min(1000).optional(),
+  compactionMaxRecentMessages: z.number().int().min(1).optional(),
 });
 
 export type LoopControl = z.infer<typeof LoopControlSchema>;
@@ -103,6 +105,17 @@ export const BackgroundConfigSchema = z.object({
 });
 
 export type BackgroundConfig = z.infer<typeof BackgroundConfigSchema>;
+
+export const MemoryConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  storePath: z.string().min(1).optional(),
+  maxRetrieved: z.number().int().min(0).max(20).optional(),
+  autoCapture: z.boolean().optional(),
+  captureEpisodic: z.boolean().optional(),
+  autoConsolidate: z.boolean().optional(),
+});
+
+export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 
 export const ExperimentalConfigSchema = z.record(z.string(), z.boolean());
 
@@ -216,8 +229,12 @@ export const KimiConfigSchema = z.object({
   services: ServicesConfigSchema.optional(),
   mergeAllAvailableSkills: z.boolean().optional(),
   extraSkillDirs: z.array(z.string()).optional(),
+  skillSearchLimit: z.number().int().min(1).max(20).optional(),
+  skillSearchMaxLimit: z.number().int().min(1).max(20).optional(),
+  skillPromptMode: z.enum(['search', 'legacy-list']).optional(),
   loopControl: LoopControlSchema.optional(),
   background: BackgroundConfigSchema.optional(),
+  memory: MemoryConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   telemetry: z.boolean().optional(),
   raw: z.record(z.string(), z.unknown()).optional(),
@@ -231,6 +248,7 @@ const ThinkingConfigPatchSchema = ThinkingConfigSchema.partial();
 const PermissionConfigPatchSchema = PermissionConfigSchema.partial();
 const LoopControlPatchSchema = LoopControlSchema.partial();
 const BackgroundConfigPatchSchema = BackgroundConfigSchema.partial();
+const MemoryConfigPatchSchema = MemoryConfigSchema.partial();
 const ExperimentalConfigPatchSchema = ExperimentalConfigSchema;
 const MoonshotServiceConfigPatchSchema = MoonshotServiceConfigSchema.partial();
 const ServicesConfigPatchSchema = z.object({
@@ -255,8 +273,12 @@ export const KimiConfigPatchSchema = z
     services: ServicesConfigPatchSchema.optional(),
     mergeAllAvailableSkills: z.boolean().optional(),
     extraSkillDirs: z.array(z.string()).optional(),
+    skillSearchLimit: z.number().int().min(1).max(20).optional(),
+    skillSearchMaxLimit: z.number().int().min(1).max(20).optional(),
+    skillPromptMode: z.enum(['search', 'legacy-list']).optional(),
     loopControl: LoopControlPatchSchema.optional(),
     background: BackgroundConfigPatchSchema.optional(),
+    memory: MemoryConfigPatchSchema.optional(),
     experimental: ExperimentalConfigPatchSchema.optional(),
     telemetry: z.boolean().optional(),
   })

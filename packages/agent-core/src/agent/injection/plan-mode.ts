@@ -271,23 +271,31 @@ The plan is complete. Call ExitPlanMode to request user approval.
 Make sure the plan file contains a complete Seed Spec before exiting.`,
 };
 
-function phaseReminder(planFilePath: PlanFilePath, phase: string): string {
-  // In the real implementation, these would come from the agent's state
-  // For now, we use placeholder values that get injected dynamically
+function phaseReminder(planFilePath: PlanFilePath, phase: string, agent?: Agent): string {
   const base = `Ultra Plan mode is active. Phase: ${phase.toUpperCase()}.
 
 ${PHASE_INSTRUCTIONS[phase] ?? PHASE_INSTRUCTIONS['interview']}`;
   let body = base;
 
-  // Replace template variables with actual values if available
-  // Note: In a full implementation, the injector would have access to the agent's plan mode state
-  body = body.replace(/{{round}}/g, 'see agent state');
-  body = body.replace(/{{ambiguityScore}}/g, 'calculated after each round');
-  body = body.replace(/{{milestone}}/g, 'calculated after each round');
-  body = body.replace(/{{streak}}/g, 'calculated after each round');
-  body = body.replace(/{{nextMilestone}}/g, 'keep asking questions');
+  const interviewState = agent?.planMode.ultraEngine.interviewState;
+  const score = interviewState?.ambiguityScore;
+  body = body.replace(/{{round}}/g, String(interviewState?.rounds.length ?? 0));
+  body = body.replace(
+    /{{ambiguityScore}}/g,
+    score === undefined || score === null ? 'scoring pending' : score.overallScore.toFixed(2),
+  );
+  body = body.replace(/{{milestone}}/g, score?.milestone ?? 'initial');
+  body = body.replace(/{{streak}}/g, String(interviewState?.completionCandidateStreak ?? 0));
+  body = body.replace(/{{nextMilestone}}/g, nextMilestone(score?.milestone));
 
   return withPlanFileFooter(body, planFilePath);
+}
+
+function nextMilestone(milestone: string | undefined): string {
+  if (milestone === 'initial') return 'progress';
+  if (milestone === 'progress') return 'refined';
+  if (milestone === 'refined') return 'ready';
+  return 'keep asking questions';
 }
 
 function phaseSparseReminder(planFilePath: PlanFilePath, phase: string, agent: Agent): string {

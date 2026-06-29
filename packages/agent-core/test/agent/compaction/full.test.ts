@@ -167,6 +167,9 @@ describe('FullCompaction', () => {
       maxRecentUserMessages: Infinity,
       maxRecentSizeRatio: 0.2,
       minOverflowReductionRatio: 0.05,
+      absoluteTriggerTokens: 200_000,
+      parallelBlockThreshold: 30_000,
+      parallelBlockTarget: 15_000,
     });
 
     expect(strategy.shouldCompact(1)).toBe(false);
@@ -203,12 +206,12 @@ describe('FullCompaction', () => {
       [wire] context.append_message     { "message": { "role": "user", "content": [ { "type": "text", "text": "recent user three" } ], "toolCalls": [], "origin": { "kind": "user" } }, "time": "<time>" }
       [wire] full_compaction.begin      { "source": "manual", "instruction": "Keep the important test facts.", "time": "<time>" }
       [emit] compaction.started         { "trigger": "manual", "instruction": "Keep the important test facts." }
-      [wire] usage.record               { "model": "kimi-code", "usage": { "inputOther": 520, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
-      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 120, "maxContextTokens": 256000, "contextUsage": 0.00046875, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 520, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 520, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
-      [wire] context.apply_compaction   { "summary": "Compacted summary.", "compactedCount": 6, "tokensBefore": 39, "tokensAfter": 5, "time": "<time>" }
-      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 5, "maxContextTokens": 256000, "contextUsage": 0.00001953125, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 520, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 520, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] usage.record               { "model": "kimi-code", "usage": { "inputOther": 657, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
+      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 120, "maxContextTokens": 256000, "contextUsage": 0.00046875, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 657, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 657, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.apply_compaction   { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 6 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=4\\n- assistant[3-3] tokens=8\\n- user[4-4] tokens=6\\n- assistant[5-5] tokens=9\\n\\n## Compacted Narrative\\nCompacted summary.", "compactedCount": 6, "tokensBefore": 39, "tokensAfter": 254, "algorithmVersion": "super_kimi_context_compaction_v2", "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 5, "tokensBefore": 39 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 5 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 4 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 }, { "kind": "user", "messageStart": 4, "messageEnd": 4, "tokens": 6 }, { "kind": "assistant", "messageStart": 5, "messageEnd": 5, "tokens": 9 } ], "summaryTokens": 254, "retainedTokens": 0, "compactedTokens": 39, "qualityWarnings": [], "time": "<time>" }
+      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 254, "maxContextTokens": 256000, "contextUsage": 0.0009921875, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 657, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 657, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [wire] full_compaction.complete   { "time": "<time>" }
-      [emit] compaction.completed       { "result": { "summary": "Compacted summary.", "compactedCount": 6, "tokensBefore": 39, "tokensAfter": 5 } }
+      [emit] compaction.completed       { "result": { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 6 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=4\\n- assistant[3-3] tokens=8\\n- user[4-4] tokens=6\\n- assistant[5-5] tokens=9\\n\\n## Compacted Narrative\\nCompacted summary.", "compactedCount": 6, "tokensBefore": 39, "tokensAfter": 254, "algorithmVersion": "super_kimi_context_compaction_v2", "summaryTokens": 254, "retainedTokens": 0, "compactedTokens": 39, "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 5, "tokensBefore": 39 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 5 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 4 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 }, { "kind": "user", "messageStart": 4, "messageEnd": 4, "tokens": 6 }, { "kind": "assistant", "messageStart": 5, "messageEnd": 5, "tokens": 9 } ] } }
     `);
     expect(ctx.lastLlmInput()).toMatchInlineSnapshot(`
       system: <system-prompt>
@@ -226,7 +229,38 @@ describe('FullCompaction', () => {
       [
         {
           "role": "assistant",
-          "text": "Compacted summary.",
+          "text": "# Super Kimi Context Compaction v2 Memory
+
+      ## Resume Preflight
+      - current_goal: Continue the active user task from the compacted state.
+      - last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.
+      - next_action: Inspect the retained recent context, then continue the pending implementation or verification step.
+
+      ## Structured Working Memory
+      current_goal:
+      - Continue the active user task from the compacted state.
+      last_known_state:
+      - 6 old messages were compacted; 0 estimated tokens remain in the recent live context.
+      decisions:
+      - None captured during compaction.
+      files_touched:
+      - None captured during compaction.
+      failed_attempts:
+      - None captured during compaction.
+      open_questions:
+      - None captured during compaction.
+      next_actions:
+      - None captured during compaction.
+      raw_refs:
+      - user[0-0] tokens=4
+      - assistant[1-1] tokens=8
+      - user[2-2] tokens=4
+      - assistant[3-3] tokens=8
+      - user[4-4] tokens=6
+      - assistant[5-5] tokens=9
+
+      ## Compacted Narrative
+      Compacted summary.",
         },
       ]
     `);
@@ -236,15 +270,89 @@ describe('FullCompaction', () => {
         source: 'manual',
         instruction: 'Keep the important test facts.',
         tokensBefore: 39,
-        tokensAfter: 5,
+        tokensAfter: expect.any(Number),
         duration: expect.any(Number),
         compactedCount: 6,
         retryCount: 0,
         thinkingLevel: 'off',
-        inputOther: 520,
+        inputOther: expect.any(Number),
         output: 8,
         inputCacheRead: 0,
         inputCacheCreation: 0,
+      }),
+    });
+    await ctx.expectResumeMatches();
+  });
+
+  it('writes structured Super Kimi memory and result metadata by default', async () => {
+    const records: TelemetryRecord[] = [];
+    const ctx = testAgent({ telemetry: recordingTelemetry(records) });
+    ctx.configure({
+      provider: CATALOGUED_PROVIDER,
+      modelCapabilities: CATALOGUED_MODEL_CAPABILITIES,
+    });
+    ctx.appendToolExchange();
+    ctx.appendExchange(2, 'implement the context compaction v2 planner', 'working on it', 80);
+
+    const compacted = ctx.once('context.apply_compaction');
+    const completed = ctx.once('compaction.completed');
+
+    ctx.mockNextResponse({
+      type: 'text',
+      text: [
+        '## Current Focus',
+        'Implement context compaction v2.',
+        '## Changes Made',
+        '- Updated `packages/agent-core/src/agent/compaction/full.ts`.',
+        '## Decisions Taken',
+        '- DECIDED: use 200k as a soft trigger for large context models.',
+        '## Active Issues',
+        '- FAILED: old compaction summaries lost next actions.',
+        '## Next Steps',
+        '- Run the compaction test suite.',
+      ].join('\n'),
+    });
+    await ctx.rpc.beginCompaction({});
+    await compacted;
+    await completed;
+
+    const summary = ctx.compactHistory()[0]?.text ?? '';
+    expect(summary).toContain('# Super Kimi Context Compaction v2 Memory');
+    expect(summary).toContain('## Resume Preflight');
+    expect(summary).toContain('files_touched:');
+    expect(summary).toContain('packages/agent-core/src/agent/compaction/full.ts');
+    expect(summary).toContain('failed_attempts:');
+    expect(summary).toContain('old compaction summaries lost next actions');
+    expect(summary).toContain('raw_refs:');
+    expect(summary).toContain('tool_exchange');
+
+    const events = ctx.newEvents();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: 'compaction.completed',
+        args: expect.objectContaining({
+          result: expect.objectContaining({
+            algorithmVersion: 'super_kimi_context_compaction_v2',
+            actions: expect.arrayContaining([
+              expect.objectContaining({ type: 'tool_result_clearing' }),
+              expect.objectContaining({ type: 'semantic_working_memory' }),
+            ]),
+            rawRefs: expect.arrayContaining([
+              expect.objectContaining({ kind: 'tool_exchange' }),
+            ]),
+            summaryTokens: expect.any(Number),
+            retainedTokens: expect.any(Number),
+            compactedTokens: expect.any(Number),
+          }),
+        }),
+      }),
+    );
+    expect(records).toContainEqual({
+      event: 'compaction_v2_finished',
+      properties: expect.objectContaining({
+        actionTypes: expect.stringContaining('semantic_working_memory'),
+        compactedTokens: expect.any(Number),
+        retainedTokens: expect.any(Number),
       }),
     });
     await ctx.expectResumeMatches();
@@ -308,8 +416,8 @@ describe('FullCompaction', () => {
     });
 
     vi.setSystemTime(0);
-    ctx.appendToolExchange();
-    ctx.appendToolExchange();
+    appendLargeToolExchange(ctx, 1);
+    appendLargeToolExchange(ctx, 2);
 
     vi.setSystemTime(61 * 60 * 1000);
 
@@ -320,8 +428,8 @@ describe('FullCompaction', () => {
     await compacted;
 
     const [compactionCall] = ctx.llmCalls;
-    expect(messageText(compactionCall?.history[2])).toBe('[Old tool result content cleared]');
-    expect(messageText(compactionCall?.history[5])).toBe('lookup result');
+    expect(firstLine(messageText(compactionCall?.history[2]))).toBe('[Old tool result content cleared]');
+    expect(firstLine(messageText(compactionCall?.history[5]))).toBe('lookup result 2');
   });
 
   it('force-refreshes OAuth credentials on compaction 401 and falls back to login_required when replay 401', async () => {
@@ -386,9 +494,7 @@ describe('FullCompaction', () => {
     await completed;
     expect(authKeys).toEqual(['fresh-token', 'forced-refresh-token', 'fresh-token']);
     expect(tokenCalls).toEqual([undefined, true, undefined]);
-    expect(ctx.compactHistory()).toEqual([
-      { role: 'assistant', text: 'Recovered compacted summary.' },
-    ]);
+    expectCompactedAssistant(ctx.compactHistory()[0], 'Recovered compacted summary.');
     await ctx.expectResumeMatches();
   });
 
@@ -552,8 +658,9 @@ describe('FullCompaction', () => {
     // Each empty summary shrinks the compacted prefix before retrying, so the
     // recovered summary compacts only the older exchange and leaves the recent
     // one in history.
-    expect(ctx.compactHistory()).toEqual([
-      { role: 'assistant', text: 'Recovered compacted summary.' },
+    const history = ctx.compactHistory();
+    expectCompactedAssistant(history[0], 'Recovered compacted summary.');
+    expect(history.slice(1)).toEqual([
       { role: 'user', text: 'recent user two' },
       { role: 'assistant', text: 'recent assistant two' },
     ]);
@@ -562,7 +669,9 @@ describe('FullCompaction', () => {
     ).toEqual([
       expect.objectContaining({
         args: expect.objectContaining({
-          result: expect.objectContaining({ summary: 'Recovered compacted summary.' }),
+          result: expect.objectContaining({
+            summary: expect.stringContaining('Recovered compacted summary.'),
+          }),
         }),
       }),
     ]);
@@ -607,8 +716,9 @@ describe('FullCompaction', () => {
     expect(inputs).toHaveLength(2);
     // The retry compacts a strictly smaller prefix than the first attempt.
     expect(inputs[1]!.length).toBeLessThan(inputs[0]!.length);
-    expect(ctx.compactHistory()).toEqual([
-      { role: 'assistant', text: 'Recovered compacted summary.' },
+    const history = ctx.compactHistory();
+    expectCompactedAssistant(history[0], 'Recovered compacted summary.');
+    expect(history.slice(1)).toEqual([
       { role: 'user', text: 'recent user two' },
       { role: 'assistant', text: 'recent assistant two' },
     ]);
@@ -981,12 +1091,12 @@ describe('FullCompaction', () => {
       [wire] full_compaction.begin      { "source": "manual", "time": "<time>" }
       [emit] compaction.started         { "trigger": "manual" }
       [wire] context.append_message     { "message": { "role": "user", "content": [ { "type": "text", "text": "new user while compacting" } ], "toolCalls": [], "origin": { "kind": "user" } }, "time": "<time>" }
-      [wire] usage.record               { "model": "kimi-code", "usage": { "inputOther": 499, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
-      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 80, "maxContextTokens": 256000, "contextUsage": 0.0003125, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 499, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 499, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
-      [wire] context.apply_compaction   { "summary": "Compacted prefix.", "compactedCount": 4, "tokensBefore": 25, "tokensAfter": 5, "time": "<time>" }
-      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 5, "maxContextTokens": 256000, "contextUsage": 0.00001953125, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 499, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 499, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] usage.record               { "model": "kimi-code", "usage": { "inputOther": 623, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
+      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 80, "maxContextTokens": 256000, "contextUsage": 0.0003125, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 623, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 623, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.apply_compaction   { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 4 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=5\\n- assistant[3-3] tokens=8\\n\\n## Compacted Narrative\\nCompacted prefix.", "compactedCount": 4, "tokensBefore": 25, "tokensAfter": 242, "algorithmVersion": "super_kimi_context_compaction_v2", "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 3, "tokensBefore": 25 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 3 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 5 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 } ], "summaryTokens": 242, "retainedTokens": 0, "compactedTokens": 25, "qualityWarnings": [], "time": "<time>" }
+      [emit] agent.status.updated       { "model": "kimi-code", "contextTokens": 242, "maxContextTokens": 256000, "contextUsage": 0.0009453125, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 623, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 623, "output": 8, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [wire] full_compaction.complete   { "time": "<time>" }
-      [emit] compaction.completed       { "result": { "summary": "Compacted prefix.", "compactedCount": 4, "tokensBefore": 25, "tokensAfter": 5 } }
+      [emit] compaction.completed       { "result": { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 4 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=5\\n- assistant[3-3] tokens=8\\n\\n## Compacted Narrative\\nCompacted prefix.", "compactedCount": 4, "tokensBefore": 25, "tokensAfter": 242, "algorithmVersion": "super_kimi_context_compaction_v2", "summaryTokens": 242, "retainedTokens": 0, "compactedTokens": 25, "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 3, "tokensBefore": 25 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 3 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 5 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 } ] } }
     `);
     expect(ctx.lastLlmInput()).toMatchInlineSnapshot(`
       system: <system-prompt>
@@ -1002,7 +1112,36 @@ describe('FullCompaction', () => {
       [
         {
           "role": "assistant",
-          "text": "Compacted prefix.",
+          "text": "# Super Kimi Context Compaction v2 Memory
+
+      ## Resume Preflight
+      - current_goal: Continue the active user task from the compacted state.
+      - last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.
+      - next_action: Inspect the retained recent context, then continue the pending implementation or verification step.
+
+      ## Structured Working Memory
+      current_goal:
+      - Continue the active user task from the compacted state.
+      last_known_state:
+      - 4 old messages were compacted; 0 estimated tokens remain in the recent live context.
+      decisions:
+      - None captured during compaction.
+      files_touched:
+      - None captured during compaction.
+      failed_attempts:
+      - None captured during compaction.
+      open_questions:
+      - None captured during compaction.
+      next_actions:
+      - None captured during compaction.
+      raw_refs:
+      - user[0-0] tokens=4
+      - assistant[1-1] tokens=8
+      - user[2-2] tokens=5
+      - assistant[3-3] tokens=8
+
+      ## Compacted Narrative
+      Compacted prefix.",
         },
         {
           "role": "user",
@@ -1056,15 +1195,10 @@ describe('FullCompaction', () => {
     expect(ctx.llmCalls).toHaveLength(2);
     const [firstCompactionCall, secondCompactionCall] = ctx.llmCalls;
     expect(firstCompactionCall?.history.map(messageText)).not.toContain('new user while compacting');
-    expect(secondCompactionCall?.history.map(messageText)).toContain(firstSummary);
+    expect(messageTextsContain(secondCompactionCall?.history, firstSummary)).toBe(true);
     expect(secondCompactionCall?.history.map(messageText)).toContain('new user while compacting');
     expect(secondCompactionCall?.history.map(messageText)).toContain('new assistant while compacting');
-    expect(ctx.compactHistory()).toEqual([
-      {
-        role: 'assistant',
-        text: 'Second manual summary.',
-      },
-    ]);
+    expectCompactedAssistant(ctx.compactHistory()[0], 'Second manual summary.');
     await ctx.expectResumeMatches();
   });
 
@@ -1129,8 +1263,8 @@ describe('FullCompaction', () => {
       [emit] compaction.started       { "trigger": "manual" }
       [wire] context.clear            { "time": "<time>" }
       [emit] agent.status.updated     { "model": "kimi-code", "contextTokens": 0, "maxContextTokens": 256000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual" }
-      [wire] usage.record             { "model": "kimi-code", "usage": { "inputOther": 499, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
-      [emit] agent.status.updated     { "model": "kimi-code", "contextTokens": 0, "maxContextTokens": 256000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 499, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 499, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] usage.record             { "model": "kimi-code", "usage": { "inputOther": 623, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
+      [emit] agent.status.updated     { "model": "kimi-code", "contextTokens": 0, "maxContextTokens": 256000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 623, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 623, "output": 7, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [wire] full_compaction.cancel   { "time": "<time>" }
       [emit] compaction.cancelled     {}
     `);
@@ -1173,20 +1307,20 @@ describe('FullCompaction', () => {
       [wire] full_compaction.begin       { "source": "auto", "time": "<time>" }
       [emit] compaction.started          { "trigger": "auto" }
       [emit] compaction.blocked          { "turnId": 0 }
-      [wire] usage.record                { "model": "kimi-code", "usage": { "inputOther": 498, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
-      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 950000, "maxContextTokens": 256000, "contextUsage": 3.7109375, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 498, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 498, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
-      [wire] context.apply_compaction    { "summary": "Auto compacted summary.", "compactedCount": 4, "tokensBefore": 46, "tokensAfter": 28, "time": "<time>" }
-      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 28, "maxContextTokens": 256000, "contextUsage": 0.000109375, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 498, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 498, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] usage.record                { "model": "kimi-code", "usage": { "inputOther": 623, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
+      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 950000, "maxContextTokens": 256000, "contextUsage": 3.7109375, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 623, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 623, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.apply_compaction    { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 4 old messages were compacted; 22 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=4\\n- assistant[3-3] tokens=8\\n\\n## Compacted Narrative\\nAuto compacted summary.", "compactedCount": 4, "tokensBefore": 46, "tokensAfter": 266, "algorithmVersion": "super_kimi_context_compaction_v2", "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 3, "tokensBefore": 24 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 3 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 4 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 } ], "summaryTokens": 244, "retainedTokens": 22, "compactedTokens": 24, "qualityWarnings": [], "time": "<time>" }
+      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 266, "maxContextTokens": 256000, "contextUsage": 0.0010390625, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 623, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 623, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [wire] full_compaction.complete    { "time": "<time>" }
-      [emit] compaction.completed        { "result": { "summary": "Auto compacted summary.", "compactedCount": 4, "tokensBefore": 46, "tokensAfter": 28 } }
+      [emit] compaction.completed        { "result": { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 4 old messages were compacted; 22 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=4\\n- assistant[3-3] tokens=8\\n\\n## Compacted Narrative\\nAuto compacted summary.", "compactedCount": 4, "tokensBefore": 46, "tokensAfter": 266, "algorithmVersion": "super_kimi_context_compaction_v2", "summaryTokens": 244, "retainedTokens": 22, "compactedTokens": 24, "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 3, "tokensBefore": 24 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 3 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 4 }, { "kind": "assistant", "messageStart": 1, "messageEnd": 1, "tokens": 8 }, { "kind": "user", "messageStart": 2, "messageEnd": 2, "tokens": 4 }, { "kind": "assistant", "messageStart": 3, "messageEnd": 3, "tokens": 8 } ] } }
       [wire] context.append_loop_event   { "event": { "type": "step.begin", "uuid": "<uuid-1>", "turnId": "0", "step": 1 }, "time": "<time>" }
       [emit] turn.step.started           { "turnId": 0, "step": 1, "stepId": "<uuid-1>" }
       [emit] assistant.delta             { "turnId": 0, "delta": "I can answer after compaction." }
       [wire] context.append_loop_event   { "event": { "type": "content.part", "uuid": "<uuid-2>", "turnId": "0", "step": 1, "stepUuid": "<uuid-1>", "part": { "type": "text", "text": "I can answer after compaction." } }, "time": "<time>" }
-      [wire] context.append_loop_event   { "event": { "type": "step.end", "uuid": "<uuid-1>", "turnId": "0", "step": 1, "usage": { "inputOther": 31, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "end_turn" }, "time": "<time>" }
-      [emit] turn.step.completed         { "turnId": 0, "step": 1, "stepId": "<uuid-1>", "usage": { "inputOther": 31, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "end_turn" }
-      [wire] usage.record                { "model": "kimi-code", "usage": { "inputOther": 31, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "turn", "time": "<time>" }
-      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 42, "maxContextTokens": 256000, "contextUsage": 0.0001640625, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 529, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 529, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 }, "currentTurn": { "inputOther": 31, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.append_loop_event   { "event": { "type": "step.end", "uuid": "<uuid-1>", "turnId": "0", "step": 1, "usage": { "inputOther": 269, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "end_turn" }, "time": "<time>" }
+      [emit] turn.step.completed         { "turnId": 0, "step": 1, "stepId": "<uuid-1>", "usage": { "inputOther": 269, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "end_turn" }
+      [wire] usage.record                { "model": "kimi-code", "usage": { "inputOther": 269, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "turn", "time": "<time>" }
+      [emit] agent.status.updated        { "model": "kimi-code", "contextTokens": 280, "maxContextTokens": 256000, "contextUsage": 0.00109375, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "kimi-code": { "inputOther": 892, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 892, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 }, "currentTurn": { "inputOther": 269, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [emit] turn.ended                  { "turnId": 0, "reason": "completed" }
     `);
     expect(ctx.llmInputs()).toMatchInlineSnapshot(`
@@ -1202,7 +1336,7 @@ describe('FullCompaction', () => {
 
       call 2:
         messages:
-          assistant: text "Auto compacted summary."
+          assistant: text "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 4 old messages were compacted; 22 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=4\\n- assistant[1-1] tokens=8\\n- user[2-2] tokens=4\\n- assistant[3-3] tokens=8\\n\\n## Compacted Narrative\\nAuto compacted summary."
           user: text "recent user three"
           assistant: text "recent assistant three"
           user: text "Answer after compacting"
@@ -1212,7 +1346,7 @@ describe('FullCompaction', () => {
       properties: expect.objectContaining({
         source: 'auto',
         tokensBefore: 46,
-        tokensAfter: 28,
+        tokensAfter: expect.any(Number),
         compactedCount: 4,
         retryCount: 0,
       }),
@@ -1397,9 +1531,7 @@ describe('FullCompaction', () => {
     await completed;
 
     expect(ctx.llmCalls).toHaveLength(1);
-    expect(ctx.compactHistory()).toEqual([
-      { role: 'assistant', text: 'Compacted after no-op cancel.' },
-    ]);
+    expectCompactedAssistant(ctx.compactHistory()[0], 'Compacted after no-op cancel.');
     await ctx.expectResumeMatches();
   });
 
@@ -1453,8 +1585,8 @@ describe('FullCompaction', () => {
 
     expect(ctx.llmCalls).toHaveLength(2);
     const [compactionCall, answerCall] = ctx.llmCalls;
-    expect(messageText(compactionCall?.history.at(-1))).toContain('<!-- Compression Priorities');
-    expect(answerCall?.history.map(messageText)).toContain('Reserved compacted summary.');
+    expect(messageText(compactionCall?.history.at(-1))).toContain('DO NOT CALL ANY TOOLS');
+    expect(messageTextsContain(answerCall?.history, 'Reserved compacted summary.')).toBe(true);
     await ctx.expectResumeMatches();
   });
 
@@ -1480,7 +1612,7 @@ describe('FullCompaction', () => {
     const compactionTexts = compactionCall?.history.map(messageText) ?? [];
     expect(compactionTexts.some((text) => text.includes('keep-this-pending-verbatim'))).toBe(false);
     expect(compactionCall?.history.map((message) => message.role)).toEqual(['user', 'assistant', 'user']);
-    expect(answerCall?.history.map(messageText)).toContain('Oversized prompt summary.');
+    expect(messageTextsContain(answerCall?.history, 'Oversized prompt summary.')).toBe(true);
     expect(messageText(answerCall?.history.at(-1))).toBe(oversizedPrompt);
     await ctx.expectResumeMatches();
   });
@@ -1507,7 +1639,7 @@ describe('FullCompaction', () => {
     const compactionTexts = compactionCall?.history.map(messageText) ?? [];
     expect(compactionTexts.some((text) => text.includes('ratio-pending-verbatim'))).toBe(false);
     expect(compactionCall?.history.map((message) => message.role)).toEqual(['user', 'assistant', 'user']);
-    expect(answerCall?.history.map(messageText)).toContain('Ratio compacted summary.');
+    expect(messageTextsContain(answerCall?.history, 'Ratio compacted summary.')).toBe(true);
     expect(messageText(answerCall?.history.at(-1))).toBe(pendingPrompt);
 
     await ctx.expectResumeMatches();
@@ -1556,7 +1688,7 @@ describe('FullCompaction', () => {
       expect.objectContaining({
         event: 'context.apply_compaction',
         args: expect.objectContaining({
-          summary: 'Overflow compacted summary.',
+          summary: expect.stringContaining('Overflow compacted summary.'),
           compactedCount: 2,
         }),
       }),
@@ -1580,7 +1712,34 @@ describe('FullCompaction', () => {
           "user: <compaction-instruction>",
         ],
         [
-          "assistant: Overflow compacted summary.",
+          "assistant: # Super Kimi Context Compaction v2 Memory
+
+      ## Resume Preflight
+      - current_goal: Continue the active user task from the compacted state.
+      - last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.
+      - next_action: Inspect the retained recent context, then continue the pending implementation or verification step.
+
+      ## Structured Working Memory
+      current_goal:
+      - Continue the active user task from the compacted state.
+      last_known_state:
+      - 2 old messages were compacted; 12 estimated tokens remain in the recent live context.
+      decisions:
+      - None captured during compaction.
+      files_touched:
+      - None captured during compaction.
+      failed_attempts:
+      - None captured during compaction.
+      open_questions:
+      - None captured during compaction.
+      next_actions:
+      - None captured during compaction.
+      raw_refs:
+      - user[0-0] tokens=4
+      - assistant[1-1] tokens=8
+
+      ## Compacted Narrative
+      Overflow compacted summary.",
           "user: Retry after provider overflow",
         ],
       ]
@@ -1689,7 +1848,7 @@ describe('FullCompaction', () => {
       expect.objectContaining({
         event: 'context.apply_compaction',
         args: expect.objectContaining({
-          summary: 'Unknown window compacted summary.',
+          summary: expect.stringContaining('Unknown window compacted summary.'),
           compactedCount: 2,
         }),
       }),
@@ -1822,7 +1981,7 @@ describe('FullCompaction', () => {
       expect.objectContaining({
         event: 'context.apply_compaction',
         args: expect.objectContaining({
-          summary: 'Placeholder compacted summary.',
+          summary: expect.stringContaining('Placeholder compacted summary.'),
           compactedCount: 2,
         }),
       }),
@@ -1850,12 +2009,12 @@ describe('FullCompaction', () => {
       [wire] full_compaction.begin       { "source": "auto", "time": "<time>" }
       [emit] compaction.started          { "trigger": "auto" }
       [emit] compaction.blocked          { "turnId": 0 }
-      [wire] usage.record                { "model": "mock-model", "usage": { "inputOther": 482, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
-      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 0, "maxContextTokens": 1000000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 482, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 482, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
-      [wire] context.apply_compaction    { "summary": "First compacted summary.", "compactedCount": 1, "tokensBefore": 8, "tokensAfter": 6, "time": "<time>" }
-      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 6, "maxContextTokens": 1000000, "contextUsage": 0.000006, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 482, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 482, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] usage.record                { "model": "mock-model", "usage": { "inputOther": 589, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "session", "time": "<time>" }
+      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 0, "maxContextTokens": 1000000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 589, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 589, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.apply_compaction    { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 1 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=8\\n\\n## Compacted Narrative\\nFirst compacted summary.", "compactedCount": 1, "tokensBefore": 8, "tokensAfter": 226, "algorithmVersion": "super_kimi_context_compaction_v2", "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 0, "tokensBefore": 8 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 0 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 8 } ], "summaryTokens": 226, "retainedTokens": 0, "compactedTokens": 8, "qualityWarnings": [], "time": "<time>" }
+      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 226, "maxContextTokens": 1000000, "contextUsage": 0.000226, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 589, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 589, "output": 9, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [wire] full_compaction.complete    { "time": "<time>" }
-      [emit] compaction.completed        { "result": { "summary": "First compacted summary.", "compactedCount": 1, "tokensBefore": 8, "tokensAfter": 6 } }
+      [emit] compaction.completed        { "result": { "summary": "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 1 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=8\\n\\n## Compacted Narrative\\nFirst compacted summary.", "compactedCount": 1, "tokensBefore": 8, "tokensAfter": 226, "algorithmVersion": "super_kimi_context_compaction_v2", "summaryTokens": 226, "retainedTokens": 0, "compactedTokens": 8, "actions": [ { "type": "focus_phase_summary", "reason": "compacted prefix summarized as a completed focus phase", "messageStart": 0, "messageEnd": 0, "tokensBefore": 8 }, { "type": "semantic_working_memory", "reason": "critical files, decisions, failures, open questions, and next actions retained as structured memory", "messageStart": 0, "messageEnd": 0 } ], "rawRefs": [ { "kind": "user", "messageStart": 0, "messageEnd": 0, "tokens": 8 } ] } }
       [wire] context.append_loop_event   { "event": { "type": "step.begin", "uuid": "<uuid-1>", "turnId": "0", "step": 1 }, "time": "<time>" }
       [emit] turn.step.started           { "turnId": 0, "step": 1, "stepId": "<uuid-1>" }
       [emit] assistant.delta             { "turnId": 0, "delta": "I need a tool." }
@@ -1865,10 +2024,10 @@ describe('FullCompaction', () => {
       [emit] tool.call.started           { "turnId": 0, "toolCallId": "call_missing", "name": "MissingTool", "args": {} }
       [wire] context.append_loop_event   { "event": { "type": "tool.result", "parentUuid": "call_missing", "toolCallId": "call_missing", "result": { "output": "Tool \\"MissingTool\\" not found", "isError": true } }, "time": "<time>" }
       [emit] tool.result                 { "turnId": 0, "toolCallId": "call_missing", "output": "Tool \\"MissingTool\\" not found", "isError": true }
-      [wire] context.append_loop_event   { "event": { "type": "step.end", "uuid": "<uuid-1>", "turnId": "0", "step": 1, "usage": { "inputOther": 9, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "tool_use" }, "time": "<time>" }
-      [emit] turn.step.completed         { "turnId": 0, "step": 1, "stepId": "<uuid-1>", "usage": { "inputOther": 9, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "tool_use" }
-      [wire] usage.record                { "model": "mock-model", "usage": { "inputOther": 9, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "turn", "time": "<time>" }
-      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 20, "maxContextTokens": 1000000, "contextUsage": 0.00002, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 491, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 491, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 }, "currentTurn": { "inputOther": 9, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
+      [wire] context.append_loop_event   { "event": { "type": "step.end", "uuid": "<uuid-1>", "turnId": "0", "step": 1, "usage": { "inputOther": 229, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "tool_use" }, "time": "<time>" }
+      [emit] turn.step.completed         { "turnId": 0, "step": 1, "stepId": "<uuid-1>", "usage": { "inputOther": 229, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "tool_use" }
+      [wire] usage.record                { "model": "mock-model", "usage": { "inputOther": 229, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 }, "usageScope": "turn", "time": "<time>" }
+      [emit] agent.status.updated        { "model": "mock-model", "contextTokens": 240, "maxContextTokens": 1000000, "contextUsage": 0.00024, "planMode": false, "swarmMode": false, "permission": "manual", "usage": { "byModel": { "mock-model": { "inputOther": 818, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 } }, "total": { "inputOther": 818, "output": 20, "inputCacheRead": 0, "inputCacheCreation": 0 }, "currentTurn": { "inputOther": 229, "output": 11, "inputCacheRead": 0, "inputCacheCreation": 0 } } }
       [emit] turn.step.interrupted       { "turnId": 0, "step": 2, "reason": "error", "message": "Compaction limit exceeded (1)" }
       [emit] turn.ended                  { "turnId": 0, "reason": "failed", "error": { "code": "context.overflow", "message": "Compaction limit exceeded (1)", "name": "KimiError", "details": { "maxCompactions": 1, "turnId": 0 }, "retryable": true } }
     `);
@@ -1885,7 +2044,7 @@ describe('FullCompaction', () => {
 
       call 2:
         messages:
-          assistant: text "First compacted summary."
+          assistant: text "# Super Kimi Context Compaction v2 Memory\\n\\n## Resume Preflight\\n- current_goal: Continue the active user task from the compacted state.\\n- last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.\\n- next_action: Inspect the retained recent context, then continue the pending implementation or verification step.\\n\\n## Structured Working Memory\\ncurrent_goal:\\n- Continue the active user task from the compacted state.\\nlast_known_state:\\n- 1 old messages were compacted; 0 estimated tokens remain in the recent live context.\\ndecisions:\\n- None captured during compaction.\\nfiles_touched:\\n- None captured during compaction.\\nfailed_attempts:\\n- None captured during compaction.\\nopen_questions:\\n- None captured during compaction.\\nnext_actions:\\n- None captured during compaction.\\nraw_refs:\\n- user[0-0] tokens=8\\n\\n## Compacted Narrative\\nFirst compacted summary."
     `);
     await ctx.expectResumeMatches();
   });
@@ -1918,10 +2077,10 @@ describe('FullCompaction', () => {
 
     const history = ctx.compactHistory();
     expect(history).toHaveLength(1);
-    expect(history[0]).toMatchObject({
-      role: 'assistant',
-      text: 'Compacted summary.\n\n## TODO List\n  [in_progress] Fix the auth bug\n  [pending] Add tests',
-    });
+    expectCompactedAssistant(history[0], 'Compacted summary.');
+    expect(history[0]?.text).toContain('## TODO List');
+    expect(history[0]?.text).toContain('[in_progress] Fix the auth bug');
+    expect(history[0]?.text).toContain('[pending] Add tests');
     await ctx.expectResumeMatches();
   });
 });
@@ -2091,6 +2250,9 @@ function testCompactionStrategy(maxSize: number = 1_000): DefaultCompactionStrat
     maxRecentUserMessages: Infinity,
     maxRecentSizeRatio: 0.2,
     minOverflowReductionRatio: 0.05,
+    absoluteTriggerTokens: 200_000,
+    parallelBlockThreshold: 30_000,
+    parallelBlockTarget: 15_000,
   });
 }
 
@@ -2104,6 +2266,9 @@ function overflowOnlyCompactionStrategy(maxSize: number = 14): DefaultCompaction
     maxRecentUserMessages: Infinity,
     maxRecentSizeRatio: 0.2,
     minOverflowReductionRatio: 0.05,
+    absoluteTriggerTokens: 200_000,
+    parallelBlockThreshold: 30_000,
+    parallelBlockTarget: 15_000,
   });
 }
 
@@ -2115,8 +2280,70 @@ function textMessage(role: 'user' | 'assistant', text: string): Message {
   };
 }
 
+function expectCompactedAssistant(
+  entry: { readonly role: string; readonly text: string } | undefined,
+  expectedNarrative: string,
+): void {
+  expect(entry?.role).toBe('assistant');
+  expect(entry?.text).toContain('# Super Kimi Context Compaction v2 Memory');
+  expect(entry?.text).toContain(expectedNarrative);
+}
+
 function messageText(message: Message | undefined): string {
   return message?.content.map((part) => (part.type === 'text' ? part.text : '')).join('') ?? '';
+}
+
+function messageTextsContain(
+  messages: readonly Message[] | undefined,
+  expectedText: string,
+): boolean {
+  return messages?.some((message) => messageText(message).includes(expectedText)) ?? false;
+}
+
+function firstLine(text: string): string {
+  return text.split('\n')[0] ?? '';
+}
+
+function appendLargeToolExchange(ctx: TestAgentContext, index: number): void {
+  const stepUuid = `large-tool-step-${String(index)}`;
+  const toolCallId = `call_lookup_${String(index)}`;
+  ctx.agent.context.appendUserMessage([{ type: 'text', text: `lookup something ${String(index)}` }]);
+  ctx.dispatch({
+    type: 'context.append_loop_event',
+    event: { type: 'step.begin', uuid: stepUuid, turnId: '', step: index },
+  });
+  ctx.dispatch({
+    type: 'context.append_loop_event',
+    event: {
+      type: 'tool.call',
+      uuid: toolCallId,
+      turnId: '',
+      step: index,
+      stepUuid,
+      toolCallId,
+      name: 'Lookup',
+      args: { query: `moon-${String(index)}` },
+    },
+  });
+  ctx.dispatch({
+    type: 'context.append_loop_event',
+    event: {
+      type: 'step.end',
+      uuid: stepUuid,
+      turnId: '',
+      step: index,
+      finishReason: 'tool_use',
+    },
+  });
+  ctx.dispatch({
+    type: 'context.append_loop_event',
+    event: {
+      type: 'tool.result',
+      parentUuid: toolCallId,
+      toolCallId,
+      result: { output: `lookup result ${String(index)}\n${'payload '.repeat(160)}` },
+    },
+  });
 }
 
 function hookPayloadLoggerCommand(logPath: string): string {

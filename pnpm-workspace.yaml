@@ -5,6 +5,14 @@ packages:
   - apps/vis/web
   - docs
 
+allowBuilds:
+  esbuild: true
+  koffi: true
+  node-pty: true
+  protobufjs: true
+  simple-git-hooks: true
+  ssh2: true
+
 catalog:
   zod: 4.3.6
 

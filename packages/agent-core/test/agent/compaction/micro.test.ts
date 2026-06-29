@@ -51,9 +51,9 @@ describe('MicroCompaction', () => {
     });
 
     vi.setSystemTime(0);
-    ctx.appendToolExchange();
-    ctx.appendToolExchange();
-    ctx.appendToolExchange();
+    appendMicroToolExchange(ctx, 1);
+    appendMicroToolExchange(ctx, 2);
+    appendMicroToolExchange(ctx, 3);
 
     expect(ctx.agent.context.messages).toHaveLength(9);
 
@@ -61,18 +61,9 @@ describe('MicroCompaction', () => {
 
     ctx.agent.microCompaction.detect();
     const messages = ctx.agent.context.messages;
-    expect(messages[2]).toMatchObject({
-      role: 'tool',
-      content: [{ type: 'text', text: DEFAULT_MARKER }],
-    });
-    expect(messages[5]).toMatchObject({
-      role: 'tool',
-      content: [{ type: 'text', text: 'lookup result' }],
-    });
-    expect(messages[8]).toMatchObject({
-      role: 'tool',
-      content: [{ type: 'text', text: 'lookup result' }],
-    });
+    expect(textOf(messages[2])).toBe(DEFAULT_MARKER);
+    expect(textOf(messages[5])).toBe('lookup result 2');
+    expect(textOf(messages[8])).toBe('lookup result 3');
   });
 
   it('does nothing before cache miss threshold', () => {
@@ -86,8 +77,8 @@ describe('MicroCompaction', () => {
     });
 
     vi.setSystemTime(0);
-    ctx.appendToolExchange();
-    ctx.appendToolExchange();
+    appendMicroToolExchange(ctx, 1);
+    appendMicroToolExchange(ctx, 2);
     ctx.appendToolExchange();
 
     vi.setSystemTime(30 * 60 * 1000);
@@ -108,26 +99,20 @@ describe('MicroCompaction', () => {
     });
 
     vi.setSystemTime(0);
-    ctx.appendToolExchange();
-    ctx.appendToolExchange();
+    appendMicroToolExchange(ctx, 1);
+    appendMicroToolExchange(ctx, 2);
 
     vi.setSystemTime(61 * 60 * 1000);
 
     ctx.agent.microCompaction.detect();
     const first = ctx.agent.context.messages;
-    expect(first[2]).toMatchObject({
-      role: 'tool',
-      content: [{ type: 'text', text: DEFAULT_MARKER }],
-    });
+    expect(textOf(first[2])).toBe(DEFAULT_MARKER);
 
     vi.setSystemTime(62 * 60 * 1000);
 
     ctx.agent.microCompaction.detect();
     const second = ctx.agent.context.messages;
-    expect(second[2]).toMatchObject({
-      role: 'tool',
-      content: [{ type: 'text', text: DEFAULT_MARKER }],
-    });
+    expect(textOf(second[2])).toBe(DEFAULT_MARKER);
   });
 
   it('clears cutoff on reset', () => {
@@ -586,6 +571,32 @@ describe('MicroCompaction', () => {
     expect(textOf(ctx.agent.context.history[2])).toBe('abcd');
   });
 
+  it('adds recoverable tool metadata to cleared tool results by default', () => {
+    vi.useFakeTimers();
+    const ctx = testAgent({
+      microCompaction: {
+        keepRecentMessages: 0,
+        minContentTokens: 1,
+        cacheMissedThresholdMs: 60 * MINUTE,
+        minContextUsageRatio: 0,
+      },
+    });
+
+    vi.setSystemTime(0);
+    appendMicroToolExchange(ctx, 1, { output: 'very important lookup result '.repeat(20) });
+
+    vi.setSystemTime(61 * MINUTE);
+    ctx.agent.microCompaction.detect();
+
+    const [marker] = toolTexts(ctx.agent.context.messages, { raw: true });
+    expect(marker).toContain(DEFAULT_MARKER);
+    expect(marker).toContain('toolCallId=call_micro_1');
+    expect(marker).toContain('toolName=Lookup');
+    expect(marker).toContain('tokensBeforeClearing=');
+    expect(marker).toContain('rawResult=replay');
+    expect(textOf(ctx.agent.context.history[2])).toContain('very important lookup result');
+  });
+
   it('keeps raw pending token accounting even when projection truncates tool output', () => {
     vi.useFakeTimers();
     const ctx = testAgent({
@@ -632,7 +643,7 @@ describe('MicroCompaction', () => {
     vi.setSystemTime(0);
     appendMicroToolExchange(ctx, 1, {
       output: [
-        { type: 'text', text: 'large rich output' },
+        { type: 'text', text: largeToolOutput('large rich output') },
         { type: 'video_url', videoUrl: { url: 'ms://video-1', id: 'video-1' } },
       ],
       isError: true,
@@ -647,8 +658,9 @@ describe('MicroCompaction', () => {
       role: 'tool',
       toolCallId: 'call_micro_1',
       isError: true,
-      content: [{ type: 'text', text: DEFAULT_MARKER }],
     });
+    expect(textOf(tool, { raw: true })).toContain(DEFAULT_MARKER);
+    expect(textOf(tool, { raw: true })).toContain('toolCallId=call_micro_1');
     expect(tool?.content).toHaveLength(1);
   });
 
@@ -698,10 +710,9 @@ describe('MicroCompaction', () => {
     await compacted;
 
     expect(ctx.agent.context.messages).toHaveLength(1);
-    expect(ctx.agent.context.messages[0]).toMatchObject({
-      role: 'assistant',
-      content: [{ type: 'text', text: 'Summary.' }],
-    });
+    expect(ctx.agent.context.messages[0]?.role).toBe('assistant');
+    expect(textOf(ctx.agent.context.messages[0], { raw: true })).toContain('# Super Kimi Context Compaction v2 Memory');
+    expect(textOf(ctx.agent.context.messages[0], { raw: true })).toContain('Summary.');
   });
 
   it('does not apply when context usage is below minContextUsageRatio', () => {
@@ -799,7 +810,10 @@ function appendMicroToolExchange(
 ): void {
   const stepUuid = `micro-tool-step-${String(index)}`;
   const toolCallId = `call_micro_${String(index)}`;
-  const output = options.output ?? `lookup result ${String(index)}`;
+  const output =
+    options.output === undefined || typeof options.output === 'string'
+      ? largeToolOutput(options.output ?? `lookup result ${String(index)}`)
+      : options.output;
   const usage =
     options.usageTokens === undefined
       ? undefined
@@ -859,6 +873,11 @@ function appendMicroToolExchange(
       result: { output, isError: options.isError },
     },
   });
+}
+
+function largeToolOutput(label: string): string {
+  if (label.length > 240 || label.includes('\n')) return label;
+  return `${label}\n${'payload '.repeat(160)}`;
 }
 
 function resumeToolExchangeRecords(assistantRecordTime: number): AgentRecord[] {
@@ -927,7 +946,7 @@ function resumeToolExchangeRecords(assistantRecordTime: number): AgentRecord[] {
         type: 'tool.result',
         parentUuid: 'resume-micro-call',
         toolCallId: 'resume_micro_call',
-        result: { output: 'restored lookup result' },
+        result: { output: largeToolOutput('restored lookup result') },
       },
     },
   ];
@@ -941,21 +960,28 @@ function lastMicroCompactionCutoff(records: readonly AgentRecord[]): number | un
   return records.findLast((record) => record.type === 'micro_compaction.apply')?.cutoff;
 }
 
-function toolTexts(messages: readonly Message[]): string[] {
+function toolTexts(
+  messages: readonly Message[],
+  options?: { readonly raw?: boolean },
+): string[] {
   return messages
     .filter((message) => message.role === 'tool')
-    .map((message) => textOf(message));
+    .map((message) => textOf(message, options));
 }
 
-function textOf(message: Message | undefined): string {
-  return (
+function textOf(
+  message: Message | undefined,
+  options?: { readonly raw?: boolean },
+): string {
+  const text =
     message?.content
       .map((part) => {
         if (part.type === 'text') return part.text;
         return '';
       })
-      .join('') ?? ''
-  );
+      .join('') ?? '';
+  if (options?.raw === true) return text;
+  return text.split('\n')[0] ?? '';
 }
 
 function hasMarker(messages: readonly Message[]): boolean {

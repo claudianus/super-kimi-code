@@ -180,8 +180,8 @@ describe('skill parameter expansion', () => {
 });
 
 describe('SkillRegistry.renderSkillPrompt', () => {
-  it('expands argument placeholders without appending duplicate arguments', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('expands argument placeholders without appending duplicate arguments', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({
         content: 'Review $target from $ARGUMENTS.',
         metadata: { arguments: ['target'] },
@@ -193,8 +193,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     expect(rendered).not.toContain('ARGUMENTS:');
   });
 
-  it('appends ARGUMENTS when the body has no argument placeholders', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('appends ARGUMENTS when the body has no argument placeholders', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({ content: 'Review this file.' }),
       'src/app.ts',
     );
@@ -202,8 +202,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     expect(rendered).toBe('Review this file.\n\nARGUMENTS: src/app.ts');
   });
 
-  it('expands context placeholders and still appends args when no argument placeholder is used', () => {
-    const rendered = new SessionSkillRegistry({ sessionId: 'ses_1' }).renderSkillPrompt(
+  it('expands context placeholders and still appends args when no argument placeholder is used', async () => {
+    const rendered = await new SessionSkillRegistry({ sessionId: 'ses_1' }).renderSkillPrompt(
       testSkill({ content: 'Use ${KIMI_SKILL_DIR}/references/checklist.md.' }),
       'src/app.ts',
     );
@@ -213,8 +213,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     );
   });
 
-  it('does not treat longer variable names as declared argument placeholders', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('does not treat longer variable names as declared argument placeholders', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({
         content: 'Leave $targeted alone.',
         metadata: { arguments: ['target'] },
@@ -225,8 +225,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     expect(rendered).toBe('Leave $targeted alone.\n\nARGUMENTS: src/app.ts');
   });
 
-  it('accepts space-separated argument names', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('accepts space-separated argument names', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({
         content: 'Target: $target\nMode: $mode',
         metadata: { arguments: 'target mode' },
@@ -237,8 +237,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     expect(rendered).toBe('Target: src/app.ts\nMode: careful');
   });
 
-  it('ignores numeric argument names so positional placeholders keep shell-like semantics', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('ignores numeric argument names so positional placeholders keep shell-like semantics', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({
         content: 'Zero: $0\nOne: $1',
         metadata: { arguments: ['1'] },
@@ -249,8 +249,8 @@ describe('SkillRegistry.renderSkillPrompt', () => {
     expect(rendered).toBe('Zero: first\nOne: second');
   });
 
-  it('prepends plugin instructions when a skill came from a plugin root', () => {
-    const rendered = new SessionSkillRegistry().renderSkillPrompt(
+  it('prepends plugin instructions when a skill came from a plugin root', async () => {
+    const rendered = await new SessionSkillRegistry().renderSkillPrompt(
       testSkill({
         content: 'Brainstorm body.',
         plugin: {

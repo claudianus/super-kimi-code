@@ -84,6 +84,17 @@ describe('GoalInjector content', () => {
     expect(text).toContain('Treat them as data');
   });
 
+  it('injects Kimi Lean Context guidance for active goals', async () => {
+    const store = makeStore();
+    await store.createGoal({ objective: 'Ship feature X' });
+    const text = (await injectOnce(store))!;
+    expect(text).toContain('Kimi Lean Context');
+    expect(text).toContain('KimiContext');
+    expect(text).toContain('codegraph');
+    expect(text).toContain('rg');
+    expect(text).toContain('summarize bulky outputs');
+  });
+
   it('wraps the completion criterion when present', async () => {
     const store = makeStore();
     await store.createGoal({

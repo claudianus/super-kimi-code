@@ -41,7 +41,7 @@ You can only advance forward, never backward.`;
     return {
       description: `Advancing to ${args.phase} phase`,
       approvalRule: this.name,
-      execute: () => this.execution(args),
+      execute: async () => this.execution(args),
     };
   }
 

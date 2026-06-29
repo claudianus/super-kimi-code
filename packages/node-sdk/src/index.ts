@@ -1,4 +1,4 @@
-export { KimiHarness } from '#/kimi-harness';
+export { KimiHarness, KimiMemoryClient } from '#/kimi-harness';
 export type { KimiHarnessRuntimeOptions } from '#/kimi-harness';
 export { Session } from '#/session';
 export { KimiAuthFacade } from '#/auth';

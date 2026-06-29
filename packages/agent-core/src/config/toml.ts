@@ -13,6 +13,7 @@ import {
   type HookDefConfig,
   type KimiConfig,
   type LoopControl,
+  type MemoryConfig,
   type ModelAlias,
   type MoonshotServiceConfig,
   type OAuthRef,
@@ -312,6 +313,8 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
       result[targetKey] = transformLoopControlData(value);
     } else if (targetKey === 'background' && isPlainObject(value)) {
       result[targetKey] = transformPlainObject(value);
+    } else if (targetKey === 'memory' && isPlainObject(value)) {
+      result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'experimental' && isPlainObject(value)) {
       result[targetKey] = cloneRecord(value);
     } else if (!isPlainObject(value)) {
@@ -472,6 +475,9 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
     'defaultPlanMode',
     'mergeAllAvailableSkills',
     'extraSkillDirs',
+    'skillSearchLimit',
+    'skillSearchMaxLimit',
+    'skillPromptMode',
     'telemetry',
   ];
   for (const key of scalarFields) {
@@ -484,6 +490,7 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
   setSection(out, 'services', config.services, servicesToToml);
   setSection(out, 'loop_control', config.loopControl, loopControlToToml);
   setSection(out, 'background', config.background, backgroundToToml);
+  setSection(out, 'memory', config.memory, memoryToToml);
   setSection(out, 'experimental', config.experimental, experimentalToToml);
   setSection(out, 'permission', config.permission, permissionToToml);
   setHooks(out, config.hooks);
@@ -641,6 +648,14 @@ function backgroundToToml(
 ): Record<string, unknown> {
   const out = cloneRecord(rawBackground);
   for (const [key, value] of Object.entries(background)) {
+    setDefined(out, camelToSnake(key), value);
+  }
+  return out;
+}
+
+function memoryToToml(memory: MemoryConfig, rawMemory: unknown): Record<string, unknown> {
+  const out = cloneRecord(rawMemory);
+  for (const [key, value] of Object.entries(memory)) {
     setDefined(out, camelToSnake(key), value);
   }
   return out;

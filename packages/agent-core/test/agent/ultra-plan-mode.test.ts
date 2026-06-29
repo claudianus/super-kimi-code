@@ -198,8 +198,8 @@ describe('UltraPlanModeEngine', () => {
       engine.setEvaluationPlan(engine.generateDefaultEvaluationPlan());
 
       const serialized = engine.serialize();
-      expect(serialized.seedSpec).toBeDefined();
-      expect(serialized.evaluationPlan).toBeDefined();
+      expect(serialized['seedSpec']).toBeDefined();
+      expect(serialized['evaluationPlan']).toBeDefined();
 
       const newEngine = new UltraPlanModeEngine(mockAgent);
       newEngine.deserialize(serialized);
