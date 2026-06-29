@@ -4060,6 +4060,17 @@ async function runTuiRealWorkflowPhase(context) {
 
     await sleep(4_000);
     summary.captures.push(await captureTmuxPane(context, tmuxSession, 'startup'));
+    const vibeModeTrace = await sendTmuxKeySequence(context, tmuxSession, 'real-workflow-vibe-mode', [
+      '/vibe',
+      'Enter',
+    ]);
+    summary.inputTraces.push(vibeModeTrace);
+    commandRecords.push(...vibeModeTrace.commands);
+    cleanupOverrides.proofCommands.push(
+      ...vibeModeTrace.commands.map((record) => commandProofFromRecord(record)),
+    );
+    await sleep(1_000);
+    summary.captures.push(await captureTmuxPane(context, tmuxSession, 'real-workflow-vibe-mode'));
     const promptTrace = await sendTmuxKeySequence(context, tmuxSession, 'real-workflow-prompt', [
       workflowPrompt,
       'Enter',
@@ -4119,6 +4130,14 @@ async function runTuiRealWorkflowPhase(context) {
     summary.validations.promptSubmitted = passFail(
       promptTrace.status === 'PASS',
       promptTrace.reason,
+    );
+    summary.validations.directCodingMode = await validateTuiRealWorkflowDirectCodingMode(
+      summary.captures,
+      vibeModeTrace,
+    );
+    summary.validations.planModeFrictionAvoided = await validateTuiRealWorkflowPlanModeFriction(
+      summary.captures,
+      waitResult,
     );
     summary.validations.workspaceChanged = passFail(
       typeof fixtureText === 'string' &&
@@ -4479,6 +4498,60 @@ async function validateTuiRealWorkflowModelEvidence(captures) {
   };
 }
 
+async function validateTuiRealWorkflowDirectCodingMode(captures, vibeModeTrace) {
+  if (vibeModeTrace.status !== 'PASS') {
+    return {
+      status: 'FAIL',
+      reason: vibeModeTrace.reason,
+    };
+  }
+  const capture = captures.find((item) => item.scenario === 'real-workflow-vibe-mode');
+  if (capture === undefined || capture.status !== 'PASS') {
+    return {
+      status: 'FAIL',
+      reason: 'Real workflow must capture Vibe mode before submitting the coding prompt.',
+    };
+  }
+  const raw = await readFileIfExists(capture.path);
+  const normalized = typeof raw === 'string' ? normalizeScreenText(raw) : '';
+  const enabled =
+    normalized.includes(TUI_VIBE_MODE_TEXT) &&
+    matchesAny(normalized, [/direct coding/i, /no plan gate/i, /plan mode disabled/i]);
+  return {
+    status: enabled ? 'PASS' : 'FAIL',
+    reason: enabled
+      ? 'Real workflow enabled Vibe mode before submitting the coding prompt.'
+      : 'Real workflow Vibe mode capture must show direct-coding/no-plan feedback.',
+    path: capture.path,
+  };
+}
+
+async function validateTuiRealWorkflowPlanModeFriction(captures, waitResult) {
+  const frictionPatterns = [/Plan mode is active/i, /No plan file found/i, /Current plan/i];
+  const findings = [];
+  for (const capture of captures) {
+    const raw = typeof capture.path === 'string' ? await readFileIfExists(capture.path) : undefined;
+    if (typeof raw !== 'string') continue;
+    const normalized = normalizeScreenText(raw);
+    if (matchesAny(normalized, frictionPatterns)) {
+      findings.push({ source: capture.scenario, path: capture.path });
+    }
+  }
+  for (const observation of waitResult.observations ?? []) {
+    if (typeof observation.sample === 'string' && matchesAny(observation.sample, frictionPatterns)) {
+      findings.push({ source: 'wait-observation', atMs: observation.atMs });
+    }
+  }
+  return {
+    status: findings.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      findings.length === 0
+        ? 'Real workflow avoided plan-mode false starts after enabling Vibe mode.'
+        : 'Real workflow still shows plan-mode friction despite Vibe mode.',
+    findings,
+  };
+}
+
 function validateTuiRealWorkflowAdaptiveOperatorLoop(waitResult) {
   const operatorLoop = waitResult.operatorLoop;
   const status = operatorLoop?.status === 'PASS' && waitResult.status === 'PASS' ? 'PASS' : 'FAIL';
@@ -4513,6 +4586,11 @@ function buildTuiRealWorkflowOperatorTrajectory(summary) {
       evidence: 'tui/startup.txt',
     },
     {
+      name: 'enable-direct-coding-mode',
+      status: summary.validations?.directCodingMode?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'tui/real-workflow-vibe-mode.txt',
+    },
+    {
       name: 'submit-coding-task-with-keyboard',
       status: passedInputTraces.has('real-workflow-prompt') ? 'PASS' : 'FAIL',
       evidence: 'inputTraces[real-workflow-prompt]',
@@ -4531,6 +4609,11 @@ function buildTuiRealWorkflowOperatorTrajectory(summary) {
       name: 'classify-screen-state-during-run',
       status: summary.validations?.adaptiveOperatorLoop?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.operatorLoop',
+    },
+    {
+      name: 'avoid-plan-mode-false-starts',
+      status: summary.validations?.planModeFrictionAvoided?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'validations.planModeFrictionAvoided',
     },
     {
       name: 'review-workspace-diff',
@@ -5962,13 +6045,14 @@ function inspectTuiCapture(scenario, output) {
       }
       break;
     case 'vibe-mode':
+    case 'real-workflow-vibe-mode':
       if (!normalized.includes(TUI_VIBE_MODE_TEXT)) {
         failures.push(
-          `vibe-mode capture does not show local Vibe mode activation: "${TUI_VIBE_MODE_TEXT}"`,
+          `${scenario} capture does not show local Vibe mode activation: "${TUI_VIBE_MODE_TEXT}"`,
         );
       }
       if (!matchesAny(normalized, [/direct coding/i, /no plan gate/i, /plan mode disabled/i])) {
-        failures.push('vibe-mode capture does not show direct-coding/no-plan feedback');
+        failures.push(`${scenario} capture does not show direct-coding/no-plan feedback`);
       }
       break;
     case 'autocomplete':

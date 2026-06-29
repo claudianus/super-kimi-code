@@ -621,10 +621,12 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate) {
         deltaVerdict: tuiUxDeltaGate?.observed?.verdict ?? 'not-compared',
         requiredOperatorEvidence: [
           'startup screen observation',
+          'direct coding mode activation',
           'ordered keyboard prompt submission',
           'submitted/result screen observation',
           'screen-state classification during the run',
           'operator wait/intervention decisions',
+          'no plan-mode false-starts',
           'workspace diff review',
           'verification command',
         ],
