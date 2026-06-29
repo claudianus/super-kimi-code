@@ -228,7 +228,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: ['us'],
     description: 'Run a complex task with specialist agents',
     priority: 100,
-    visibility: 'advanced',
+    visibility: 'hidden',
     argumentHint: '<task description>',
     availability: 'idle-only',
   },
