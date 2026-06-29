@@ -1,3 +1,8 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, it, expect } from 'vitest';
 import chalk from 'chalk';
 
@@ -41,6 +46,13 @@ function baseState(overrides: Partial<AppState> = {}): AppState {
     availableModels: {},
     ...overrides,
   } as AppState;
+}
+
+function dirtyGitWorktree(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'kimi-footer-'));
+  execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' });
+  writeFileSync(join(dir, 'scratch.txt'), 'dirty\n');
+  return dir;
 }
 
 describe('FooterComponent — context NaN resilience', () => {
@@ -128,6 +140,20 @@ describe('FooterComponent — context NaN resilience', () => {
 
     expect(strip(line2 ?? '')).toContain('next: describe task');
     expect(strip(line2 ?? '')).toContain('context: 0.0%');
+  });
+
+  it('points idle dirty worktrees at review instead of new tasks', () => {
+    const workDir = dirtyGitWorktree();
+    try {
+      const footer = new FooterComponent(baseState({ workDir }));
+
+      const [, line2] = footer.render(120);
+
+      expect(strip(line2 ?? '')).toContain('next: review changes');
+      expect(strip(line2 ?? '')).not.toContain('next: describe task');
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
   });
 
   it('highlights the pull request badge separately from git status text', () => {

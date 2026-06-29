@@ -181,11 +181,12 @@ function formatContextStatus(usage: number, tokens?: number, maxTokens?: number)
   return `context: ${pct}`;
 }
 
-function footerNextAction(state: AppState): string | null {
+function footerNextAction(state: AppState, git: GitStatus | null): string | null {
   if (state.isCompacting) return 'compacting context';
   if (state.isReplaying) return 'replaying session';
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
   if (state.streamingPhase !== 'idle') return null;
+  if (git?.dirty === true) return 'next: review changes';
   return 'next: describe task';
 }
 
@@ -342,7 +343,7 @@ export class FooterComponent implements Component {
     );
     const contextWidth = visibleWidth(contextText);
     let line2: string;
-    const nextAction = footerNextAction(state);
+    const nextAction = footerNextAction(state, git);
     const leftHint = this.transientHint ?? nextAction;
     if (leftHint !== null) {
       const maxHintWidth = Math.max(0, width - contextWidth - 1);
