@@ -28,7 +28,7 @@ export const WORKING_TIPS: readonly ToolbarTip[] = [
   },
   { text: 'ask Kimi to schedule tasks, e.g. "remind me at 5pm"', solo: true, priority: 3 },
   { text: '/sessions to browse and resume earlier sessions', solo: true },
-  { text: '/goal for multi-step work with a clear finish line', priority: 2, solo: true },
+  { text: 'describe the outcome and Kimi will keep the work organized', priority: 2, solo: true },
   { text: '/goal next to queue follow-up work while the current goal keeps running', solo: true },
   { text: 'describe the outcome and Kimi will choose the right workflow', solo: true, priority: 3 },
   { text: '@: mention files', priority: 2 },

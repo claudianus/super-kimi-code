@@ -369,7 +369,7 @@ export const BUILTIN_SLASH_COMMANDS = [
   {
     name: 'goal',
     aliases: [],
-    description: 'Work toward a defined outcome across turns',
+    description: 'Keep long-running work organized across turns',
     priority: 80,
     argumentHint: '[status|pause|resume|cancel|replace|next] | <objective>',
     completeArgs: goalArgumentCompletions,

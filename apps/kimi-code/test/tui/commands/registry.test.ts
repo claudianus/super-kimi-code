@@ -81,6 +81,14 @@ describe('built-in slash command registry', () => {
     expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced', 'diagnostics']);
   });
 
+  it('describes long-work controls without telling users to start with command names', () => {
+    const goal = findBuiltInSlashCommand('goal');
+
+    expect(goal?.description).toBe('Keep long-running work organized across turns');
+    expect(goal?.description).not.toContain('/goal');
+    expect(goal?.description).not.toContain('defined outcome');
+  });
+
   it('offers swarm subcommand argument completions', () => {
     const values = (prefix: string): string[] | null => {
       const items = swarmArgumentCompletions(prefix);
