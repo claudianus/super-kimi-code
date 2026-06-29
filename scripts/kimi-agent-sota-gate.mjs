@@ -1782,6 +1782,27 @@ function renderMarkdown(report) {
       lines.push(`- penalty: ${penalty.name} -${penalty.points}`);
     }
   }
+  const tuiScenarioGate = report.gates.find((gate) => gate.name === 'live-tui-required-scenarios');
+  const tuiScenarios = Array.isArray(tuiScenarioGate?.observed?.scenarios)
+    ? tuiScenarioGate.observed.scenarios
+    : [];
+  if (tuiScenarios.length > 0) {
+    lines.push(
+      '',
+      '## Live TUI Scenario Evidence',
+      '',
+      '| Scenario | Status | Screen | Input | Signals |',
+      '|---|---:|---:|---:|---|',
+    );
+    for (const scenario of tuiScenarios) {
+      const signals = Array.isArray(scenario.screenObservationSignals)
+        ? scenario.screenObservationSignals.join(', ')
+        : '';
+      lines.push(
+        `| ${escapeMarkdown(scenario.scenario)} | ${escapeMarkdown(scenario.status)} | ${escapeMarkdown(scenario.screenObservationStatus)} | ${escapeMarkdown(scenario.inputTraceStatus)} | ${escapeMarkdown(signals)} |`,
+      );
+    }
+  }
   if (report.tuiUxBaseline !== undefined) {
     lines.push(
       '',
