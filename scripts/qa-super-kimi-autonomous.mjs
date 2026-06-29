@@ -1781,9 +1781,10 @@ async function buildAggregateSummary({
   if (portBusyAudit.status !== 'PASS') failures.push(portBusyAudit);
 
   const status = failures.length === 0 ? 'PASS' : failures.some((failure) => failure.verdict === 'BLOCKED') ? 'BLOCKED' : 'FAIL';
+  const readinessDebt = buildAggregateReadinessDebt({ allowedBlocked, failures, status });
   const reason =
     status === 'PASS'
-      ? 'All non-blocked gates passed and every allowed environmental BLOCKED gate has proof.'
+      ? `All non-blocked gates passed and every allowed environmental BLOCKED gate has proof. ${readinessDebt.reason}`
       : `Aggregate ${status}: ${failures.map((failure) => `${failure.name ?? failure.gate}:${failure.reason}`).join('; ')}`;
   const summaryJsonPath = path.join(context.evidenceRoot, 'summary.json');
   const summaryMarkdownPath = path.join(context.evidenceRoot, 'summary.md');
@@ -1810,6 +1811,7 @@ async function buildAggregateSummary({
     phases: phaseEntries,
     gates,
     allowedBlocked,
+    readinessDebt,
     failures,
     audits: {
       staleEvidence: staleAudit,
@@ -1845,6 +1847,62 @@ async function evaluateAggregateGate(context, phase, entry) {
     status: entry.status,
     verdict: entry.status === 'PASS' || entry.status === 'planned' ? 'PASS' : entry.status,
     reason: entry.reason,
+  };
+}
+
+function buildAggregateReadinessDebt({ allowedBlocked, failures, status }) {
+  const blockerCount = allowedBlocked.length;
+  const score = Math.max(0, 100 - blockerCount * 10);
+  const nextActions = allowedBlocked.map((gate, index) => buildReadinessDebtAction(gate, index));
+  return {
+    status:
+      status !== 'PASS'
+        ? 'BLOCKED_BY_REQUIRED_FAILURES'
+        : blockerCount === 0
+          ? 'CLEAR'
+          : 'READY_WITH_ALLOWED_BLOCKED_DEBT',
+    score,
+    maxScore: 100,
+    allowedBlockedCount: blockerCount,
+    requiredFailureCount: failures.length,
+    reason:
+      blockerCount === 0
+        ? 'No allowed BLOCKED debt remains.'
+        : `${blockerCount} allowed BLOCKED gate(s) remain as next-loop readiness debt.`,
+    principle:
+      'Aggregate PASS means the evidence is honest and clean; readiness debt records proof-backed work still needed before the loop is friction-free.',
+    nextActions,
+  };
+}
+
+function buildReadinessDebtAction(gate, index) {
+  if (gate.name === 'tui-iteration') {
+    return {
+      priority: index + 1,
+      gate: gate.name,
+      kind: 'capture-real-before-after-tui-iteration',
+      reason:
+        'Replace the allowed BLOCKED proof with a real before/after TUI iteration run that records visible evidence and an Ouroboros PASS verdict.',
+      command:
+        'node scripts/qa-super-kimi-autonomous.mjs --phase tui-iteration --tui-before <before-dir> --tui-after <after-dir> --evidence-root .omo/evidence/<tui-iteration-after>',
+    };
+  }
+  if (gate.name === 'autonomous') {
+    return {
+      priority: index + 1,
+      gate: gate.name,
+      kind: 'run-real-autonomous-canary-with-isolated-model-credentials',
+      reason:
+        'Replace the credential BLOCKED proof with a provider-backed autonomous canary using isolated Kimi model credentials.',
+      command:
+        'KIMI_MODEL_NAME=<model> KIMI_MODEL_API_KEY=<key> node scripts/qa-super-kimi-autonomous.mjs --phase autonomous --evidence-root .omo/evidence/<autonomous-canary-after>',
+    };
+  }
+  return {
+    priority: index + 1,
+    gate: gate.name,
+    kind: 'resolve-allowed-blocked-gate',
+    reason: gate.reason,
   };
 }
 
@@ -2220,6 +2278,22 @@ function renderAggregateMarkdown(aggregate) {
     lines.push(
       `| ${gate.name} | ${gate.status} | ${gate.verdict} | ${evidence === '' ? '' : markdownFileLink(evidence)} |`,
     );
+  }
+  if (aggregate.readinessDebt !== undefined) {
+    lines.push(
+      '',
+      '## Aggregate Readiness Debt',
+      '',
+      `- status: ${aggregate.readinessDebt.status}`,
+      `- score: ${aggregate.readinessDebt.score}/${aggregate.readinessDebt.maxScore}`,
+      `- allowed BLOCKED gates: ${aggregate.readinessDebt.allowedBlockedCount}`,
+      `- required failures: ${aggregate.readinessDebt.requiredFailureCount}`,
+      `- principle: ${aggregate.readinessDebt.principle}`,
+    );
+    for (const action of aggregate.readinessDebt.nextActions ?? []) {
+      const command = action.command === undefined ? '' : ` Command: \`${action.command}\``;
+      lines.push(`- P${action.priority} ${action.kind}: ${action.reason}${command}`);
+    }
   }
   const sotaGate = aggregate.gates.find((gate) => gate.name === 'sota-gate');
   if (sotaGate?.loopScore !== undefined) {
