@@ -15,6 +15,7 @@ import {
   renderProgressBar,
   safeUsageRatio,
 } from '#/utils/usage/usage-format';
+import { formatGitBadgeBase, type GitStatus } from '#/utils/git/git-status';
 
 import { buildManagedUsageReportLines, type ManagedUsageReport } from './usage-panel';
 
@@ -41,6 +42,7 @@ export interface StatusReportOptions {
   readonly statusError?: string;
   readonly managedUsage?: ManagedUsageReport;
   readonly managedUsageError?: string;
+  readonly gitStatus?: GitStatus | null;
 }
 
 type Colorize = (text: string) => string;
@@ -84,6 +86,10 @@ function contextValues(options: StatusReportOptions): {
     tokens: options.status?.contextTokens ?? options.contextTokens,
     maxTokens: options.status?.maxContextTokens ?? options.maxContextTokens,
   };
+}
+
+function formatWorktreeStatus(status: GitStatus): string {
+  return `${formatGitBadgeBase(status)} ${status.dirty ? 'dirty' : 'clean'}`;
 }
 
 const READINESS_CHECKS = 'read -> test -> change -> verify -> TUI check';
@@ -140,6 +146,9 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     { label: 'Plan mode', value: planMode ? 'on' : 'off' },
     { label: 'Session', value: sessionId },
   ];
+  if (options.gitStatus !== undefined && options.gitStatus !== null) {
+    rows.splice(2, 0, { label: 'Worktree', value: formatWorktreeStatus(options.gitStatus) });
+  }
   const title = options.sessionTitle?.trim();
   if (title !== undefined && title.length > 0) rows.push({ label: 'Title', value: title });
   if (options.statusError !== undefined) {

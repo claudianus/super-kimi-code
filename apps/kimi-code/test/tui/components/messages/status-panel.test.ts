@@ -37,6 +37,15 @@ describe('status panel report lines', () => {
         maxContextTokens: 12000,
         contextUsage: 0.25,
       },
+      gitStatus: {
+        branch: 'main',
+        dirty: true,
+        ahead: 1,
+        behind: 0,
+        diffAdded: 12,
+        diffDeleted: 3,
+        pullRequest: null,
+      },
       managedUsage: {
         summary: null,
         limits: [
@@ -54,6 +63,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('>_ Kimi Code (v1.2.3)');
     expect(output).toContain('Model        Kimi K2 (thinking on)');
     expect(output).toContain('Directory    /tmp/project');
+    expect(output).toContain('Worktree     main [+12 -3 ↑1] dirty');
     expect(output).toContain('Permissions  auto');
     expect(output).toContain('Plan mode    on');
     expect(output).toContain('Session      ses-1');

@@ -21,6 +21,7 @@ import {
 import { isManagedUsageProvider } from '../constant/kimi-tui';
 import { submitFeedbackWithAttachments } from '../../feedback/feedback-attachments';
 import { formatErrorMessage } from '../utils/event-payload';
+import { createGitStatusCache } from '#/utils/git/git-status';
 import { openUrl } from '#/utils/open-url';
 import { promptFeedbackAttachment, promptFeedbackInput } from './prompts';
 import type { SlashCommandHost } from './dispatch';
@@ -141,6 +142,7 @@ export async function showStatusReport(host: SlashCommandHost): Promise<void> {
     availableModels: appState.availableModels,
     status: runtimeStatus.status,
     statusError: runtimeStatus.error,
+    gitStatus: createGitStatusCache(appState.workDir).getStatus(),
     managedUsage: managedUsage?.usage,
     managedUsageError: managedUsage?.error,
   };
