@@ -400,7 +400,6 @@ describe('CLI options parsing', () => {
         'provider',
         'acp',
         'server',
-        'web',
         'login',
         'doctor',
         'vis',
