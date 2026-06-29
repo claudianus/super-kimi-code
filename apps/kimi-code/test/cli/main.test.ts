@@ -340,6 +340,27 @@ describe('main entry command handling', () => {
     );
   });
 
+  it('adds actionable next steps for provider auth failures', () => {
+    const error = new KimiError(
+      ErrorCodes.PROVIDER_AUTH_ERROR,
+      '401 Invalid API Key',
+    );
+
+    expect(formatStartupError(error, { errorStyle: (text) => text })).toBe(
+      [
+        'error: Provider authentication error',
+        '',
+        'message:',
+        '401 Invalid API Key',
+        '',
+        'next steps:',
+        '- Run `kimi provider` to inspect the active provider.',
+        '- Update the API key or switch providers, then rerun the same command.',
+        '',
+      ].join('\n'),
+    );
+  });
+
   it('keeps generic startup errors on the legacy fallback path', () => {
     expect(formatStartupError(new Error('Provider not set'), { errorStyle: (text) => text })).toBe(
       'error: failed to start shell: Provider not set\n',
@@ -353,5 +374,23 @@ describe('main entry command handling', () => {
         operation: 'run prompt',
       }),
     ).toBe('error: failed to run prompt: Provider not set\n');
+  });
+
+  it('adds next steps when a generic prompt error carries provider auth code', () => {
+    expect(
+      formatStartupError(new Error('provider.auth_error: 401 Invalid API Key'), {
+        errorStyle: (text) => text,
+        operation: 'run prompt',
+      }),
+    ).toBe(
+      [
+        'error: failed to run prompt: provider.auth_error: 401 Invalid API Key',
+        '',
+        'next steps:',
+        '- Run `kimi provider` to inspect the active provider.',
+        '- Update the API key or switch providers, then rerun the same command.',
+        '',
+      ].join('\n'),
+    );
   });
 });

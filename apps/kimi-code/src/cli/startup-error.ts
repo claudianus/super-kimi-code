@@ -1,4 +1,4 @@
-import { KIMI_ERROR_INFO, isKimiError } from '@moonshot-ai/kimi-code-sdk';
+import { ErrorCodes, KIMI_ERROR_INFO, isKimiError } from '@moonshot-ai/kimi-code-sdk';
 import { chalkStderr } from 'chalk';
 
 import { STARTUP_ERROR_COLOR } from '#/constant/startup-error';
@@ -20,7 +20,16 @@ export function formatStartupError(
 
   if (!isKimiError(error)) {
     const operation = options.operation ?? 'start shell';
-    return `${errorStyle(`error: failed to ${operation}: ${formatUnknownErrorMessage(error)}`)}\n`;
+    const message = formatUnknownErrorMessage(error);
+    const lines = [errorStyle(`error: failed to ${operation}: ${message}`)];
+    const nextSteps = authNextStepsFromMessage(message);
+    if (nextSteps.length > 0) {
+      lines.push('', errorStyle('next steps:'));
+      for (const step of nextSteps) {
+        lines.push(errorStyle(`- ${step}`));
+      }
+    }
+    return `${lines.join('\n')}\n`;
   }
 
   const info = KIMI_ERROR_INFO[error.code];
@@ -30,6 +39,39 @@ export function formatStartupError(
     errorStyle('message:'),
     errorStyle(error.message),
   ];
+  const nextSteps = authNextSteps(error.code);
+  if (nextSteps.length > 0) {
+    lines.push('', errorStyle('next steps:'));
+    for (const step of nextSteps) {
+      lines.push(errorStyle(`- ${step}`));
+    }
+  }
 
   return `${lines.join('\n')}\n`;
+}
+
+function authNextSteps(code: string): readonly string[] {
+  if (code === ErrorCodes.AUTH_LOGIN_REQUIRED) {
+    return [
+      'Run `kimi login` to refresh your Kimi Code login.',
+      'Then rerun the same command.',
+    ];
+  }
+  if (code === ErrorCodes.PROVIDER_AUTH_ERROR) {
+    return [
+      'Run `kimi provider` to inspect the active provider.',
+      'Update the API key or switch providers, then rerun the same command.',
+    ];
+  }
+  return [];
+}
+
+function authNextStepsFromMessage(message: string): readonly string[] {
+  if (message.includes(ErrorCodes.AUTH_LOGIN_REQUIRED)) {
+    return authNextSteps(ErrorCodes.AUTH_LOGIN_REQUIRED);
+  }
+  if (message.includes(ErrorCodes.PROVIDER_AUTH_ERROR)) {
+    return authNextSteps(ErrorCodes.PROVIDER_AUTH_ERROR);
+  }
+  return [];
 }
