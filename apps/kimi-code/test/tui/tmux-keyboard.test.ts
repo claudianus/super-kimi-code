@@ -40,6 +40,8 @@ describe('tmux keyboard setup detection', () => {
     await expect(
       detectTmuxKeyboardWarning({ TMUX: '/tmp/tmux/default,123,0' }, readOption),
     ).resolves.toBe(TMUX_EXTENDED_KEYS_OFF_WARNING);
+    expect(TMUX_EXTENDED_KEYS_OFF_WARNING).toContain('Shift-Enter');
+    expect(TMUX_EXTENDED_KEYS_OFF_WARNING).toContain('tmux set -g extended-keys on');
   });
 
   it('warns when extended-keys-format is xterm', async () => {
@@ -51,6 +53,7 @@ describe('tmux keyboard setup detection', () => {
     await expect(
       detectTmuxKeyboardWarning({ TMUX: '/tmp/tmux/default,123,0' }, readOption),
     ).resolves.toBe(TMUX_EXTENDED_KEYS_FORMAT_XTERM_WARNING);
+    expect(TMUX_EXTENDED_KEYS_FORMAT_XTERM_WARNING).toContain('tmux set -g extended-keys-format csi-u');
   });
 
   it('accepts on and always with csi-u or absent format', async () => {

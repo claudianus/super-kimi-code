@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 
 const TMUX_QUERY_TIMEOUT_MS = 2000;
 
 export const TMUX_EXTENDED_KEYS_OFF_WARNING =
-  'tmux extended-keys is off. Modified Enter keys may not work. Add `set -g extended-keys on` to ~/.tmux.conf and restart tmux.';
+  'tmux extended-keys is off; Shift-Enter may submit. Run `tmux set -g extended-keys on`; persist in ~/.tmux.conf.';
 
 export const TMUX_EXTENDED_KEYS_FORMAT_XTERM_WARNING =
-  'tmux extended-keys-format is xterm. Kimi Code works best with csi-u. Add `set -g extended-keys-format csi-u` to ~/.tmux.conf and restart tmux.';
+  'tmux extended-keys-format is xterm; use csi-u for modified keys. Run `tmux set -g extended-keys-format csi-u`; persist in ~/.tmux.conf.';
 
 export type TmuxOptionReader = (option: string) => Promise<string | undefined>;
 
@@ -34,35 +35,30 @@ export async function detectTmuxKeyboardWarning(
   return undefined;
 }
 
-function readTmuxOptionFromProcess(option: string): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const proc = spawn('tmux', ['show', '-gv', option], {
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    let stdout = '';
-    let settled = false;
-    let timer: NodeJS.Timeout;
+async function readTmuxOptionFromProcess(option: string): Promise<string | undefined> {
+  const proc = spawn('tmux', ['show', '-gv', option], {
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  let stdout = '';
+  proc.stdout?.on('data', (data: Buffer) => {
+    stdout += data.toString('utf8');
+  });
 
-    const finish = (value: string | undefined) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(value);
-    };
-
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<undefined>((resolve) => {
     timer = setTimeout(() => {
       proc.kill();
-      finish(undefined);
+      resolve(undefined);
     }, TMUX_QUERY_TIMEOUT_MS);
-
-    proc.stdout?.on('data', (data: Buffer) => {
-      stdout += data.toString('utf8');
-    });
-    proc.on('error', () => {
-      finish(undefined);
-    });
-    proc.on('close', (code) => {
-      finish(code === 0 ? stdout.trim() : undefined);
-    });
   });
+  const closed = once(proc, 'close')
+    .then(([code]) => code === 0 ? stdout.trim() : undefined)
+    .catch(() => undefined);
+  const failed = once(proc, 'error')
+    .then(() => undefined)
+    .catch(() => undefined);
+
+  const result = await Promise.race([closed, failed, timeout]);
+  if (timer !== undefined) clearTimeout(timer);
+  return result;
 }
