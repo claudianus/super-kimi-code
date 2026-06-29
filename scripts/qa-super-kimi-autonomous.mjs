@@ -77,6 +77,11 @@ const EVIDENCE_SUBDIRS = Object.freeze([
 const TUI_CAPTURE_SCENARIOS = Object.freeze([
   { name: 'startup', description: 'Initial visible Kimi TUI chrome/editor state.' },
   { name: 'help', keys: ['/help', 'Enter'], description: 'Open /help dialog.' },
+  {
+    name: 'status',
+    keys: ['Escape', '/status', 'Enter'],
+    description: 'Open /status readiness panel.',
+  },
   { name: 'clear', keys: ['Escape', '/clear', 'Enter'], description: 'Run /clear local command.' },
   {
     name: 'autocomplete',
@@ -7647,6 +7652,17 @@ function inspectTuiCapture(scenario, output) {
     case 'help':
       if (!matchesAny(normalized, [/\/help/i, /\bhelp\b/i, /commands?/i])) {
         failures.push('help capture does not show help or slash-command content');
+      }
+      break;
+    case 'status':
+      for (const pattern of [/\bstatus\b/i, /\breadiness\b/i, /\bstate\b/i, /\bchecks\b/i, /\bnext\b/i]) {
+        if (!pattern.test(normalized)) {
+          failures.push('status capture does not show the status readiness panel');
+          break;
+        }
+      }
+      if (!/inspect\s*->\s*change\s*->\s*verify\s*->\s*summarize/i.test(normalized)) {
+        failures.push('status capture does not show the readiness check flow');
       }
       break;
     case 'clear':
