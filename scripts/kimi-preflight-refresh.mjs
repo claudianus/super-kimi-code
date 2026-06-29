@@ -111,6 +111,10 @@ function main() {
     runtimeEvidence,
     runtimeEvidenceRoot,
   });
+  const runtimeEvidenceCandidateAction = buildRuntimeEvidenceCandidateAction(
+    runtimeEvidenceCandidates,
+    runtimeEvidenceRoot,
+  );
   const missingOrStaleRuntimeEvidence = CHANNELS
     .filter((channel) => runtimeEvidence[channel.id].state !== 'fresh')
     .map((channel) => ({
@@ -165,6 +169,7 @@ function main() {
     },
     runtimeEvidence,
     runtimeEvidenceCandidates,
+    runtimeEvidenceCandidateAction,
     missingOrStaleRuntimeEvidence,
     secretScan: 'pass',
   });
@@ -190,6 +195,7 @@ function main() {
       .map((item) => `${item.label}=${item.candidatePath}`);
     if (candidateLabels.length > 0) {
       console.log(`Existing candidate evidence: ${candidateLabels.join(', ')}`);
+      console.log(`Candidate action: ${runtimeEvidenceCandidateAction}`);
     }
   }
 
@@ -454,6 +460,13 @@ function discoverRuntimeEvidenceCandidates({
   }));
 }
 
+function buildRuntimeEvidenceCandidateAction(runtimeEvidenceCandidates, runtimeEvidenceRoot) {
+  const count = Object.keys(runtimeEvidenceCandidates).length;
+  if (count === 0) return undefined;
+  const noun = count === 1 ? 'candidate' : 'candidates';
+  return `${count} ${noun} found; recapture matching evidence under ${runtimeEvidenceRoot}, then rerun preflight refresh.`;
+}
+
 function collectFiles(root, maxFiles) {
   if (!existsSync(root)) return [];
   const files = [];
@@ -531,7 +544,7 @@ function renderMarkdown(summary) {
     .join('\n');
   const candidateSection = candidateRows.length === 0
     ? ''
-    : `\nCandidate runtime evidence found outside readiness root:\n\n| channel | state | source |\n|---|---|---|\n${candidateRows}\n`;
+    : `\nCandidate runtime evidence found outside readiness root:\n\n${summary.runtimeEvidenceCandidateAction}\n\n| channel | state | source |\n|---|---|---|\n${candidateRows}\n`;
   const blocked = summary.readinessGates.blocked.length === 0
     ? 'none'
     : summary.readinessGates.blocked.map((gate) => gate.id).join(',');

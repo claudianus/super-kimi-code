@@ -283,6 +283,9 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Refresh bench  score 1.00; passRate 100%; tasks 1/1 passed; q 1; cost 2ms; tok 53; cmd 1');
     expect(text).toContain('Refresh gates  1/5; blocked llmWiki,knowledgeMap,browserUse,computerUse; next refresh_runtime_evidence');
     expect(text).toContain('Refresh candidates  browserUse:fresh .omo/evidence/lint-clean-tui-launch-smoke/tui/summary.json');
+    expect(text).toContain(
+      'Refresh candidate action  1 candidate found; recapture matching evidence under .omo/evidence/preflight-readiness, then run Refresh command.',
+    );
     expect(text).toContain('Refresh last evidence  .omo/evidence/super-kimi-preflight-refresh');
     expect(text).not.toContain('Refresh verify');
     expect(text).toContain('Warning  memory: Malformed evidence ignored');
@@ -688,7 +691,7 @@ describe('preflight slash command status surface', () => {
         runtimeEvidenceCandidates: {
           browserUse: {
             state: 'fresh',
-            sourcePath: '.omo/evidence/browser-use/summary.json',
+            sourcePath: join(workDir, '.omo/evidence/browser-use/summary.json'),
           },
         },
       }), 'utf8');

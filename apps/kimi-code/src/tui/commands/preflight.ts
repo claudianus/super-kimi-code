@@ -273,7 +273,13 @@ export function buildPreflightLines(status: PreflightStatus): string[] {
     const gatesSummary = refreshGatesSummary(status.refreshRun.readinessGates);
     if (gatesSummary !== undefined) lines.push(`Refresh gates  ${gatesSummary}`);
     const candidatesSummary = refreshCandidatesSummary(status.refreshRun.runtimeCandidates);
-    if (candidatesSummary !== undefined) lines.push(`Refresh candidates  ${candidatesSummary}`);
+    if (candidatesSummary !== undefined) {
+      lines.push(`Refresh candidates  ${candidatesSummary}`);
+      lines.push(`Refresh candidate action  ${refreshCandidateActionSummary(
+        status.refreshRun.runtimeCandidates,
+        status.refreshPlan.runtimeEvidencePath,
+      )}`);
+    }
     lines.push(`Refresh last evidence  ${status.refreshRun.evidencePath}`);
   }
 
@@ -335,7 +341,10 @@ export function loadPreflightRefreshRun(workDir: string): PreflightRefreshRun | 
       completedAt: typeof data['completedAt'] === 'string' ? data['completedAt'] : undefined,
       bench: loadPreflightRefreshBench(bench),
       readinessGates: loadPreflightRefreshGates(asRecord(data['readinessGates'])),
-      runtimeCandidates: loadPreflightRuntimeCandidates(asRecord(data['runtimeEvidenceCandidates'])),
+      runtimeCandidates: loadPreflightRuntimeCandidates(
+        asRecord(data['runtimeEvidenceCandidates']),
+        workDir,
+      ),
       missingChannels: missing,
     };
   } catch (error) {
@@ -501,6 +510,7 @@ function loadPreflightRefreshGates(record: Record<string, unknown> | undefined):
 
 function loadPreflightRuntimeCandidates(
   record: Record<string, unknown> | undefined,
+  workDir: string,
 ): readonly PreflightRuntimeCandidate[] {
   if (record === undefined) return [];
   return Object.entries(record).flatMap(([channel, value]) => {
@@ -508,7 +518,7 @@ function loadPreflightRuntimeCandidates(
     const state = typeof candidate?.['state'] === 'string' ? candidate['state'] : undefined;
     const sourcePath = typeof candidate?.['sourcePath'] === 'string' ? candidate['sourcePath'] : undefined;
     if (state === undefined || sourcePath === undefined) return [];
-    return [{ channel, state, sourcePath }];
+    return [{ channel, state, sourcePath: displayPath(workDir, sourcePath) }];
   });
 }
 
@@ -884,6 +894,15 @@ function refreshCandidatesSummary(candidates: readonly PreflightRuntimeCandidate
     .slice(0, 4)
     .map((candidate) => `${candidate.channel}:${candidate.state} ${candidate.sourcePath}`)
     .join('; ');
+}
+
+function refreshCandidateActionSummary(
+  candidates: readonly PreflightRuntimeCandidate[],
+  runtimeEvidencePath: string,
+): string {
+  const count = candidates.length;
+  const noun = count === 1 ? 'candidate' : 'candidates';
+  return `${count} ${noun} found; recapture matching evidence under ${runtimeEvidencePath}, then run Refresh command.`;
 }
 
 function formatMetric(value: number | undefined, suffix = ''): string {
