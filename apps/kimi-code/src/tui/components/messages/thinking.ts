@@ -15,6 +15,7 @@ import {
 } from '#/tui/constant/rendering';
 import { STATUS_BULLET } from '#/tui/constant/symbols';
 import { currentTheme } from '#/tui/theme';
+import { formatElapsedTime } from '#/tui/utils/elapsed-time';
 import { isRenderCacheEnabled } from '#/tui/utils/render-cache';
 
 export type ThinkingRenderMode = 'live' | 'finalized';
@@ -27,6 +28,8 @@ export class ThinkingComponent implements Component {
   private readonly ui: TUI | undefined;
   private spinnerFrame = 0;
   private spinnerInterval: ReturnType<typeof setInterval> | undefined;
+  private readonly startedAt: number | undefined;
+  private finishedAt: number | undefined;
   // Hold a single Text instance so pi-tui's (text, width) → lines cache
   // actually survives across renders. Re-constructing per render destroys
   // the cache and forces full re-wrap on every frame, which dominates CPU
@@ -45,6 +48,7 @@ export class ThinkingComponent implements Component {
     this.showMarker = showMarker;
     this.mode = mode;
     this.ui = ui;
+    this.startedAt = mode === 'live' ? Date.now() : undefined;
     this.textComponent = new Text(this.styled(text), 0, 0);
     if (mode === 'live') {
       this.startSpinner();
@@ -73,6 +77,9 @@ export class ThinkingComponent implements Component {
 
   finalize(): void {
     this.mode = 'finalized';
+    if (this.startedAt !== undefined && this.finishedAt === undefined) {
+      this.finishedAt = Date.now();
+    }
     this.markRenderDirty();
     this.stopSpinner();
   }
@@ -110,9 +117,10 @@ export class ThinkingComponent implements Component {
         'textDim',
         `${BRAILLE_SPINNER_FRAMES[this.spinnerFrame] ?? BRAILLE_SPINNER_FRAMES[0]} `,
       );
+      const elapsed = this.renderElapsedSuffix();
       rendered = [
         '',
-        spinner + currentTheme.fg('textDim', 'thinking...'),
+        spinner + currentTheme.fg('textDim', `thinking...${elapsed}`),
         ...visibleLines.map((line) => MESSAGE_INDENT + line),
       ];
     } else {
@@ -126,7 +134,8 @@ export class ThinkingComponent implements Component {
         rendered = lines;
       } else {
         const marker = this.showMarker ? currentTheme.fg('textDim', STATUS_BULLET) : MESSAGE_INDENT;
-        const summary = `${marker}${currentTheme.fg('textDim', 'thinking complete')}`;
+        const elapsed = this.renderElapsedSuffix();
+        const summary = `${marker}${currentTheme.fg('textDim', `thinking complete${elapsed}`)}`;
         const hint = `... (${String(contentLines.length)} lines hidden, ctrl+o to expand)`;
         const indentWidth = Math.min(MESSAGE_INDENT.length, Math.max(0, width));
         const hintWidth = Math.max(0, width - indentWidth);
@@ -151,6 +160,11 @@ export class ThinkingComponent implements Component {
       this.markRenderDirty();
       this.ui?.requestRender();
     }, BRAILLE_SPINNER_INTERVAL_MS);
+  }
+
+  private renderElapsedSuffix(): string {
+    if (this.startedAt === undefined) return '';
+    return ` ${formatElapsedTime(this.startedAt, this.finishedAt)}`;
   }
 
   private stopSpinner(): void {

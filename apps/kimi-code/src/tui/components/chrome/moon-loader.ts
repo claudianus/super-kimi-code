@@ -8,6 +8,7 @@ import {
   MOON_SPINNER_INTERVAL_MS,
 } from '#/tui/constant/rendering';
 import { currentTheme } from '#/tui/theme';
+import { formatElapsedTime } from '#/tui/utils/elapsed-time';
 
 export type SpinnerStyle = 'moon' | 'braille';
 
@@ -22,6 +23,7 @@ export class MoonLoader extends Text {
   private displayText = '';
   private tip: string = '';
   private availableWidth = 0;
+  private readonly startedAt = Date.now();
 
   constructor(
     ui: TUI,
@@ -81,7 +83,8 @@ export class MoonLoader extends Text {
   private updateDisplay(): void {
     const frame = this.frames[this.currentFrame]!;
     const coloredFrame = this.colorFn ? this.colorFn(frame) : frame;
-    const baseText = this.label ? `${coloredFrame} ${this.label}` : coloredFrame;
+    const elapsed = currentTheme.fg('textDim', ` ${formatElapsedTime(this.startedAt)}`);
+    const baseText = this.label ? `${coloredFrame} ${this.label}${elapsed}` : `${coloredFrame}${elapsed}`;
     let text = baseText;
     if (this.tip) {
       const withTip = baseText + currentTheme.fg('textDim', this.tip);

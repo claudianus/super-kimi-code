@@ -80,6 +80,26 @@ describe('ThinkingComponent', () => {
     expect(out).not.toContain('line4');
   });
 
+  it('shows elapsed time while live and keeps it after finalization', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-29T00:00:00Z'));
+    const component = new ThinkingComponent('step', true, 'live', {
+      requestRender: vi.fn(),
+    } as unknown as TUI);
+
+    expect(strip(component.render(80).join('\n'))).toContain('thinking... 0s');
+
+    vi.advanceTimersByTime(65_000);
+    expect(strip(component.render(80).join('\n'))).toContain('thinking... 1m05s');
+
+    component.finalize();
+    expect(strip(component.render(80).join('\n'))).toContain('thinking complete 1m05s');
+
+    vi.advanceTimersByTime(10_000);
+    expect(strip(component.render(80).join('\n'))).toContain('thinking complete 1m05s');
+    vi.useRealTimers();
+  });
+
   it('expands and collapses after finalization', () => {
     const component = new ThinkingComponent(longThinking, true, 'live');
     component.finalize();
