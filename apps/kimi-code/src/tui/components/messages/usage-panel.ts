@@ -73,7 +73,9 @@ function buildSessionUsageSection(
   const byModel = (usage as { readonly byModel?: Record<string, TokenUsage> } | undefined)
     ?.byModel;
   const entries = Object.entries(byModel ?? {});
-  if (entries.length === 0) return [muted('  No token usage recorded yet.')];
+  if (entries.length === 0) {
+    return [muted('  No token usage recorded yet. Send a message to start tracking.')];
+  }
 
   const lines: string[] = [];
   let totalInput = 0;

@@ -48,6 +48,18 @@ describe('UsagePanelComponent', () => {
     expect(lines.join('\n')).toContain('resets tomorrow');
   });
 
+  it('shows a next action before token usage exists', () => {
+    const lines = buildUsageReportLines({
+      sessionUsage: undefined,
+      contextUsage: 0,
+      contextTokens: 0,
+      maxContextTokens: 10000,
+    }).map(strip);
+
+    expect(lines).toContain('Session usage');
+    expect(lines).toContain('  No token usage recorded yet. Send a message to start tracking.');
+  });
+
   it('wraps preformatted usage lines in a bordered panel', () => {
     const component = new UsagePanelComponent(() => ['Session usage'], 'primary');
     const output = component.render(80).map(strip);
