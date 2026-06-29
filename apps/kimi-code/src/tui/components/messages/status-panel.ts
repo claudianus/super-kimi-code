@@ -93,15 +93,20 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'read -> test -> change -> verify -> TUI check';
-const DONE_GATE = 'tests -> typecheck -> lint -> build -> TUI check';
+const SCOPE_GATE = 'small focused diff; no broad refactor';
+const DONE_GATE = 'tests/typecheck/lint/build + clean diff + TUI';
+const READINESS_GATE_ROWS: readonly FieldRow[] = [
+  { label: 'Checks', value: READINESS_CHECKS },
+  { label: 'Scope', value: SCOPE_GATE },
+  { label: 'Done gate', value: DONE_GATE },
+];
 
 function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   const model = (options.status?.model ?? options.model).trim();
   if (model.length === 0) {
     return [
       { label: 'State', value: 'Model needed', severity: 'error' },
-      { label: 'Checks', value: READINESS_CHECKS },
-      { label: 'Done gate', value: DONE_GATE },
+      ...READINESS_GATE_ROWS,
       { label: 'Next', value: 'Run /login or /model before work.' },
     ];
   }
@@ -110,8 +115,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   if (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) {
     return [
       { label: 'State', value: 'Context high' },
-      { label: 'Checks', value: READINESS_CHECKS },
-      { label: 'Done gate', value: DONE_GATE },
+      ...READINESS_GATE_ROWS,
       { label: 'Next', value: 'Run /compact before long work.' },
     ];
   }
@@ -119,8 +123,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   if (options.gitStatus?.dirty === true) {
     return [
       { label: 'State', value: 'Worktree dirty' },
-      { label: 'Checks', value: READINESS_CHECKS },
-      { label: 'Done gate', value: DONE_GATE },
+      ...READINESS_GATE_ROWS,
       { label: 'Next', value: 'Review changed files before finishing.' },
     ];
   }
@@ -128,8 +131,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   const planMode = options.status?.planMode ?? options.planMode;
   return [
     { label: 'State', value: 'Ready' },
-    { label: 'Checks', value: READINESS_CHECKS },
-    { label: 'Done gate', value: DONE_GATE },
+    ...READINESS_GATE_ROWS,
     {
       label: 'Next',
       value: planMode ? 'Describe the task; Kimi will plan first.' : 'Describe the task to start.',
