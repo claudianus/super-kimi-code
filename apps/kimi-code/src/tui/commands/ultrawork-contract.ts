@@ -66,7 +66,7 @@ export function parseUltraworkCommand(rawArgs: string): ParsedUltraworkCommand {
       kind: 'error',
       severity: 'hint',
       message:
-        'Provide an ultrawork objective, e.g. `/ultrawork Ship feature X` or `/ultragoal replace Ship feature X`.',
+        'Provide an Ultrawork objective, e.g. `/ultrawork Ship feature X` or `/ultrawork replace Ship feature X`.',
     };
   }
   const parsed = parseGoalCommand(rawArgs);
@@ -82,7 +82,7 @@ export function parseUltraworkCommand(rawArgs: string): ParsedUltraworkCommand {
     kind: 'error',
     severity: 'hint',
     message:
-      'Ultrawork starts a new ultragoal. Use `/goal status` for goal controls, or pass an objective after `/ultrawork`.',
+      'Ultrawork starts guided autonomous work. Use `/goal status` for goal controls, or pass an objective after `/ultrawork`.',
   };
 }
 

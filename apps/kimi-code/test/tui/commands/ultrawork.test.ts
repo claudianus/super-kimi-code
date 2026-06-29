@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildUltraworkPrompt,
   handleUltraworkCommand,
+  parseUltraworkCommand,
   shouldAutoActivateUltrawork,
 } from '#/tui/commands/ultrawork';
 import type { SlashCommandHost } from '#/tui/commands/dispatch';
@@ -124,6 +125,28 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('continue the same Ultrawork turn toward implementation');
     expect(prompt).toContain('call NextPhase before any search, read, edit, shell, or skill tool');
     expect(prompt).toContain('UpdateGoal');
+  });
+});
+
+describe('parseUltraworkCommand', () => {
+  it('keeps empty-objective guidance focused on Ultrawork', () => {
+    const parsed = parseUltraworkCommand('');
+
+    expect(parsed.kind).toBe('error');
+    if (parsed.kind !== 'error') return;
+    expect(parsed.message).toContain('/ultrawork Ship feature X');
+    expect(parsed.message).toContain('/ultrawork replace Ship feature X');
+    expect(parsed.message).not.toMatch(/ultragoal/i);
+  });
+
+  it('keeps non-create guidance focused on Ultrawork', () => {
+    const parsed = parseUltraworkCommand('status');
+
+    expect(parsed.kind).toBe('error');
+    if (parsed.kind !== 'error') return;
+    expect(parsed.message).toContain('Ultrawork');
+    expect(parsed.message).toContain('/goal status');
+    expect(parsed.message).not.toMatch(/ultragoal/i);
   });
 });
 
