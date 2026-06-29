@@ -75,6 +75,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+read -> test -> change -> verify -> TUI check/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
+    expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests\/typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Describe the task; Kimi will plan first\./);
     expect(output).not.toContain('Advanced');
@@ -113,6 +114,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+read -> test -> change -> verify -> TUI check/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
+    expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests\/typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Run \/login or \/model before work\./);
   });

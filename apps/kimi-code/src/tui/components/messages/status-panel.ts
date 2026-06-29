@@ -94,10 +94,12 @@ function formatWorktreeStatus(status: GitStatus): string {
 
 const READINESS_CHECKS = 'read -> test -> change -> verify -> TUI check';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
+const SCREEN_CHECK_GATE = 'open changed screen before finishing';
 const DONE_GATE = 'tests/typecheck/lint/build + clean diff + TUI';
 const READINESS_GATE_ROWS: readonly FieldRow[] = [
   { label: 'Checks', value: READINESS_CHECKS },
   { label: 'Scope', value: SCOPE_GATE },
+  { label: 'Screen check', value: SCREEN_CHECK_GATE },
   { label: 'Done gate', value: DONE_GATE },
 ];
 
