@@ -87,6 +87,9 @@ describe('KimiContextTool', () => {
     expect(result.isError).toBeFalsy();
     expect(output).toContain('<kimi_context_packet');
     expect(output).toContain('strategy: lean-codegraph');
+    expect(output).toContain('knowledge_map: compact-project-map');
+    expect(output).toContain('relationship_confidence: EXTRACTED | INFERRED | AMBIGUOUS');
+    expect(output).toContain('path_affected_questions: files -> symbols -> tests -> tools -> UX surfaces');
     expect(output).toContain('apps/kimi-code/src/tui/commands/ultrawork-contract.ts');
     expect(output).toContain('buildUltraworkPrompt');
     expect(output).toContain('Kimi Lean Context keeps code exploration compact');

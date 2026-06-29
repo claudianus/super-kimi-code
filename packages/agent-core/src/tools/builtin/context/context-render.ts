@@ -30,6 +30,9 @@ function buildPacketBody(
   const body: string[] = [
     `<kimi_context_packet version="1" mode="${mode}">`,
     'strategy: lean-codegraph',
+    'knowledge_map: compact-project-map',
+    'relationship_confidence: EXTRACTED | INFERRED | AMBIGUOUS',
+    'path_affected_questions: files -> symbols -> tests -> tools -> UX surfaces',
     `query: ${input.query ?? '(paths only)'}`,
     `files_considered: ${allFiles.length}`,
     `files_returned: ${ranked.length}`,

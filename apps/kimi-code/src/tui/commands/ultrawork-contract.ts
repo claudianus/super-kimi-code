@@ -32,6 +32,14 @@ const ULTRAWORK_LEAN_CONTEXT_GUIDANCE = [
   '- Keep working context small: summarize bulky outputs, retain decisions and open questions, and avoid dumping irrelevant context.',
   '- Use memory only for durable preferences and decisions, not raw transcripts or transient scratch data.',
 ].join('\n');
+const ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE = [
+  'Kimi Knowledge Map:',
+  '- Before broad exploration, build or refresh a compact project knowledge map from KimiContext, indexed codegraph, memory, and available artifact summaries.',
+  '- Treat code structure as deterministic first-pass evidence: symbols, imports, calls, changed files, tests, and ownership edges should be EXTRACTED before any inferred narrative.',
+  '- Attach non-code context such as docs, papers, screenshots, transcripts, MCP/plugin manifests, and prior QA evidence as linked evidence nodes instead of dumping raw files into the turn.',
+  '- Label important relationships as EXTRACTED, INFERRED, or AMBIGUOUS, and resolve AMBIGUOUS edges with targeted reads, tests, or TUI observation before making architectural claims.',
+  '- Prefer path/affected-style questions first: what files, tests, tools, and UX surfaces are connected to this change, and what minimal evidence proves those edges?',
+].join('\n');
 const ULTRAWORK_BENCH_GUIDANCE = [
   'Kimi Agent Bench:',
   '- For benchmark, loop-improvement, or TUI QA work, prefer the internal Super Kimi agent bench and QA harness before ad-hoc claims.',
@@ -106,6 +114,7 @@ export function buildUltraworkPrompt(
     '- Use Kimi Recall or available memory only for relevant durable context, decisions, and user preferences.',
     '- Use swarm or UltraSwarm only when parallel expert work materially improves quality or speed.',
     `- ${ULTRAWORK_LEAN_CONTEXT_GUIDANCE.replaceAll('\n', '\n  ')}`,
+    `- ${ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     '- Interview the user only when a missing decision blocks correctness; otherwise proceed with best judgment.',
     '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',

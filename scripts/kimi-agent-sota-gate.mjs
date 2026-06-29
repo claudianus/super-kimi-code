@@ -51,6 +51,12 @@ const ROOT_EVIDENCE_SUMMARY_FILES = new Set([
 const ULTRAWORK_CONTRACT_PATH = 'apps/kimi-code/src/tui/commands/ultrawork-contract.ts';
 const WEB_UI_SUCCESS_BOUNDARY =
   'Do not use apps/kimi-web or browser UI paths as a success surface';
+const KNOWLEDGE_MAP_CONTRACT_PHRASES = Object.freeze([
+  'Kimi Knowledge Map:',
+  'build or refresh a compact project knowledge map',
+  'EXTRACTED, INFERRED, or AMBIGUOUS',
+  'path/affected-style questions',
+]);
 const SECRET_PATTERNS = Object.freeze([
   /\bsk-[A-Za-z0-9_-]{8,}/,
   /\b[A-Za-z0-9_]*API_KEY\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/,
@@ -271,6 +277,7 @@ async function buildReport(options, outputDir, runId) {
     ...(ultraworkGate === undefined ? [] : [ultraworkGate]),
     evaluateBudgetGate(systemSummary, budgets),
     await evaluateNoWebUiSurfaceGate(evidenceInputs),
+    await evaluateKnowledgeMapContractGate(),
     await evaluateSecretScanGate(inputs, criteriaPath),
     await evaluateCleanupReceiptGate(evidenceInputs, options.requireCleanupReceipt),
   ];
@@ -1517,6 +1524,38 @@ async function evaluateNoWebUiSurfaceGate(inputs) {
       contractBytes: contractArtifact.bytes,
       contractHasBoundary,
       excludedSuccessSurfaces: ['apps/kimi-web', 'browser UI'],
+    },
+  };
+}
+
+async function evaluateKnowledgeMapContractGate() {
+  const contractPath = path.resolve(ULTRAWORK_CONTRACT_PATH);
+  const contractArtifact = await fileStatus(contractPath);
+  const failures = [];
+  const phraseStatuses = {};
+  if (!contractArtifact.exists || contractArtifact.bytes === 0) {
+    failures.push(`missing Ultrawork contract: ${ULTRAWORK_CONTRACT_PATH}`);
+  } else {
+    const contract = await readFile(contractPath, 'utf8');
+    for (const phrase of KNOWLEDGE_MAP_CONTRACT_PHRASES) {
+      const present = contract.includes(phrase);
+      phraseStatuses[phrase] = present;
+      if (!present) failures.push(`Ultrawork contract is missing knowledge-map phrase: ${phrase}`);
+    }
+  }
+
+  return {
+    name: 'knowledge-map-contract',
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    required: true,
+    reason:
+      failures.length === 0
+        ? 'Ultrawork requires a compact internal project knowledge map with confidence-labelled relationships before broad exploration.'
+        : failures.join('; '),
+    observed: {
+      contractPath,
+      contractBytes: contractArtifact.bytes,
+      phraseStatuses,
     },
   };
 }

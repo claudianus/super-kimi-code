@@ -96,6 +96,10 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('Kimi Lean Context');
     expect(prompt).toContain('KimiContext');
     expect(prompt).toContain('codegraph');
+    expect(prompt).toContain('Kimi Knowledge Map');
+    expect(prompt).toContain('compact project knowledge map');
+    expect(prompt).toContain('EXTRACTED, INFERRED, or AMBIGUOUS');
+    expect(prompt).toContain('path/affected-style questions');
     expect(prompt).toContain('Kimi Agent Bench');
     expect(prompt).toContain('node scripts/kimi-agent-sota-gate.mjs');
     expect(prompt).toContain('node scripts/qa-super-kimi-autonomous.mjs --phase sota-gate');
