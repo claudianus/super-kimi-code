@@ -3816,6 +3816,22 @@ function commandProof(result) {
   };
 }
 
+function tmuxKeyboardProtocolEvidence() {
+  return {
+    extendedKeys: 'on',
+    extendedKeysFormat: 'csi-u',
+    setup:
+      'Each live TUI tmux session runs set-option before starting Kimi Code so modified keys are observable.',
+  };
+}
+
+function buildTmuxKeyboardSetupCommand(tmuxSession) {
+  return [
+    `tmux set-option -t ${shellQuote(tmuxSession)} extended-keys on`,
+    `tmux set-option -t ${shellQuote(tmuxSession)} extended-keys-format csi-u`,
+  ].join('; ') + ';';
+}
+
 async function runTuiLaunchPhase(context) {
   const startedAt = new Date().toISOString();
   const tuiDir = path.join(context.evidenceRoot, 'tui');
@@ -3843,7 +3859,10 @@ async function runTuiLaunchPhase(context) {
     kimiCodeHomeMode: context.kimiCodeHomeMode,
     tmuxSession,
     terminalTitle: context.titlePrefix,
+    tmuxKeyboardProtocol: tmuxKeyboardProtocolEvidence(),
     launchCommand: [
+      'tmux set-option -t <session> extended-keys on',
+      'tmux set-option -t <session> extended-keys-format csi-u',
       'KIMI_CODE_HOME=<tmp-home>',
       'corepack',
       'pnpm',
@@ -3939,6 +3958,7 @@ async function runTuiLaunchPhase(context) {
     targetWorktreeCreated = true;
 
     const launchShellCommand = [
+      buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
       'corepack pnpm -C apps/kimi-code run dev --',
       '--auto',
@@ -4180,6 +4200,7 @@ async function runTuiRealWorkflowPhase(context) {
     kimiCodeHomeMode: context.kimiCodeHomeMode,
     tmuxSession,
     terminalTitle: context.titlePrefix,
+    tmuxKeyboardProtocol: tmuxKeyboardProtocolEvidence(),
     fixture: {
       relativePath: TUI_REAL_WORKFLOW_SOURCE_FILE,
       expectedSentinel: TUI_REAL_WORKFLOW_SENTINEL,
@@ -4271,6 +4292,7 @@ async function runTuiRealWorkflowPhase(context) {
     }
 
     const launchShellCommand = [
+      buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
       `corepack pnpm -C ${shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))} run dev --`,
       '--auto',
@@ -4668,6 +4690,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     kimiCodeHomeMode: context.kimiCodeHomeMode,
     tmuxSession,
     terminalTitle: context.titlePrefix,
+    tmuxKeyboardProtocol: tmuxKeyboardProtocolEvidence(),
     fixture: {
       relativePath: TUI_REAL_WORKFLOW_SOURCE_FILE,
       expectedSentinel: TUI_REAL_WORKFLOW_SENTINEL,
@@ -4762,6 +4785,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
       return await finishTuiUltraworkWorkflowPhase(context, summary, cleanupOverrides);
     }
     const launchShellCommand = [
+      buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
       `corepack pnpm -C ${shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))} run dev --`,
       '--auto',
@@ -7641,6 +7665,9 @@ function inspectTuiCapture(scenario, output) {
   }
   if (!hasKimiTuiChrome(normalized)) {
     failures.push('capture does not show recognizable Kimi TUI chrome/content');
+  }
+  if (/tmux extended-keys is off|tmux extended-keys-format is xterm/i.test(normalized)) {
+    failures.push('capture shows tmux keyboard protocol warning');
   }
 
   switch (scenario) {
