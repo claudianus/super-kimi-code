@@ -108,6 +108,7 @@ const TUI_OUROBOROS_PASS_THRESHOLD = 0.85;
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
 const TUI_VIBE_MODE_TEXT = 'Vibe mode: ON';
 const TUI_INPUT_STEP_DELAY_MS = 150;
+const TUI_READY_TIMEOUT_MS = 45_000;
 const TUI_REAL_WORKFLOW_SOURCE_FILE = 'apps/kimi-code/src/tui/commands/ultrawork-contract.ts';
 const TUI_REAL_WORKFLOW_TEST_FILE = 'apps/kimi-code/test/tui/commands/ultrawork.test.ts';
 const TUI_REAL_WORKFLOW_VERIFIER_DIR = '.super-kimi-real-workflow';
@@ -122,7 +123,8 @@ const TUI_REAL_WORKFLOW_SENTINEL = 'REAL_REPO_WORKFLOW_DONE';
 const TUI_REAL_WORKFLOW_TIMEOUT_MS = 120_000;
 const TUI_ULTRAWORK_WORKFLOW_PROMPT =
   'Research latest agent harness best practices, design a verified Super Kimi TUI improvement plan, implement it with tests, and continue autonomously until the work is validated.';
-const TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS = 90_000;
+const TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS = 180_000;
+const TUI_ULTRAWORK_MAX_QUESTION_ANSWERS = 3;
 const REQUIRED_TUI_CAPTURE_SCENARIOS = TUI_CAPTURE_SCENARIOS.map((scenario) => scenario.name);
 const MIN_SCREENSHOT_WIDTH = 80;
 const MIN_SCREENSHOT_HEIGHT = 40;
@@ -654,7 +656,7 @@ async function runHarness(options, runId) {
         : phases.includes('tui-real-workflow')
           ? 'Real TUI vibe-coding workflow proof completed with submitted prompt, agent-run verification evidence, workspace diff, and cleanup evidence.'
           : phases.includes('tui-ultrawork-workflow')
-            ? 'Live TUI Ultrawork auto-activation and Ultra Plan interview proof completed without auto/question policy conflict.'
+            ? 'Live TUI Ultrawork proof completed with activation, interview question answer, post-question progress, and no auto/question policy conflict.'
           : phases.includes('tui-iteration')
             ? 'TUI before/after evidence, targeted logs, and QA verdict completed.'
           : phases.includes('direct-cli')
@@ -1266,10 +1268,14 @@ function isUsableSotaUltraworkSummary(summary) {
   if (summary?.phase !== 'tui-ultrawork-workflow' || summary.status !== 'PASS') return false;
   if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
   const requiredValidations = [
+    'tuiReady',
     'promptSubmitted',
     'planModeReset',
     'ultraworkActivated',
     'ultraPlanInterviewReached',
+    'questionAnswered',
+    'postQuestionProgressObserved',
+    'noQuestionToolContractError',
     'noAutoQuestionPolicyConflict',
     'screenEvidence',
     'kimiModelReady',
@@ -1281,6 +1287,16 @@ function isUsableSotaUltraworkSummary(summary) {
   }
   if (!Array.isArray(summary.workflow?.wait?.activationEvidence)) return false;
   if (summary.workflow.wait.activationEvidence.length === 0) return false;
+  if (!Array.isArray(summary.workflow?.wait?.questionAnswerEvidence)) return false;
+  if (summary.workflow.wait.questionAnswerEvidence.length === 0) return false;
+  if (!Array.isArray(summary.workflow?.wait?.postQuestionProgressEvidence)) return false;
+  if (summary.workflow.wait.postQuestionProgressEvidence.length === 0) return false;
+  if (
+    Array.isArray(summary.workflow?.wait?.questionToolErrorEvidence) &&
+    summary.workflow.wait.questionToolErrorEvidence.length > 0
+  ) {
+    return false;
+  }
   return Array.isArray(summary.captures) && Array.isArray(summary.inputTraces);
 }
 
@@ -4601,7 +4617,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
   const commandRecords = [];
   const cleanupOverrides = {
     status: 'tui-ultrawork-workflow-completed',
-    reason: 'Ultrawork TUI workflow phase recorded automatic activation and interview evidence.',
+    reason: 'Ultrawork TUI workflow phase recorded automatic activation, question-answer, and post-question progress evidence.',
     liveProcessesStarted: false,
     liveProductCommandsStarted: false,
     closedTmuxSessions: [],
@@ -4618,10 +4634,10 @@ async function runTuiUltraworkWorkflowPhase(context) {
     targetWorkspace: context.targetWorktree,
     targetWorkspaceKind: 'disposable-git-worktree',
     gateScope: {
-      kind: 'ultrawork-activation-planning',
+      kind: 'ultrawork-question-answer-planning',
       ultraworkAutomation: 'required-for-this-gate',
       reason:
-        'This gate proves natural-language Ultrawork auto-activation reaches Ultra Plan interview without auto-mode AskUserQuestion policy deadlock.',
+        'This gate proves natural-language Ultrawork auto-activation reaches Ultra Plan interview, answers the visible question dialog, and observes post-question progress without auto-mode AskUserQuestion policy deadlock.',
     },
     kimiCodeHome: context.plannedKimiCodeHome,
     kimiCodeHomeMode: context.kimiCodeHomeMode,
@@ -4633,10 +4649,10 @@ async function runTuiUltraworkWorkflowPhase(context) {
     captures: [],
     validations: {},
     evaluation: {
-      tier: 'ultrawork-activation-operator-loop',
-      primaryUse: 'live TUI Ultrawork activation and interview gate',
+      tier: 'ultrawork-question-answer-operator-loop',
+      primaryUse: 'live TUI Ultrawork question-answer workflow gate',
       limitation:
-        'This phase validates activation and deadlock-free interview reachability, not full long-horizon Ultragoal completion.',
+        'This phase validates activation, interview answering, and post-question progress, not full long-horizon Ultragoal file-edit completion.',
       previousTier: 'adaptive-vibecoder-operator-loop',
     },
     workflow: {},
@@ -4729,7 +4745,17 @@ async function runTuiUltraworkWorkflowPhase(context) {
     cleanupOverrides.liveProcessesStarted = true;
     cleanupOverrides.liveProductCommandsStarted = true;
 
-    await sleep(4_000);
+    const startupReady = await waitForKimiTuiReady(context, tmuxSession, TUI_READY_TIMEOUT_MS);
+    summary.workflow.startupReady = startupReady;
+    summary.validations.tuiReady = passFail(
+      startupReady.status === 'PASS',
+      startupReady.reason,
+    );
+    if (summary.validations.tuiReady.status !== 'PASS') {
+      summary.status = 'FAIL';
+      summary.reason = startupReady.reason;
+      return await finishTuiUltraworkWorkflowPhase(context, summary, cleanupOverrides);
+    }
     summary.captures.push(await captureTmuxPane(context, tmuxSession, 'ultrawork-startup'));
     const planResetTrace = await sendTmuxKeySequence(context, tmuxSession, 'ultrawork-plan-reset', [
       '/plan off',
@@ -4756,6 +4782,15 @@ async function runTuiUltraworkWorkflowPhase(context) {
 
     const waitResult = await waitForUltraworkWorkflowOutcome(context, tmuxSession);
     summary.workflow.wait = waitResult;
+    if (Array.isArray(waitResult.inputTraces)) {
+      summary.inputTraces.push(...waitResult.inputTraces);
+      for (const inputTrace of waitResult.inputTraces) {
+        commandRecords.push(...inputTrace.commands);
+        cleanupOverrides.proofCommands.push(
+          ...inputTrace.commands.map((record) => commandProofFromRecord(record)),
+        );
+      }
+    }
     summary.captures.push(await captureTmuxPane(context, tmuxSession, 'ultrawork-after-wait'));
     await writeJson(path.join(ultraworkDir, 'wait.json'), waitResult);
 
@@ -4766,6 +4801,9 @@ async function runTuiUltraworkWorkflowPhase(context) {
     );
     summary.validations.ultraworkActivated = validateUltraworkActivation(waitResult);
     summary.validations.ultraPlanInterviewReached = validateUltraworkInterview(waitResult);
+    summary.validations.questionAnswered = validateUltraworkQuestionAnswered(waitResult);
+    summary.validations.postQuestionProgressObserved = validateUltraworkPostQuestionProgress(waitResult);
+    summary.validations.noQuestionToolContractError = validateUltraworkQuestionToolError(waitResult);
     summary.validations.noAutoQuestionPolicyConflict = validateUltraworkPolicyConflict(waitResult);
     summary.validations.screenEvidence = passFail(
       summary.captures.every((capture) => capture.status === 'PASS'),
@@ -4782,7 +4820,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     if (failedValidation === undefined) {
       summary.status = 'PASS';
       summary.reason =
-        'Live TUI Ultrawork workflow auto-activated and reached Ultra Plan interview without auto-mode question policy deadlock.';
+        'Live TUI Ultrawork workflow auto-activated, answered an interview question, and showed post-question progress without AskUserQuestion contract errors or auto-mode question policy deadlock.';
     } else {
       summary.status = waitResult.status === 'BLOCKED' ? 'BLOCKED' : 'FAIL';
       summary.reason =
@@ -5019,10 +5057,17 @@ async function waitForRealWorkflowOutcome(context, tmuxSession, workflowPaths) {
 async function waitForUltraworkWorkflowOutcome(context, tmuxSession) {
   const startedAt = Date.now();
   const observations = [];
+  const interventions = [];
+  const inputTraces = [];
   const activationEvidence = [];
   const interviewEvidence = [];
   const questionEvidence = [];
+  const questionAnswerEvidence = [];
+  const postQuestionProgressEvidence = [];
+  const questionToolErrorEvidence = [];
   const policyConflictEvidence = [];
+  let questionAnswerCount = 0;
+  let questionSubmitCount = 0;
   while (Date.now() - startedAt < TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS) {
     const screen = runBoundedCommand('tmux', ['capture-pane', '-pt', tmuxSession, '-S', '-80'], {
       cwd: context.sourceCheckout,
@@ -5039,6 +5084,21 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession) {
     if (signals.questionVisible && questionEvidence.length === 0) {
       questionEvidence.push({ atMs: Date.now() - startedAt, reason: signals.questionReason });
     }
+    if (signals.questionAnswered && questionAnswerEvidence.length === 0) {
+      questionAnswerEvidence.push({ atMs: Date.now() - startedAt, reason: signals.questionAnswerReason });
+    }
+    if (signals.postQuestionProgress && postQuestionProgressEvidence.length === 0) {
+      postQuestionProgressEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: signals.postQuestionProgressReason,
+      });
+    }
+    if (signals.questionToolError) {
+      questionToolErrorEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: signals.questionToolErrorReason,
+      });
+    }
     if (signals.policyConflict) {
       policyConflictEvidence.push({ atMs: Date.now() - startedAt, reason: signals.policyReason });
     }
@@ -5049,6 +5109,9 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession) {
       activated: signals.activated,
       interviewReached: signals.interviewReached,
       questionVisible: signals.questionVisible,
+      questionAnswered: signals.questionAnswered,
+      postQuestionProgress: signals.postQuestionProgress,
+      questionToolError: signals.questionToolError,
       policyConflict: signals.policyConflict,
       sample: normalized.slice(0, 240),
     });
@@ -5058,38 +5121,125 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession) {
         reason: signals.policyReason,
         durationMs: Date.now() - startedAt,
         observations,
+        interventions,
+        inputTraces,
         activationEvidence,
         interviewEvidence,
         questionEvidence,
+        questionAnswerEvidence,
+        postQuestionProgressEvidence,
+        questionToolErrorEvidence,
         policyConflictEvidence,
-        operatorLoop: buildUltraworkOperatorLoopSummary(observations),
+        operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
     }
-    if (activationEvidence.length > 0 && interviewEvidence.length > 0) {
+    if (signals.questionToolError) {
       return {
-        status: 'PASS',
-        reason: 'Ultrawork activation and Ultra Plan interview were visible without policy conflict.',
+        status: 'FAIL',
+        reason: signals.questionToolErrorReason,
         durationMs: Date.now() - startedAt,
         observations,
+        interventions,
+        inputTraces,
         activationEvidence,
         interviewEvidence,
         questionEvidence,
+        questionAnswerEvidence,
+        postQuestionProgressEvidence,
+        questionToolErrorEvidence,
         policyConflictEvidence,
-        operatorLoop: buildUltraworkOperatorLoopSummary(observations),
+        operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
+    }
+    if (
+      activationEvidence.length > 0 &&
+      interviewEvidence.length > 0 &&
+      questionAnswerEvidence.length > 0 &&
+      postQuestionProgressEvidence.length > 0
+    ) {
+      return {
+        status: 'PASS',
+        reason: 'Ultrawork activation, interview question handling, and post-question progress were visible without policy conflict.',
+        durationMs: Date.now() - startedAt,
+        observations,
+        interventions,
+        inputTraces,
+        activationEvidence,
+        interviewEvidence,
+        questionEvidence,
+        questionAnswerEvidence,
+        postQuestionProgressEvidence,
+        questionToolErrorEvidence,
+        policyConflictEvidence,
+        operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
+      };
+    }
+    if (
+      signals.questionVisible &&
+      signals.questionAnswered &&
+      postQuestionProgressEvidence.length === 0 &&
+      questionSubmitCount < questionAnswerCount
+    ) {
+      questionSubmitCount += 1;
+      const trace = await sendTmuxKeySequence(
+        context,
+        tmuxSession,
+        `ultrawork-question-submit-${String(questionSubmitCount)}`,
+        ['Enter'],
+      );
+      inputTraces.push(trace);
+      interventions.push({
+        atMs: Date.now() - startedAt,
+        action: 'submit-question-answer',
+        reason: 'Question review screen is visible; submit the selected answer.',
+        status: trace.status,
+        keys: trace.keys,
+        commandNames: trace.commands.map((command) => command.name),
+      });
+      await sleep(2_000);
+      continue;
+    }
+    if (
+      signals.questionVisible &&
+      !signals.questionAnswered &&
+      questionAnswerCount < TUI_ULTRAWORK_MAX_QUESTION_ANSWERS
+    ) {
+      questionAnswerCount += 1;
+      const trace = await sendTmuxKeySequence(
+        context,
+        tmuxSession,
+        `ultrawork-question-answer-${String(questionAnswerCount)}`,
+        ['Enter'],
+      );
+      inputTraces.push(trace);
+      interventions.push({
+        atMs: Date.now() - startedAt,
+        action: 'select-question-default-option',
+        reason: 'Question dialog is visible; choose the focused default QA option.',
+        status: trace.status,
+        keys: trace.keys,
+        commandNames: trace.commands.map((command) => command.name),
+      });
+      await sleep(2_000);
+      continue;
     }
     await sleep(2_000);
   }
   return {
     status: 'FAIL',
-    reason: `timed out after ${String(TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS)}ms waiting for Ultrawork activation and Ultra Plan interview evidence.`,
+    reason: `timed out after ${String(TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS)}ms waiting for Ultrawork activation, question answer, and post-question progress evidence.`,
     durationMs: Date.now() - startedAt,
     observations,
+    interventions,
+    inputTraces,
     activationEvidence,
     interviewEvidence,
     questionEvidence,
+    questionAnswerEvidence,
+    postQuestionProgressEvidence,
+    questionToolErrorEvidence,
     policyConflictEvidence,
-    operatorLoop: buildUltraworkOperatorLoopSummary(observations),
+    operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
   };
 }
 
@@ -5100,13 +5250,15 @@ function inspectUltraworkWorkflowSignals(output) {
     /activation:\s*auto/i,
     /Ultrawork:\s*autonomous plan/i,
   ]);
-  const questionVisible = matchesAny(output, [
-    /\bquestion\b/i,
+  const questionDialogChrome = matchesAny(output, [
     /Ready to submit your answers/i,
     /Some questions are still unanswered/i,
-    /↵\s*(?:choose|confirm|submit)/i,
-    /\?\s+\S/,
+    /↑↓\s*select/i,
+    /←\/→\/tab switch/i,
+    /↵\s*(?:choose|confirm|submit|toggle)/i,
   ]);
+  const questionOptionList = matchesAny(output, [/→\s*\[\d\]\s+\S/, /\s\[\d\]\s+\S/]);
+  const questionVisible = questionDialogChrome && questionOptionList;
   const interviewReached =
     questionVisible ||
     matchesAny(output, [
@@ -5115,15 +5267,40 @@ function inspectUltraworkWorkflowSignals(output) {
       /Phase:\s*INTERVIEW/i,
       /Use AskUserQuestion to clarify/i,
     ]);
+  const questionAnswered = matchesAny(output, [
+    /Collected your answers/i,
+    /Used AskUserQuestion/i,
+    /Review your answer before submit/i,
+    /Ready to submit your answers/i,
+    /\bQ\b\s+[^?]+\?\s+→\s+\S/i,
+  ]);
+  const postQuestionProgress = matchesAny(output, [
+    /Collected your answers/i,
+    /Used (?:AskUserQuestion|NextPhase|Read|Bash|Grep|Glob|KimiContext|ExitPlanMode)/i,
+    /Phase:\s*(?:DESIGN|WRITE|REVIEW|VERIFY)/i,
+    /Design phase/i,
+    /Write phase/i,
+    /Review phase/i,
+    /Verification phase/i,
+    /Current plan/i,
+    /Plan file:/i,
+  ]);
+  const questionToolError = matchesAny(output, [
+    /Could not collect your input/i,
+    /Invalid args for tool "AskUserQuestion"/i,
+    /AskUserQuestion[^\n]*options must NOT have more than 4 items/i,
+  ]);
   const policyConflict = matchesAny(output, [
     /AskUserQuestion is disabled while auto permission mode is active/i,
-    /Only AskUserQuestion/i,
     /blocked in Interview phase/i,
   ]);
   return {
     activated,
     interviewReached,
     questionVisible,
+    questionAnswered,
+    postQuestionProgress,
+    questionToolError,
     policyConflict,
     activationReason: activated
       ? 'screen shows Ultrawork activation marker or auto workflow prompt'
@@ -5134,6 +5311,15 @@ function inspectUltraworkWorkflowSignals(output) {
     questionReason: questionVisible
       ? 'screen shows question/interview UI'
       : 'screen does not show question UI yet',
+    questionAnswerReason: questionAnswered
+      ? 'screen shows a selected/reviewed question answer'
+      : 'screen does not show a submitted or reviewed question answer yet',
+    postQuestionProgressReason: postQuestionProgress
+      ? 'screen shows progress after the question interaction'
+      : 'screen does not show post-question workflow progress yet',
+    questionToolErrorReason: questionToolError
+      ? 'screen shows an AskUserQuestion tool contract error'
+      : 'screen does not show an AskUserQuestion tool contract error',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -5142,7 +5328,10 @@ function inspectUltraworkWorkflowSignals(output) {
 
 function classifyUltraworkWorkflowScreenState(output) {
   const signals = inspectUltraworkWorkflowSignals(output);
+  if (signals.questionToolError) return 'question-tool-error';
   if (signals.policyConflict) return 'policy-conflict';
+  if (signals.postQuestionProgress) return 'post-question-progress';
+  if (signals.questionAnswered) return 'question-answered';
   if (signals.questionVisible) return 'question-visible';
   if (signals.interviewReached) return 'ultra-plan-interview';
   if (signals.activated) return 'ultrawork-activated';
@@ -5154,22 +5343,26 @@ function classifyUltraworkWorkflowScreenState(output) {
   return 'unclassified-visible-screen';
 }
 
-function buildUltraworkOperatorLoopSummary(observations) {
+function buildUltraworkOperatorLoopSummary(observations, interventions = []) {
   const stateCounts = {};
   for (const observation of observations) {
     stateCounts[observation.state] = (stateCounts[observation.state] ?? 0) + 1;
   }
+  const failedInterventions = interventions.filter((intervention) => intervention.status !== 'PASS');
   return {
-    tier: 'ultrawork-activation-operator-loop',
-    status: observations.length > 0 ? 'PASS' : 'FAIL',
+    tier: 'ultrawork-question-answer-operator-loop',
+    status: observations.length > 0 && failedInterventions.length === 0 ? 'PASS' : 'FAIL',
     reason:
       observations.length > 0
-        ? 'Screen-driven operator loop classified live Ultrawork activation and interview states.'
+        ? failedInterventions.length === 0
+          ? 'Screen-driven operator loop classified live Ultrawork states and applied safe question-answer interventions.'
+          : 'One or more screen-driven Ultrawork question-answer interventions failed.'
         : 'No live Ultrawork observations were captured during the operator loop.',
     observationCount: observations.length,
     stateCounts,
-    interventionsAttempted: 0,
-    interventionsSucceeded: 0,
+    interventionsAttempted: interventions.length,
+    interventionsSucceeded: interventions.filter((intervention) => intervention.status === 'PASS').length,
+    failedInterventions,
   };
 }
 
@@ -5415,6 +5608,74 @@ function validateUltraworkInterview(waitResult) {
   };
 }
 
+function validateUltraworkQuestionAnswered(waitResult) {
+  const answerEvidenceCount = Array.isArray(waitResult.questionAnswerEvidence)
+    ? waitResult.questionAnswerEvidence.length
+    : 0;
+  const questionAnswerTraces = Array.isArray(waitResult.inputTraces)
+    ? waitResult.inputTraces.filter(
+        (trace) =>
+          typeof trace.scenario === 'string' &&
+          trace.scenario.startsWith('ultrawork-question-answer-') &&
+          trace.status === 'PASS' &&
+          Array.isArray(trace.keys) &&
+          (trace.keys.includes('1') || trace.keys.includes('Enter')),
+      )
+    : [];
+  const questionSubmitTraces = Array.isArray(waitResult.inputTraces)
+    ? waitResult.inputTraces.filter(
+        (trace) =>
+          typeof trace.scenario === 'string' &&
+          trace.scenario.startsWith('ultrawork-question-submit-') &&
+          trace.status === 'PASS' &&
+          Array.isArray(trace.keys) &&
+          trace.keys.includes('Enter'),
+      )
+    : [];
+  const status =
+    answerEvidenceCount > 0 && questionAnswerTraces.length > 0 && questionSubmitTraces.length > 0
+      ? 'PASS'
+      : 'FAIL';
+  return {
+    status,
+    reason:
+      status === 'PASS'
+        ? 'Live TUI operator selected and submitted an Ultrawork interview answer.'
+        : 'Ultrawork gate must prove a visible question was selected and submitted with ordered keyboard input.',
+    evidenceCount: answerEvidenceCount,
+    answerInputTraceCount: questionAnswerTraces.length,
+    submitInputTraceCount: questionSubmitTraces.length,
+  };
+}
+
+function validateUltraworkPostQuestionProgress(waitResult) {
+  const count = Array.isArray(waitResult.postQuestionProgressEvidence)
+    ? waitResult.postQuestionProgressEvidence.length
+    : 0;
+  return {
+    status: waitResult.status === 'PASS' && count > 0 ? 'PASS' : 'FAIL',
+    reason:
+      count > 0
+        ? 'Live TUI screen showed Ultrawork progress after the question answer.'
+        : 'Ultrawork gate must observe workflow progress after answering the interview question.',
+    evidenceCount: count,
+  };
+}
+
+function validateUltraworkQuestionToolError(waitResult) {
+  const count = Array.isArray(waitResult.questionToolErrorEvidence)
+    ? waitResult.questionToolErrorEvidence.length
+    : 0;
+  return {
+    status: waitResult.status === 'PASS' && count === 0 ? 'PASS' : 'FAIL',
+    reason:
+      count === 0
+        ? 'Ultrawork question flow avoided AskUserQuestion tool contract errors.'
+        : 'Ultrawork question flow produced an AskUserQuestion tool contract error.',
+    evidenceCount: count,
+  };
+}
+
 function validateUltraworkPolicyConflict(waitResult) {
   const count = Array.isArray(waitResult.policyConflictEvidence)
     ? waitResult.policyConflictEvidence.length
@@ -5437,8 +5698,8 @@ function validateUltraworkOperatorLoop(waitResult) {
     reason:
       status === 'PASS'
         ? operatorLoop.reason
-        : `Ultrawork operator loop did not prove a passing activation workflow: ${operatorLoop?.reason ?? waitResult.reason}.`,
-    tier: operatorLoop?.tier ?? 'ultrawork-activation-operator-loop',
+        : `Ultrawork operator loop did not prove a passing question-answer workflow: ${operatorLoop?.reason ?? waitResult.reason}.`,
+    tier: operatorLoop?.tier ?? 'ultrawork-question-answer-operator-loop',
     observationCount: operatorLoop?.observationCount ?? 0,
     interventionsAttempted: operatorLoop?.interventionsAttempted ?? 0,
     stateCounts: operatorLoop?.stateCounts ?? {},
@@ -5478,7 +5739,7 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       evidence: 'tui/ultrawork-submitted.txt',
     },
     {
-      name: 'classify-ultrawork-activation',
+      name: 'classify-ultrawork-workflow',
       status: summary.validations?.adaptiveOperatorLoop?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.operatorLoop',
     },
@@ -5493,6 +5754,39 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       evidence: 'workflow.wait.interviewEvidence',
     },
     {
+      name: 'select-ultrawork-interview-answer',
+      status:
+        summary.validations?.questionAnswered?.status === 'PASS' &&
+        Array.from(passedInputTraces).some((scenario) =>
+          scenario.startsWith('ultrawork-question-answer-'),
+        )
+          ? 'PASS'
+          : 'FAIL',
+      evidence: 'inputTraces[ultrawork-question-answer-*]',
+    },
+    {
+      name: 'submit-ultrawork-interview-answer',
+      status:
+        summary.validations?.questionAnswered?.status === 'PASS' &&
+        Array.from(passedInputTraces).some((scenario) =>
+          scenario.startsWith('ultrawork-question-submit-'),
+        )
+          ? 'PASS'
+          : 'FAIL',
+      evidence: 'inputTraces[ultrawork-question-submit-*]',
+    },
+    {
+      name: 'observe-post-question-progress',
+      status: summary.validations?.postQuestionProgressObserved?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.postQuestionProgressEvidence',
+    },
+    {
+      name: 'avoid-question-tool-contract-error',
+      status:
+        summary.validations?.noQuestionToolContractError?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.questionToolErrorEvidence',
+    },
+    {
       name: 'avoid-auto-question-policy-deadlock',
       status: summary.validations?.noAutoQuestionPolicyConflict?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.policyConflictEvidence',
@@ -5504,13 +5798,13 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
     },
   ];
   return {
-    tier: 'ultrawork-activation-operator-loop',
-    verdict: 'screen-driven-ultrawork-activation-loop',
+    tier: 'ultrawork-question-answer-operator-loop',
+    verdict: 'screen-driven-ultrawork-question-answer-loop',
     principle:
-      'An Ultrawork gate must prove automatic activation and planning behavior through visible TUI state, not by bypassing Ultrawork in a direct coding prompt.',
+      'An Ultrawork gate must prove automatic activation, visible question answering, and post-question progress through real TUI state, not by bypassing Ultrawork in a direct coding prompt.',
     steps,
     limitation:
-      'This gate stops at deadlock-free activation/interview reachability; a future gate should answer questions and validate full Ultragoal execution.',
+      'This gate stops after question-answer progress; a future gate should validate bounded Ultragoal file edits and tests through the same screen-driven TUI path.',
     previousTier: 'adaptive-vibecoder-operator-loop',
   };
 }
@@ -5522,7 +5816,7 @@ function validateTuiUltraworkOperatorTrajectory(summary) {
     status: failedSteps.length === 0 ? 'PASS' : 'FAIL',
     reason:
       failedSteps.length === 0
-        ? 'Ultrawork TUI workflow includes visible activation, interview, and no policy-deadlock evidence.'
+        ? 'Ultrawork TUI workflow includes visible activation, question-answer, post-question progress, no question tool contract error, and no policy-deadlock evidence.'
         : `Ultrawork TUI workflow is missing operator evidence: ${failedSteps
             .map((step) => step.name)
             .join(', ')}.`,
@@ -7053,6 +7347,46 @@ async function sendTmuxKeySequence(context, tmuxSession, scenario, keys) {
     keys: steps.flatMap((step) => step.keys),
     steps,
     commands,
+  };
+}
+
+async function waitForKimiTuiReady(context, tmuxSession, timeoutMs) {
+  const startedAt = Date.now();
+  const observations = [];
+  while (Date.now() - startedAt < timeoutMs) {
+    const screen = runBoundedCommand('tmux', ['capture-pane', '-pt', tmuxSession, '-S', '-80'], {
+      cwd: context.sourceCheckout,
+      timeoutMs: 10_000,
+    });
+    const raw = screen.stdout;
+    const normalized = normalizeScreenText(raw);
+    const hasInputPrompt = matchesAny(raw, [/│\s*>\s*│/, /^\s*>\s*$/m]);
+    const ready = screen.status === 0 && hasKimiTuiChrome(normalized) && hasInputPrompt;
+    observations.push({
+      atMs: Date.now() - startedAt,
+      captureExitCode: screen.status,
+      ready,
+      hasKimiChrome: hasKimiTuiChrome(normalized),
+      hasInputPrompt,
+      sample: normalized.slice(0, 240),
+    });
+    if (ready) {
+      return {
+        status: 'PASS',
+        reason: 'Live Kimi TUI chrome and idle input prompt were visible before sending workflow keys.',
+        durationMs: Date.now() - startedAt,
+        observationCount: observations.length,
+        observations,
+      };
+    }
+    await sleep(1_000);
+  }
+  return {
+    status: 'FAIL',
+    reason: `timed out after ${String(timeoutMs)}ms waiting for live Kimi TUI idle input prompt before sending workflow keys.`,
+    durationMs: Date.now() - startedAt,
+    observationCount: observations.length,
+    observations,
   };
 }
 

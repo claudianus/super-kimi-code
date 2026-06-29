@@ -108,6 +108,8 @@ export function buildUltraworkPrompt(
     `- ${ULTRAWORK_LEAN_CONTEXT_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     '- Interview the user only when a missing decision blocks correctness; otherwise proceed with best judgment.',
+    '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',
+    '- When using AskUserQuestion, ask 1-3 focused questions and provide at most 4 options per question.',
     '- Finish by verifying the real surface, reporting concise evidence, and calling UpdateGoal complete or blocked.',
     '</ultrawork_flow>',
   ].join('\n');

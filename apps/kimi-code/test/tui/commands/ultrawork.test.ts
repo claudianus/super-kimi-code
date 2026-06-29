@@ -108,6 +108,8 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain(
       'Do not use apps/kimi-web or browser UI paths as a success surface',
     );
+    expect(prompt).toContain('use only AskUserQuestion or NextPhase');
+    expect(prompt).toContain('at most 4 options per question');
     expect(prompt).toContain('UpdateGoal');
   });
 });

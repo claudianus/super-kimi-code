@@ -640,10 +640,14 @@ async function evaluateUltraworkGate(summary) {
   const requiredValidations = [
     'tmuxPreflight',
     'kimiCodeHomeReady',
+    'tuiReady',
     'promptSubmitted',
     'planModeReset',
     'ultraworkActivated',
     'ultraPlanInterviewReached',
+    'questionAnswered',
+    'postQuestionProgressObserved',
+    'noQuestionToolContractError',
     'noAutoQuestionPolicyConflict',
     'screenEvidence',
     'kimiModelReady',
@@ -667,6 +671,24 @@ async function evaluateUltraworkGate(summary) {
   if (!Array.isArray(workflowWait?.interviewEvidence) || workflowWait.interviewEvidence.length === 0) {
     failures.push('Ultra Plan interview evidence is missing from workflow wait');
   }
+  if (
+    !Array.isArray(workflowWait?.questionAnswerEvidence) ||
+    workflowWait.questionAnswerEvidence.length === 0
+  ) {
+    failures.push('Ultrawork question-answer evidence is missing from workflow wait');
+  }
+  if (
+    !Array.isArray(workflowWait?.postQuestionProgressEvidence) ||
+    workflowWait.postQuestionProgressEvidence.length === 0
+  ) {
+    failures.push('Ultrawork post-question progress evidence is missing from workflow wait');
+  }
+  if (
+    Array.isArray(workflowWait?.questionToolErrorEvidence) &&
+    workflowWait.questionToolErrorEvidence.length > 0
+  ) {
+    failures.push('AskUserQuestion tool contract error evidence is present');
+  }
   if (Array.isArray(workflowWait?.policyConflictEvidence) && workflowWait.policyConflictEvidence.length > 0) {
     failures.push('auto-mode AskUserQuestion policy conflict evidence is present');
   }
@@ -687,12 +709,12 @@ async function evaluateUltraworkGate(summary) {
   }
 
   return {
-    name: 'live-tui-ultrawork-activation-proof',
+    name: 'live-tui-ultrawork-question-answer-proof',
     status: failures.length === 0 ? 'PASS' : 'FAIL',
     required: true,
     reason:
       failures.length === 0
-        ? 'Live TUI Ultrawork auto-activation reached Ultra Plan interview without auto/question policy deadlock.'
+        ? 'Live TUI Ultrawork auto-activation answered an interview question and showed post-question progress without AskUserQuestion contract errors or auto/question policy deadlock.'
         : failures.join('; '),
     observed: {
       phase: summary.phase,
@@ -709,10 +731,20 @@ async function evaluateUltraworkGate(summary) {
       questionEvidenceCount: Array.isArray(workflowWait?.questionEvidence)
         ? workflowWait.questionEvidence.length
         : 0,
+      questionAnswerEvidenceCount: Array.isArray(workflowWait?.questionAnswerEvidence)
+        ? workflowWait.questionAnswerEvidence.length
+        : 0,
+      postQuestionProgressEvidenceCount: Array.isArray(workflowWait?.postQuestionProgressEvidence)
+        ? workflowWait.postQuestionProgressEvidence.length
+        : 0,
+      questionToolErrorEvidenceCount: Array.isArray(workflowWait?.questionToolErrorEvidence)
+        ? workflowWait.questionToolErrorEvidence.length
+        : 0,
       policyConflictEvidenceCount: Array.isArray(workflowWait?.policyConflictEvidence)
         ? workflowWait.policyConflictEvidence.length
         : 0,
       adaptiveObservationCount: summary.validations?.adaptiveOperatorLoop?.observationCount,
+      adaptiveInterventionsAttempted: summary.validations?.adaptiveOperatorLoop?.interventionsAttempted,
       trajectorySteps: Array.isArray(summary.operatorTrajectory?.steps)
         ? summary.operatorTrajectory.steps.map((step) => ({
             name: step.name,
@@ -752,6 +784,16 @@ function validateUltraworkInputTraces(summary) {
   const traces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
   const planResetTrace = traces.find((entry) => entry.scenario === 'ultrawork-plan-reset');
   const trace = traces.find((entry) => entry.scenario === 'ultrawork-auto-prompt');
+  const questionAnswerTrace = traces.find(
+    (entry) =>
+      typeof entry.scenario === 'string' &&
+      entry.scenario.startsWith('ultrawork-question-answer-'),
+  );
+  const questionSubmitTrace = traces.find(
+    (entry) =>
+      typeof entry.scenario === 'string' &&
+      entry.scenario.startsWith('ultrawork-question-submit-'),
+  );
   return [
     {
       scenario: 'ultrawork-plan-reset',
@@ -772,6 +814,26 @@ function validateUltraworkInputTraces(summary) {
           ? 'PASS'
           : 'FAIL',
       keys: trace?.keys,
+    },
+    {
+      scenario: 'ultrawork-question-answer',
+      status:
+        questionAnswerTrace?.status === 'PASS' &&
+        Array.isArray(questionAnswerTrace.keys) &&
+        (questionAnswerTrace.keys.includes('1') || questionAnswerTrace.keys.includes('Enter'))
+          ? 'PASS'
+          : 'FAIL',
+      keys: questionAnswerTrace?.keys,
+    },
+    {
+      scenario: 'ultrawork-question-submit',
+      status:
+        questionSubmitTrace?.status === 'PASS' &&
+        Array.isArray(questionSubmitTrace.keys) &&
+        questionSubmitTrace.keys.includes('Enter')
+          ? 'PASS'
+          : 'FAIL',
+      keys: questionSubmitTrace?.keys,
     },
   ];
 }
@@ -969,17 +1031,17 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
   if (ultraworkGate === undefined) {
     addAction(
       'add-dedicated-ultrawork-workflow-gate',
-      'Direct live TUI workflow evidence passes, but SOTA gate does not yet include a dedicated Ultrawork activation and interview workflow summary.',
+      'Direct live TUI workflow evidence passes, but SOTA gate does not yet include a dedicated Ultrawork question-answer workflow summary.',
       {
         workflowGate: workflowGate.status,
-        requiredNextGate: 'ultrawork-activation-planning-workflow',
+        requiredNextGate: 'ultrawork-question-answer-planning-workflow',
       },
       'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-after>',
     );
   } else if (ultraworkGate.status !== 'PASS') {
     addAction(
       'repair-dedicated-ultrawork-workflow-gate',
-      'The dedicated Ultrawork activation workflow did not prove natural-language auto activation, Ultra Plan interview reachability, and no auto/question policy deadlock together.',
+      'The dedicated Ultrawork workflow did not prove natural-language auto activation, question answering, post-question progress, and no auto/question policy deadlock together.',
       ultraworkGate.observed,
       'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-repair>',
     );
@@ -987,14 +1049,14 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
 
   if (actions.length === 0) {
     addAction(
-      'advance-to-full-ultragoal-execution-gate',
-      'Current direct live TUI workflow and dedicated Ultrawork activation evidence pass; the next loop should answer the interview surface and validate full Ultragoal execution through the same screen-driven TUI gate.',
+      'advance-to-ultragoal-file-edit-verification-gate',
+      'Current direct live TUI workflow and dedicated Ultrawork question-answer evidence pass; the next loop should validate bounded Ultragoal file edits and tests through the same screen-driven TUI gate.',
       {
         currentScore: uxFriction?.score,
         deltaVerdict: tuiUxDeltaGate?.observed?.verdict ?? 'not-compared',
         workflowGate: workflowGate.status,
         ultraworkGate: ultraworkGate?.status,
-        requiredNextGate: 'full-ultragoal-execution-workflow',
+        requiredNextGate: 'bounded-ultragoal-file-edit-verification-workflow',
         agentVerificationEvidenceCount: workflowGate.observed?.agentVerificationEvidenceCount,
         editedFileCount: workflowGate.observed?.workspace?.editedFileCount,
         targetedTestExitCode: workflowGate.observed?.workspace?.targetedTestExitCode,
@@ -1012,9 +1074,13 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'targeted test command',
           'Ultrawork activation marker',
           'Ultra Plan interview evidence',
+          'Ultrawork question answer selection input trace',
+          'Ultrawork question answer submit input trace',
+          'post-question Ultrawork progress evidence',
+          'no AskUserQuestion tool contract error',
           'no auto/question policy conflict',
         ],
-        currentTier: 'adaptive-vibecoder-operator-loop',
+        currentTier: 'ultrawork-question-answer-operator-loop',
         passingScenarios: scenarios
           .filter((scenario) => scenario.status === 'PASS')
           .map((scenario) => scenario.scenario),
@@ -1640,8 +1706,12 @@ function renderMarkdown(report) {
       `- activation evidence: ${String(report.tuiUltraworkProof.activationEvidenceCount)}`,
       `- interview evidence: ${String(report.tuiUltraworkProof.interviewEvidenceCount)}`,
       `- question evidence: ${String(report.tuiUltraworkProof.questionEvidenceCount)}`,
+      `- question answer evidence: ${String(report.tuiUltraworkProof.questionAnswerEvidenceCount)}`,
+      `- post-question progress evidence: ${String(report.tuiUltraworkProof.postQuestionProgressEvidenceCount)}`,
+      `- question tool contract errors: ${String(report.tuiUltraworkProof.questionToolErrorEvidenceCount)}`,
       `- policy conflicts: ${String(report.tuiUltraworkProof.policyConflictEvidenceCount)}`,
       `- adaptive observations: ${String(report.tuiUltraworkProof.adaptiveObservationCount ?? 'unavailable')}`,
+      `- adaptive interventions: ${String(report.tuiUltraworkProof.adaptiveInterventionsAttempted ?? 'unavailable')}`,
     );
   }
   if (report.tuiNextActions !== undefined) {
