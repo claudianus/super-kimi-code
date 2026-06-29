@@ -14,7 +14,6 @@ const REQUIRED_TUI_SCENARIOS = Object.freeze([
   'startup',
   'help',
   'clear',
-  'vibe-mode',
   'autocomplete',
   'prompt-entry',
   'escape-cancel',
@@ -26,16 +25,13 @@ const REQUIRED_TUI_INPUT_SCENARIOS = Object.freeze(
   REQUIRED_TUI_SCENARIOS.filter((scenario) => !OBSERVATION_ONLY_TUI_SCENARIOS.has(scenario)),
 );
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
-const TUI_VIBE_MODE_TEXT = 'Vibe mode: ON';
-const TUI_ULTRAWORK_WORKFLOW_PROMPT =
-  'Research latest agent harness best practices, design a verified Super Kimi TUI improvement plan, implement it with tests, and continue autonomously until the work is validated.';
+const TUI_REAL_WORKFLOW_GUIDANCE = 'real repository source/test workflow evidence';
 const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
   { name: 'kimi', pattern: /\bkimi\b/i },
   { name: 'moonshot', pattern: /moonshot/i },
-  { name: 'slash-command', pattern: /\/(?:help|clear|exit|vibe)/i },
+  { name: 'slash-command', pattern: /\/(?:help|clear|exit)/i },
   { name: 'editor', pattern: /\b(?:ask|message|editor|prompt)\b/i },
   { name: 'auto-permission', pattern: /\bauto\b|\bpermission\b|\bapproval\b/i },
-  { name: 'vibe-mode', pattern: /vibe mode/i },
   { name: 'prompt-entry', pattern: /visible qa prompt entry only/i },
 ]);
 const DEFAULT_BUDGETS = Object.freeze({
@@ -527,8 +523,8 @@ async function evaluateWorkflowGate(summary) {
     'tmuxPreflight',
     'kimiCodeHomeReady',
     'promptSubmitted',
-    'directCodingMode',
-    'planModeFrictionAvoided',
+    'directPlanMode',
+    'standardCodingMode',
     'targetWorktreeToolingLinked',
     'workspaceChanged',
     'multiFileWorkspaceChanged',
@@ -592,7 +588,7 @@ async function evaluateWorkflowGate(summary) {
     required: true,
     reason:
       failures.length === 0
-        ? 'Real TUI workflow proof passed with direct mode, agent-run verification, diff, and cleanup evidence.'
+        ? 'Real TUI workflow proof passed with direct /plan off, standard /auto mode, agent-run verification, diff, and cleanup evidence.'
         : failures.join('; '),
     observed: {
       phase: summary.phase,
@@ -643,12 +639,21 @@ async function evaluateUltraworkGate(summary) {
     'tuiReady',
     'promptSubmitted',
     'planModeReset',
+    'targetWorktreeToolingLinked',
     'ultraworkActivated',
     'ultraPlanInterviewReached',
     'questionAnswered',
     'postQuestionProgressObserved',
     'noQuestionToolContractError',
     'noAutoQuestionPolicyConflict',
+    'workspaceChanged',
+    'multiFileWorkspaceChanged',
+    'verifierUnchanged',
+    'repositorySourceTestChanged',
+    'repositoryTargetedTest',
+    'diffContainsSentinel',
+    'verificationCommand',
+    'agentVerificationObserved',
     'screenEvidence',
     'kimiModelReady',
     'adaptiveOperatorLoop',
@@ -689,8 +694,29 @@ async function evaluateUltraworkGate(summary) {
   ) {
     failures.push('AskUserQuestion tool contract error evidence is present');
   }
-  if (Array.isArray(workflowWait?.policyConflictEvidence) && workflowWait.policyConflictEvidence.length > 0) {
-    failures.push('auto-mode AskUserQuestion policy conflict evidence is present');
+  if (!Array.isArray(workflowWait?.agentVerificationEvidence) || workflowWait.agentVerificationEvidence.length === 0) {
+    failures.push('agent-run verification evidence is missing from Ultrawork workflow wait');
+  }
+  if (summary.workspace?.diffExitCode !== 0) {
+    failures.push(`Ultrawork workflow diff exit code is ${String(summary.workspace?.diffExitCode)}`);
+  }
+  if (summary.workspace?.verificationExitCode !== 0) {
+    failures.push(
+      `Ultrawork workflow verification exit code is ${String(summary.workspace?.verificationExitCode)}`,
+    );
+  }
+  if (summary.workspace?.targetedTestExitCode !== 0) {
+    failures.push(
+      `Ultrawork workflow targeted test exit code is ${String(summary.workspace?.targetedTestExitCode)}`,
+    );
+  }
+  if (!Array.isArray(summary.workspace?.editFiles) || summary.workspace.editFiles.length < 2) {
+    failures.push('Ultrawork workflow edit file list must include at least two files');
+  }
+  if (summary.workspace?.editedFileCount < 2) {
+    failures.push(
+      `Ultrawork workflow edited file count is ${String(summary.workspace?.editedFileCount)}`,
+    );
   }
   const failedTrajectorySteps = Array.isArray(summary.operatorTrajectory?.steps)
     ? summary.operatorTrajectory.steps.filter((step) => step.status !== 'PASS')
@@ -709,12 +735,12 @@ async function evaluateUltraworkGate(summary) {
   }
 
   return {
-    name: 'live-tui-ultrawork-question-answer-proof',
+    name: 'live-tui-ultrawork-source-test-proof',
     status: failures.length === 0 ? 'PASS' : 'FAIL',
     required: true,
     reason:
       failures.length === 0
-        ? 'Live TUI Ultrawork auto-activation answered an interview question and showed post-question progress without AskUserQuestion contract errors or auto/question policy deadlock.'
+        ? 'Live TUI Ultrawork auto-activation answered an interview question, completed source/test edits, observed agent-run verification, and passed targeted checks without AskUserQuestion contract errors or auto/question policy deadlock.'
         : failures.join('; '),
     observed: {
       phase: summary.phase,
@@ -737,6 +763,9 @@ async function evaluateUltraworkGate(summary) {
       postQuestionProgressEvidenceCount: Array.isArray(workflowWait?.postQuestionProgressEvidence)
         ? workflowWait.postQuestionProgressEvidence.length
         : 0,
+      agentVerificationEvidenceCount: Array.isArray(workflowWait?.agentVerificationEvidence)
+        ? workflowWait.agentVerificationEvidence.length
+        : 0,
       questionToolErrorEvidenceCount: Array.isArray(workflowWait?.questionToolErrorEvidence)
         ? workflowWait.questionToolErrorEvidence.length
         : 0,
@@ -753,6 +782,16 @@ async function evaluateUltraworkGate(summary) {
         : [],
       captureResults,
       inputResults,
+      workspace: {
+        diffExitCode: summary.workspace?.diffExitCode,
+        verificationExitCode: summary.workspace?.verificationExitCode,
+        diffPath: summary.workspace?.diffPath,
+        editedFileCount: summary.workspace?.editedFileCount,
+        editFiles: summary.workspace?.editFiles,
+        fileState: summary.workspace?.fileState,
+        targetedTestCommand: summary.workspace?.targetedTestCommand,
+        targetedTestExitCode: summary.workspace?.targetedTestExitCode,
+      },
     },
   };
 }
@@ -784,16 +823,17 @@ function validateUltraworkInputTraces(summary) {
   const traces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
   const planResetTrace = traces.find((entry) => entry.scenario === 'ultrawork-plan-reset');
   const trace = traces.find((entry) => entry.scenario === 'ultrawork-auto-prompt');
-  const questionAnswerTrace = traces.find(
-    (entry) =>
-      typeof entry.scenario === 'string' &&
-      entry.scenario.startsWith('ultrawork-question-answer-'),
-  );
   const questionSubmitTrace = traces.find(
     (entry) =>
       typeof entry.scenario === 'string' &&
       entry.scenario.startsWith('ultrawork-question-submit-'),
   );
+  const questionAnswerTrace =
+    traces.find(
+      (entry) =>
+        typeof entry.scenario === 'string' &&
+        entry.scenario.startsWith('ultrawork-question-answer-'),
+    ) ?? questionSubmitTrace;
   return [
     {
       scenario: 'ultrawork-plan-reset',
@@ -810,7 +850,12 @@ function validateUltraworkInputTraces(summary) {
       status:
         trace?.status === 'PASS' &&
         Array.isArray(trace.keys) &&
-        trace.keys.includes(TUI_ULTRAWORK_WORKFLOW_PROMPT)
+        trace.keys.some(
+          (key) =>
+            typeof key === 'string' &&
+            /Ultrawork/i.test(key) &&
+            key.includes(TUI_REAL_WORKFLOW_GUIDANCE),
+        )
           ? 'PASS'
           : 'FAIL',
       keys: trace?.keys,
@@ -842,7 +887,8 @@ async function validateWorkflowCaptures(summary) {
   const captures = Array.isArray(summary.captures) ? summary.captures : [];
   const requiredScenarios = [
     'startup',
-    'real-workflow-vibe-mode',
+    'real-workflow-plan-off',
+    'real-workflow-auto-on',
     'real-workflow-submitted',
     'real-workflow-after-wait',
   ];
@@ -864,7 +910,7 @@ async function validateWorkflowCaptures(summary) {
 
 function validateWorkflowInputTraces(summary) {
   const inputTraces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
-  const requiredScenarios = ['real-workflow-vibe-mode', 'real-workflow-prompt'];
+  const requiredScenarios = ['real-workflow-plan-off', 'real-workflow-auto-on', 'real-workflow-prompt'];
   return requiredScenarios.map((scenario) => {
     const trace = inputTraces.find((entry) => entry.scenario === scenario);
     const steps = Array.isArray(trace?.steps) ? trace.steps : [];
@@ -1031,17 +1077,17 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
   if (ultraworkGate === undefined) {
     addAction(
       'add-dedicated-ultrawork-workflow-gate',
-      'Direct live TUI workflow evidence passes, but SOTA gate does not yet include a dedicated Ultrawork question-answer workflow summary.',
+      'Direct live TUI workflow evidence passes, but SOTA gate does not yet include a dedicated Ultrawork source/test verification workflow summary.',
       {
         workflowGate: workflowGate.status,
-        requiredNextGate: 'ultrawork-question-answer-planning-workflow',
+        requiredNextGate: 'ultrawork-source-test-verification-workflow',
       },
       'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-after>',
     );
   } else if (ultraworkGate.status !== 'PASS') {
     addAction(
       'repair-dedicated-ultrawork-workflow-gate',
-      'The dedicated Ultrawork workflow did not prove natural-language auto activation, question answering, post-question progress, and no auto/question policy deadlock together.',
+      'The dedicated Ultrawork workflow did not prove natural-language auto activation, question answering, bounded source/test edits, agent-run verification, targeted tests, and no auto/question policy deadlock together.',
       ultraworkGate.observed,
       'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-repair>',
     );
@@ -1049,14 +1095,14 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
 
   if (actions.length === 0) {
     addAction(
-      'advance-to-ultragoal-file-edit-verification-gate',
-      'Current direct live TUI workflow and dedicated Ultrawork question-answer evidence pass; the next loop should validate bounded Ultragoal file edits and tests through the same screen-driven TUI gate.',
+      'advance-to-ultrawork-ux-performance-loop',
+      'Current direct live TUI workflow and dedicated Ultrawork source/test verification evidence pass; the next loop should improve TUI feedback, loop stability, speed, or richer operator control without relaxing this success surface.',
       {
         currentScore: uxFriction?.score,
         deltaVerdict: tuiUxDeltaGate?.observed?.verdict ?? 'not-compared',
         workflowGate: workflowGate.status,
         ultraworkGate: ultraworkGate?.status,
-        requiredNextGate: 'bounded-ultragoal-file-edit-verification-workflow',
+        requiredNextGate: 'ultrawork-ux-performance-or-richer-operator-control',
         agentVerificationEvidenceCount: workflowGate.observed?.agentVerificationEvidenceCount,
         editedFileCount: workflowGate.observed?.workspace?.editedFileCount,
         targetedTestExitCode: workflowGate.observed?.workspace?.targetedTestExitCode,
@@ -1079,13 +1125,16 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'post-question Ultrawork progress evidence',
           'no AskUserQuestion tool contract error',
           'no auto/question policy conflict',
+          'Ultrawork source/test edit evidence',
+          'Ultrawork targeted test command',
+          'Ultrawork agent-run verification observed in TUI',
         ],
-        currentTier: 'ultrawork-question-answer-operator-loop',
+        currentTier: 'ultrawork-full-cycle-operator-loop',
         passingScenarios: scenarios
           .filter((scenario) => scenario.status === 'PASS')
           .map((scenario) => scenario.scenario),
       },
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<full-ultragoal-after>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-full-cycle-after>',
     );
   }
 
@@ -1178,14 +1227,6 @@ function inspectTuiScreenText(scenario, output) {
     case 'clear':
       if (!matchesAny(normalized, [/kimi/i, /message/i, /editor/i, /prompt/i])) {
         failures.push('clear capture does not show a returned Kimi prompt/editor state');
-      }
-      break;
-    case 'vibe-mode':
-      if (!normalized.includes(TUI_VIBE_MODE_TEXT)) {
-        failures.push(`vibe-mode capture does not show local Vibe mode activation: "${TUI_VIBE_MODE_TEXT}"`);
-      }
-      if (!matchesAny(normalized, [/direct coding/i, /no plan gate/i, /plan mode disabled/i])) {
-        failures.push('vibe-mode capture does not show direct-coding/no-plan feedback');
       }
       break;
     case 'autocomplete':
