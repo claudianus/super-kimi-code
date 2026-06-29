@@ -180,13 +180,18 @@ describe('SearchSkillTool execution', () => {
 });
 
 describe('SkillTool execution', () => {
-  it('returns a tool error when the skill is unknown', async () => {
-    const tool = skillTool(registry());
+  it('returns actionable guidance when the skill is unknown', async () => {
+    const tool = skillTool(registry([skill('gen-changesets'), skill('write-tui')]));
 
-    const result = await execute(tool, { skill: 'missing' });
+    const result = await execute(tool, { skill: 'search' });
 
     expect(result).toMatchObject({ isError: true });
     expect(result.output).toContain('not found');
+    expect(result.output).toContain('Do not call Skill("SearchSkill")');
+    expect(result.output).toContain('SearchSkill is a separate tool');
+    expect(result.output).toContain('Call SearchSkill with 3-12 task keywords');
+    expect(result.output).toContain('"gen-changesets"');
+    expect(result.output).toContain('"write-tui"');
   });
 
   it('rejects skills that disable model invocation', async () => {

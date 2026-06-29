@@ -114,11 +114,11 @@ export class SkillTool implements BuiltinTool<SkillToolInput> {
 
     const skills = this.agent.skills;
     if (skills === null) {
-      return errorResult(`Skill "${args.skill}" not found. Use SearchSkill to find an exact skill name.`);
+      return missingSkillResult(args.skill);
     }
     const skill = skills.registry.getSkill(args.skill);
     if (skill === undefined) {
-      return errorResult(`Skill "${args.skill}" not found. Use SearchSkill to find an exact skill name.`);
+      return missingSkillResult(args.skill, skills.registry.listInvocableSkills());
     }
     if (skill.metadata.disableModelInvocation === true) {
       // Keep the exact wording "can only be triggered by the user" so
@@ -163,6 +163,27 @@ export class SkillTool implements BuiltinTool<SkillToolInput> {
 
 function errorResult(message: string): ExecutableToolResult {
   return { isError: true, output: message };
+}
+
+function missingSkillResult(
+  skillName: string,
+  invocableSkills?: readonly SkillDefinition[],
+): ExecutableToolResult {
+  if (invocableSkills === undefined) {
+    return errorResult(
+      `Skill "${skillName}" not found because no skill registry is available in this session. Continue without a skill or use normal tools.`,
+    );
+  }
+
+  return errorResult(
+    `Skill "${skillName}" not found. Do not call Skill("SearchSkill"); SearchSkill is a separate tool. Call SearchSkill with 3-12 task keywords, then call Skill with one exact returned name.${formatSkillExamples(invocableSkills)}`,
+  );
+}
+
+function formatSkillExamples(invocableSkills: readonly SkillDefinition[]): string {
+  const examples = invocableSkills.slice(0, 5).map((skill) => JSON.stringify(skill.name));
+  if (examples.length === 0) return '';
+  return ` Available skills include: ${examples.join(', ')}.`;
 }
 
 function skillOrigin(
