@@ -72,7 +72,12 @@ const TUI_CAPTURE_SCENARIOS = Object.freeze([
     keys: ['/vibe', 'Enter'],
     description: 'Toggle local Vibe mode without submitting a model prompt.',
   },
-  { name: 'autocomplete', keys: ['/', 'Tab'], description: 'Open slash-command autocomplete.' },
+  {
+    name: 'autocomplete',
+    keys: ['/', 'Tab'],
+    keyGroups: [['/', 'Tab']],
+    description: 'Open slash-command autocomplete.',
+  },
   {
     name: 'prompt-entry',
     keys: ['Escape', 'BSpace', 'visible qa prompt entry only'],
@@ -91,6 +96,7 @@ const COMPUTER_USE_STATE_FUTURE_SKEW_MS = 60_000;
 const TUI_OUROBOROS_PASS_THRESHOLD = 0.85;
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
 const TUI_VIBE_MODE_TEXT = 'Vibe mode: ON';
+const TUI_INPUT_STEP_DELAY_MS = 150;
 const REQUIRED_TUI_CAPTURE_SCENARIOS = TUI_CAPTURE_SCENARIOS.map((scenario) => scenario.name);
 const MIN_SCREENSHOT_WIDTH = 80;
 const MIN_SCREENSHOT_HEIGHT = 40;
@@ -3439,6 +3445,7 @@ async function runTuiLaunchPhase(context) {
     ],
     scenarios: TUI_CAPTURE_SCENARIOS,
     commands: commandRecords,
+    inputTraces: [],
     captures: [],
     validations: {},
   };
@@ -3538,16 +3545,29 @@ async function runTuiLaunchPhase(context) {
           ? scenario.keys.slice(0, -1)
           : scenario.keys;
       if (keysToSend !== undefined) {
-        const sendRecord = await sendTmuxKeys(context, tmuxSession, scenario.name, keysToSend);
-        commandRecords.push(sendRecord);
-        cleanupOverrides.proofCommands.push(commandProofFromRecord(sendRecord));
+        const inputTrace = await sendTmuxKeySequence(
+          context,
+          tmuxSession,
+          scenario.name,
+          scenario.keyGroups ?? keysToSend,
+        );
+        summary.inputTraces.push(inputTrace);
+        commandRecords.push(...inputTrace.commands);
+        cleanupOverrides.proofCommands.push(
+          ...inputTrace.commands.map((record) => commandProofFromRecord(record)),
+        );
         await sleep(1_000);
       }
       summary.captures.push(await captureTmuxPane(context, tmuxSession, scenario.name));
       if (scenario.name === 'exit' && scenario.keys?.at(-1) === 'Enter') {
-        const submitExitRecord = await sendTmuxKeys(context, tmuxSession, 'exit-submit', ['Enter']);
-        commandRecords.push(submitExitRecord);
-        cleanupOverrides.proofCommands.push(commandProofFromRecord(submitExitRecord));
+        const submitExitTrace = await sendTmuxKeySequence(context, tmuxSession, 'exit-submit', [
+          'Enter',
+        ]);
+        summary.inputTraces.push(submitExitTrace);
+        commandRecords.push(...submitExitTrace.commands);
+        cleanupOverrides.proofCommands.push(
+          ...submitExitTrace.commands.map((record) => commandProofFromRecord(record)),
+        );
         await sleep(4_000);
       }
     }
@@ -4968,6 +4988,42 @@ async function sendTmuxKeys(context, tmuxSession, scenario, keys) {
     cwd: context.sourceCheckout,
     timeoutMs: 10_000,
   });
+}
+
+async function sendTmuxKeySequence(context, tmuxSession, scenario, keys) {
+  const commands = [];
+  const steps = [];
+  for (let index = 0; index < keys.length; index += 1) {
+    const stepKeys = Array.isArray(keys[index]) ? keys[index] : [keys[index]];
+    const commandScenario = `${scenario}-${String(index + 1).padStart(2, '0')}`;
+    const record = await sendTmuxKeys(context, tmuxSession, commandScenario, stepKeys);
+    commands.push(record);
+    steps.push({
+      index: index + 1,
+      key: stepKeys.join(' '),
+      keys: stepKeys,
+      commandName: record.name,
+      exitCode: record.exitCode,
+      timedOut: record.timedOut,
+      startedAt: record.startedAt,
+      completedAt: record.completedAt,
+      durationMs: record.durationMs,
+    });
+    if (index < keys.length - 1) await sleep(TUI_INPUT_STEP_DELAY_MS);
+  }
+  const failures = commands.filter((record) => record.exitCode !== 0);
+  return {
+    scenario,
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failures.length === 0
+        ? `${scenario} input keys were sent as ${String(keys.length)} ordered step(s).`
+        : `${scenario} input had ${String(failures.length)} failed step(s).`,
+    delayMs: TUI_INPUT_STEP_DELAY_MS,
+    keys: steps.flatMap((step) => step.keys),
+    steps,
+    commands,
+  };
 }
 
 async function captureTmuxPane(context, tmuxSession, scenario) {
