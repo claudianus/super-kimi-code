@@ -3,8 +3,6 @@ import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { WelcomeComponent } from '#/tui/components/chrome/welcome';
-import { setRainbowDance, type RainbowDanceController } from '#/tui/easter-eggs/dance';
-import { darkColors } from '#/tui/theme/colors';
 import type { AppState } from '#/tui/types';
 
 const TRUECOLOR_PATTERN = /\u001B\[38;2;(\d+);(\d+);(\d+)m/g;
@@ -50,17 +48,6 @@ function headerOf(lines: string[]): string {
   return [lines[3], lines[4]].join('\n');
 }
 
-function setDanceView(colored: boolean, phase: number): void {
-  const dance: RainbowDanceController = {
-    colored,
-    phase,
-    start: () => {},
-    stop: () => {},
-    dispose: () => {},
-  };
-  setRainbowDance(dance);
-}
-
 describe('WelcomeComponent', () => {
   const previousChalkLevel = chalk.level;
 
@@ -70,7 +57,6 @@ describe('WelcomeComponent', () => {
 
   afterEach(() => {
     chalk.level = previousChalkLevel;
-    setRainbowDance(undefined);
   });
 
   it('renders the banner in a single brand color by default', () => {
@@ -78,21 +64,6 @@ describe('WelcomeComponent', () => {
 
     // No rainbow by default — just the brand primary (plus the dim tagline).
     expect(codes.size).toBeLessThanOrEqual(2);
-  });
-
-  it('paints the banner in rainbow while colored', () => {
-    setDanceView(true, 0);
-    const codes = truecolorCodes(headerOf(new WelcomeComponent(appState).render(80)));
-
-    expect(codes.size).toBeGreaterThanOrEqual(5);
-  });
-
-  it('renders exactly the default banner when not colored', () => {
-    const base = headerOf(new WelcomeComponent(appState).render(80));
-    setDanceView(false, 5);
-    const off = headerOf(new WelcomeComponent(appState).render(80));
-
-    expect(off).toBe(base);
   });
 
   it('keeps every line within the requested width on narrow terminals', () => {

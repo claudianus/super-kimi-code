@@ -7,7 +7,6 @@ import type { Component } from '@earendil-works/pi-tui';
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 
-import { isRainbowDancing, renderDanceWelcomeHeader } from '#/tui/easter-eggs/dance';
 import type { AppState } from '#/tui/types';
 import { currentTheme } from '#/tui/theme';
 
@@ -61,13 +60,10 @@ export class WelcomeComponent implements Component {
       '…',
     );
 
-    let renderedHeaderLines = [
+    const renderedHeaderLines = [
       primary(logo[0].padEnd(logoWidth)) + gap + rightRow0,
       primary(logo[1].padEnd(logoWidth)) + gap + rightRow1,
     ];
-    if (isRainbowDancing()) {
-      renderedHeaderLines = renderDanceWelcomeHeader(logo, textWidth, rightRow1);
-    }
 
     const modelValue = isLoggedOut
       ? chalk.hex(currentTheme.palette.warning)('not set, run /login or /provider')

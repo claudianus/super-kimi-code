@@ -188,3 +188,14 @@ describe('handleAddDirCommand', () => {
     expect(host.sendNormalUserInput).not.toHaveBeenCalled();
   });
 });
+
+describe('dispatchInput', () => {
+  it('does not intercept /dance as a hidden command', () => {
+    const { host } = makeHost();
+
+    dispatchInput(host, '/dance');
+
+    expect(host.sendNormalUserInput).toHaveBeenCalledWith('/dance');
+    expect(host.showStatus).not.toHaveBeenCalled();
+  });
+});

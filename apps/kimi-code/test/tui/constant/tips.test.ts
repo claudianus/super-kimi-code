@@ -52,4 +52,11 @@ describe('tips constants', () => {
     expect(WORKING_TIPS.some((tip) => tip.text === 'describe the outcome and Kimi will keep the work organized')).toBe(true);
     expect(WORKING_TIPS.some((tip) => tip.text.startsWith('/goal for '))).toBe(false);
   });
+
+  it('does not recommend hidden Easter egg commands', () => {
+    const text = ALL_TIPS.map((tip) => tip.text).join('\n').toLowerCase();
+
+    expect(text).not.toContain('/dance');
+    expect(text).not.toContain('easter');
+  });
 });

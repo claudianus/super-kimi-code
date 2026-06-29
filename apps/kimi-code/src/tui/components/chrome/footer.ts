@@ -11,7 +11,6 @@ import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 
 import { ALL_TIPS, type ToolbarTip } from '#/tui/constant/tips';
-import { isRainbowDancing, renderDanceFooterModel } from '#/tui/easter-eggs/dance';
 import type { ColorPalette } from '#/tui/theme/colors';
 import { currentTheme } from '#/tui/theme/theme';
 import type { AppState } from '#/tui/types';
@@ -276,11 +275,7 @@ export class FooterComponent implements Component {
     if (model) {
       const thinkingLabel = state.thinking ? ' thinking' : '';
       const modelLabel = `${model}${thinkingLabel}`;
-      let renderedModelLabel = chalk.hex(colors.text)(modelLabel);
-      if (isRainbowDancing()) {
-        renderedModelLabel = renderDanceFooterModel(modelLabel);
-      }
-      left.push(renderedModelLabel);
+      left.push(chalk.hex(colors.text)(modelLabel));
     }
 
     // Background-task badges sit immediately before cwd. `bash-*` tasks
