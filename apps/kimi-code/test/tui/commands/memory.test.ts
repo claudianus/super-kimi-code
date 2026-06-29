@@ -156,6 +156,25 @@ describe('memory readiness slash command builders', () => {
     }
   });
 
+  it('summarizes malformed evidence warnings so readiness panels stay scannable', () => {
+    const workDir = mkdtempSync(join(tmpdir(), 'kimi-memory-readiness-warning-summary-'));
+    try {
+      const evidenceDir = join(workDir, '.omo/evidence/g006');
+      mkdirSync(evidenceDir, { recursive: true });
+      for (let index = 0; index < 5; index += 1) {
+        writeFileSync(join(evidenceDir, `bad-${index}.json`), '{"status":"PASS",');
+      }
+
+      const evidence = loadMemoryReadinessEvidence(workDir);
+      const malformedWarnings = evidence.warnings.filter((warning) => warning.startsWith('Malformed evidence ignored: '));
+
+      expect(malformedWarnings).toHaveLength(4);
+      expect(evidence.warnings.join('\n')).toContain('Malformed evidence ignored: 5 files total; 2 more hidden');
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
   it('offers readiness and health subcommands in memory completions', () => {
     const values = memoryArgumentCompletions('h')?.map((item) => item.value);
 

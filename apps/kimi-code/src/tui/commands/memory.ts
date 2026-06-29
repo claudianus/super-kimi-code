@@ -9,6 +9,8 @@ const DEFAULT_MEMORY_EVIDENCE_ROOT = '.omo/evidence';
 const MAX_EVIDENCE_DEPTH = 5;
 const MAX_EVIDENCE_FILES = 200;
 const MAX_EVIDENCE_READ_BYTES = 32_000;
+const MAX_MALFORMED_EVIDENCE_WARNING_SAMPLES = 3;
+const MALFORMED_EVIDENCE_WARNING_PREFIX = 'Malformed evidence ignored: ';
 
 const EVIDENCE_PATTERNS = {
   llmWiki: /\b(?:llm[-_\s]?wiki|llms\.txt|kimi recall|durable memory|memory readiness)\b/iu,
@@ -276,7 +278,7 @@ export function loadMemoryReadinessEvidence(workDir: string): MemoryReadinessEvi
     knowledgeMap: evidenceSignal(matches.knowledgeMap, 'No Kimi Knowledge Map evidence found.'),
     browserUse: evidenceSignal(matches.browserUse, 'No browser-use evidence found.'),
     computerUse: evidenceSignal(matches.computerUse, 'No computer-use evidence found.'),
-    warnings,
+    warnings: summarizeEvidenceWarnings(warnings),
   };
 }
 
@@ -382,6 +384,30 @@ function readEvidenceFile(path: string): { readonly text: string; readonly warni
   } catch {
     return { text: '' };
   }
+}
+
+function summarizeEvidenceWarnings(warnings: readonly string[]): readonly string[] {
+  const malformed: string[] = [];
+  const other: string[] = [];
+  for (const warning of warnings) {
+    if (warning.startsWith(MALFORMED_EVIDENCE_WARNING_PREFIX)) {
+      malformed.push(warning);
+    } else {
+      other.push(warning);
+    }
+  }
+
+  if (malformed.length <= MAX_MALFORMED_EVIDENCE_WARNING_SAMPLES) {
+    return [...other, ...malformed];
+  }
+
+  const sampled = malformed.slice(0, MAX_MALFORMED_EVIDENCE_WARNING_SAMPLES);
+  const hidden = malformed.length - sampled.length;
+  return [
+    ...other,
+    ...sampled,
+    `${MALFORMED_EVIDENCE_WARNING_PREFIX}${malformed.length} files total; ${hidden} more hidden`,
+  ];
 }
 
 function safeStat(path: string): Stats | undefined {
