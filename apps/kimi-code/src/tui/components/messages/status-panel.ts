@@ -150,7 +150,6 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     [
       { label: 'Next', value: readinessNextAction(options) },
       { label: 'Advanced', value: 'Run /help advanced for manual workflow commands.' },
-      { label: 'Diagnostics', value: 'Run /help diagnostics for harness QA commands.' },
     ],
     muted,
     value,

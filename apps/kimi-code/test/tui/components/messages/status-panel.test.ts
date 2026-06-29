@@ -62,9 +62,10 @@ describe('status panel report lines', () => {
     expect(output).toContain('25.0%');
     expect(output).toContain('(3.0k / 12.0k)');
     expect(output).toContain('Readiness');
-    expect(output).toContain('Next         Ready: describe the task and Kimi will check the workspace as needed.');
-    expect(output).toContain('Advanced     Run /help advanced for manual workflow commands.');
-    expect(output).toContain('Diagnostics  Run /help diagnostics for harness QA commands.');
+    expect(output).toMatch(/Next\s+Ready: describe the task and Kimi will check the workspace as needed\./);
+    expect(output).toMatch(/Advanced\s+Run \/help advanced for manual workflow commands\./);
+    expect(output).not.toContain('Diagnostics');
+    expect(output).not.toContain('harness QA');
     expect(output).toContain('Plan usage');
     expect(output).toContain('8% used');
     expect(output).not.toContain('Account');
@@ -94,6 +95,6 @@ describe('status panel report lines', () => {
     expect(output).toContain('Session      none');
     expect(output).toContain('Warning      No active session');
     expect(output).toContain('No context window data available.');
-    expect(output).toContain('Next         Run /login or /model before starting work.');
+    expect(output).toMatch(/Next\s+Run \/login or \/model before starting work\./);
   });
 });
