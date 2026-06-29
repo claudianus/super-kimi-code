@@ -18,6 +18,10 @@ const REQUIRED_TUI_SCENARIOS = Object.freeze([
   'permission-mode',
   'exit',
 ]);
+const OBSERVATION_ONLY_TUI_SCENARIOS = new Set(['startup', 'permission-mode']);
+const REQUIRED_TUI_INPUT_SCENARIOS = Object.freeze(
+  REQUIRED_TUI_SCENARIOS.filter((scenario) => !OBSERVATION_ONLY_TUI_SCENARIOS.has(scenario)),
+);
 const DEFAULT_BUDGETS = Object.freeze({
   wallClockMs: 30_000,
   commandCount: 10,
@@ -232,6 +236,7 @@ async function buildReport(options, outputDir, runId) {
     inputs,
     budgets,
     requiredTuiScenarios: REQUIRED_TUI_SCENARIOS,
+    requiredTuiInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
     gates,
     rubricReferences: criteria.references ?? [],
   };
@@ -299,13 +304,19 @@ function evaluateLoopGate(summary) {
 async function evaluateTuiGate(summary) {
   const failures = [];
   const captures = Array.isArray(summary.captures) ? summary.captures : [];
+  const inputTraces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
   if (summary.status !== 'PASS') failures.push(`TUI summary status is ${String(summary.status)}`);
   const scenarioResults = [];
   for (const scenario of REQUIRED_TUI_SCENARIOS) {
     const capture = captures.find((entry) => entry.scenario === scenario);
     const file = capture?.path;
     const artifact = file === undefined ? { exists: false, bytes: 0 } : await fileStatus(file);
-    const passed = capture?.status === 'PASS' && artifact.exists && artifact.bytes > 0;
+    const capturePassed = capture?.status === 'PASS' && artifact.exists && artifact.bytes > 0;
+    const inputTrace = inputTraces.find((entry) => entry.scenario === scenario);
+    const inputValidation = validateTuiInputTrace(scenario, inputTrace);
+    const inputPassed =
+      inputValidation.status === 'PASS' || inputValidation.status === 'NOT_REQUIRED';
+    const passed = capturePassed && inputPassed;
     if (!passed) failures.push(`missing passing live TUI scenario: ${scenario}`);
     scenarioResults.push({
       scenario,
@@ -313,6 +324,10 @@ async function evaluateTuiGate(summary) {
       captureStatus: capture?.status,
       path: file,
       bytes: artifact.bytes,
+      inputTraceStatus: inputValidation.status,
+      inputTraceReason: inputValidation.reason,
+      inputSteps: inputValidation.steps,
+      inputKeys: inputValidation.keys,
     });
   }
   return {
@@ -321,13 +336,57 @@ async function evaluateTuiGate(summary) {
     required: true,
     reason:
       failures.length === 0
-        ? 'All required live TUI scenarios have passing non-empty capture artifacts.'
+        ? 'All required live TUI scenarios have passing capture artifacts and input traces.'
         : failures.join('; '),
     observed: {
       summaryStatus: summary.status,
       exitSessionClosed: summary.validations?.exitSessionClosed?.status,
+      requiredInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
       scenarios: scenarioResults,
     },
+  };
+}
+
+function validateTuiInputTrace(scenario, trace) {
+  if (!REQUIRED_TUI_INPUT_SCENARIOS.includes(scenario)) {
+    return {
+      status: 'NOT_REQUIRED',
+      reason: 'observation-only scenario has no required key input trace.',
+      steps: 0,
+      keys: [],
+    };
+  }
+  if (trace === undefined) {
+    return {
+      status: 'FAIL',
+      reason: 'missing input trace for scenario.',
+      steps: 0,
+      keys: [],
+    };
+  }
+  const steps = Array.isArray(trace.steps) ? trace.steps : [];
+  const keys = Array.isArray(trace.keys) ? trace.keys : [];
+  const failures = [];
+  if (trace.status !== 'PASS') failures.push(`trace status is ${String(trace.status)}`);
+  if (steps.length === 0) failures.push('trace has no ordered steps');
+  if (keys.length === 0) failures.push('trace has no flattened keys');
+  for (const step of steps) {
+    if (step?.exitCode !== 0) {
+      failures.push(`step ${String(step?.index)} exitCode=${String(step?.exitCode)}`);
+    }
+    if (step?.timedOut === true) failures.push(`step ${String(step?.index)} timed out`);
+    if (!Array.isArray(step?.keys) || step.keys.length === 0) {
+      failures.push(`step ${String(step?.index)} has no keys`);
+    }
+  }
+  return {
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failures.length === 0
+        ? 'input trace has ordered key steps with successful tmux sends.'
+        : failures.join('; '),
+    steps: steps.length,
+    keys,
   };
 }
 
@@ -381,7 +440,8 @@ async function evaluateNoWebUiSurfaceGate(inputs) {
     }
   }
 
-  const webUiInputs = Object.entries(inputs)
+  const inputEntries = Object.entries(inputs).map(([name, inputPath]) => [name, String(inputPath)]);
+  const webUiInputs = inputEntries
     .filter(([, inputPath]) => pathSegments(inputPath).includes('apps') && pathSegments(inputPath).includes('kimi-web'))
     .map(([name, inputPath]) => `${name}=${inputPath}`);
   if (webUiInputs.length > 0) {
