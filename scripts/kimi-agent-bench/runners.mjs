@@ -18,7 +18,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 
 export async function runTaskSolver({ commandLogPath, options, sourceCheckout, task, workspace }) {
   if (options.runner === 'fixture') {
-    return await runFixtureSolver(commandLogPath, task, workspace);
+    return runFixtureSolver(commandLogPath, task, workspace);
   }
   if (options.runner === 'external') {
     return runExternalSolver(commandLogPath, options.solverCommand, task, workspace);

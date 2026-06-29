@@ -35,7 +35,7 @@ export async function runTask({ commandLogPath, evidenceRoot, options, sourceChe
     result.taxonomy.push('harness_error');
   }
 
-  return await finishTask(taskDir, result, task, startedMs);
+  return finishTask(taskDir, result, task, startedMs);
 }
 
 async function prepareTaskWorkspace(taskDir, workspace) {
@@ -77,21 +77,21 @@ async function finishQuarantined(taskDir, result, contamination, task, startedMs
   result.status = 'QUARANTINED';
   result.taxonomy.push('contamination_guard');
   result.blockedReason = contamination.reason;
-  return await finishTask(taskDir, result, task, startedMs);
+  return finishTask(taskDir, result, task, startedMs);
 }
 
 async function finishQuarantineRegression(taskDir, result, task, startedMs) {
   result.status = 'FAIL';
   result.taxonomy.push('quarantine_regression');
   result.blockedReason = 'Task expected quarantine, but the contamination guard allowed solver execution.';
-  return await finishTask(taskDir, result, task, startedMs);
+  return finishTask(taskDir, result, task, startedMs);
 }
 
 async function finishBlocked(taskDir, result, runnerResult, task, startedMs) {
   result.status = 'BLOCKED';
   result.blockedReason = runnerResult.reason;
   result.taxonomy.push('environment_blocked');
-  return await finishTask(taskDir, result, task, startedMs);
+  return finishTask(taskDir, result, task, startedMs);
 }
 
 async function scoreTaskChecks(result, checks, sourceCheckout, workspace) {

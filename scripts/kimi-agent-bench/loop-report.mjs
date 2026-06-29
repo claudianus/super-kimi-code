@@ -30,7 +30,7 @@ export function buildImprovementProposal(report, delta, iteration) {
     '',
     '## Failure Taxonomy',
     '',
-    ...Object.entries(report.taxonomy).map(([name, count]) => `- ${name}: ${count}`),
+    ...Object.entries(report.taxonomy).map(([name, count]) => `- ${name}: ${String(count)}`),
     '',
   ].join('\n');
   return { summary, markdown };
