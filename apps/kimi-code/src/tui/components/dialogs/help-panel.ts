@@ -101,7 +101,10 @@ export class HelpPanelComponent extends Container implements Focusable {
 
     const shortcuts = this.opts.shortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS;
     const kbdWidth = Math.max(8, ...shortcuts.map((s) => s.keys.length));
-    const sortedCmds = [...this.opts.commands].toSorted(compareSlashCommandsForDisplay);
+    const sortedCmds = this.opts.commands
+      .map((command, index) => ({ command, index }))
+      .toSorted(compareSlashCommandsForDisplay)
+      .map(({ command }) => command);
     const cmdLabels = sortedCmds.map((c) => {
       const aliases = c.aliases.length > 0 ? ` (${c.aliases.map((a) => '/' + a).join(', ')})` : '';
       return `/${c.name}${aliases}`;
@@ -148,10 +151,13 @@ export class HelpPanelComponent extends Container implements Focusable {
   }
 }
 
-function compareSlashCommandsForDisplay(a: HelpPanelCommand, b: HelpPanelCommand): number {
+function compareSlashCommandsForDisplay(
+  a: { readonly command: HelpPanelCommand; readonly index: number },
+  b: { readonly command: HelpPanelCommand; readonly index: number },
+): number {
   return (
-    getSlashCommandDisplayGroup(a.name) - getSlashCommandDisplayGroup(b.name) ||
-    a.name.localeCompare(b.name)
+    getSlashCommandDisplayGroup(a.command.name) - getSlashCommandDisplayGroup(b.command.name) ||
+    a.index - b.index
   );
 }
 

@@ -32,7 +32,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Exit/);
   });
 
-  it('sorts unprefixed commands before skill commands and by name within each group', () => {
+  it('preserves provided command order while keeping skill commands last', () => {
     const panel = new HelpPanelComponent({
       commands: [
         cmd('zebra', 'Z'),
@@ -47,10 +47,11 @@ describe('HelpPanelComponent', () => {
     const mcpConfigIdx = out.indexOf('/mcp-config');
     const zebraIdx = out.indexOf('/zebra');
     const skillBravoIdx = out.indexOf('/skill:bravo');
-    expect(alphaIdx).toBeGreaterThan(-1);
+    expect(zebraIdx).toBeGreaterThan(-1);
+    expect(zebraIdx).toBeLessThan(alphaIdx);
     expect(alphaIdx).toBeLessThan(mcpConfigIdx);
-    expect(mcpConfigIdx).toBeLessThan(zebraIdx);
     expect(zebraIdx).toBeLessThan(skillBravoIdx);
+    expect(mcpConfigIdx).toBeLessThan(skillBravoIdx);
   });
 
   it('Escape fires onClose', () => {
