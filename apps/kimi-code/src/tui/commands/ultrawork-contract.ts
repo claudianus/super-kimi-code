@@ -77,7 +77,17 @@ export function parseUltraworkCommand(rawArgs: string): ParsedUltraworkCommand {
       replace: parsed.replace,
     };
   }
-  if (parsed.kind === 'error') return parsed;
+  if (parsed.kind === 'error') {
+    if (parsed.message === 'Provide a goal objective, e.g. `/goal Ship feature X`.') {
+      return {
+        kind: 'error',
+        severity: parsed.severity,
+        message:
+          'Provide an Ultrawork objective, e.g. `/ultrawork Ship feature X` or `/ultrawork replace Ship feature X`.',
+      };
+    }
+    return parsed;
+  }
   return {
     kind: 'error',
     severity: 'hint',

@@ -148,6 +148,15 @@ describe('parseUltraworkCommand', () => {
     expect(parsed.message).toContain('/goal status');
     expect(parsed.message).not.toMatch(/ultragoal/i);
   });
+
+  it('keeps replace-without-objective guidance focused on Ultrawork', () => {
+    const parsed = parseUltraworkCommand('replace');
+
+    expect(parsed.kind).toBe('error');
+    if (parsed.kind !== 'error') return;
+    expect(parsed.message).toContain('/ultrawork replace Ship feature X');
+    expect(parsed.message).not.toContain('/goal Ship feature X');
+  });
 });
 
 describe('handleUltraworkCommand', () => {
