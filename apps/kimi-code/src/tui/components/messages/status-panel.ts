@@ -147,10 +147,7 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
   lines.push(accent('Readiness'));
   addFieldRows(
     lines,
-    [
-      { label: 'Next', value: readinessNextAction(options) },
-      { label: 'Advanced', value: 'Run /help advanced for manual workflow commands.' },
-    ],
+    [{ label: 'Next', value: readinessNextAction(options) }],
     muted,
     value,
     errorStyle,
