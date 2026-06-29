@@ -67,6 +67,7 @@ Options:
   --max-wall-clock-ms <n>             System benchmark wall-clock budget.
   --max-command-count <n>             System benchmark command-count budget.
   --max-estimated-tokens <n>          System benchmark estimated-token budget.
+  --baseline-sota-summary <path>      Optional prior SOTA gate summary for live TUI UX delta checks.
   --require-cleanup-receipt           Fail when cleanup receipts are missing.
 
 Reports:
@@ -81,6 +82,7 @@ function createRunId() {
 function parseArgs(argv) {
   const options = {
     criteria: DEFAULT_CRITERIA_PATH,
+    baselineSotaSummary: undefined,
     help: false,
     loopSummary: undefined,
     maxCommandCount: undefined,
@@ -101,6 +103,7 @@ function parseArgs(argv) {
     '--max-wall-clock-ms',
     '--max-command-count',
     '--max-estimated-tokens',
+    '--baseline-sota-summary',
   ]);
   const booleanOptions = new Set(['--help', '--require-cleanup-receipt']);
 
@@ -154,6 +157,7 @@ function setValueOption(options, flag, value, errors) {
   if (flag === '--max-wall-clock-ms') options.maxWallClockMs = parsePositiveInteger(flag, value, errors);
   if (flag === '--max-command-count') options.maxCommandCount = parsePositiveInteger(flag, value, errors);
   if (flag === '--max-estimated-tokens') options.maxEstimatedTokens = parsePositiveInteger(flag, value, errors);
+  if (flag === '--baseline-sota-summary') options.baselineSotaSummary = value;
 }
 
 function parsePositiveInteger(flag, value, errors) {
@@ -218,9 +222,16 @@ async function buildReport(options, outputDir, runId) {
     loopSummary: path.resolve(options.loopSummary),
     tuiSummary: path.resolve(options.tuiSummary),
   };
+  if (options.baselineSotaSummary !== undefined) {
+    inputs.baselineSotaSummary = path.resolve(options.baselineSotaSummary);
+  }
   const systemSummary = await readJsonRequired(inputs.systemSummary, 'bench-system summary');
   const loopSummary = await readJsonRequired(inputs.loopSummary, 'bench-system-loop summary');
   const tuiSummary = await readJsonRequired(inputs.tuiSummary, 'live TUI summary');
+  const baselineSotaSummary =
+    inputs.baselineSotaSummary === undefined
+      ? undefined
+      : await readJsonRequired(inputs.baselineSotaSummary, 'baseline SOTA gate summary');
 
   const tuiGate = await evaluateTuiGate(tuiSummary);
   const gates = [
@@ -232,6 +243,11 @@ async function buildReport(options, outputDir, runId) {
     await evaluateSecretScanGate(inputs, criteriaPath),
     await evaluateCleanupReceiptGate(inputs, options.requireCleanupReceipt),
   ];
+  const tuiUxDelta =
+    baselineSotaSummary === undefined
+      ? undefined
+      : evaluateTuiUxDeltaGate(baselineSotaSummary, tuiGate.observed?.uxFriction);
+  if (tuiUxDelta !== undefined) gates.push(tuiUxDelta);
   const status = gates.every((gate) => gate.status === 'PASS' || gate.required === false) ? 'PASS' : 'FAIL';
   return {
     schemaVersion: 1,
@@ -253,6 +269,7 @@ async function buildReport(options, outputDir, runId) {
     requiredTuiObservationScenarios: REQUIRED_TUI_SCENARIOS,
     requiredTuiInputScenarios: REQUIRED_TUI_INPUT_SCENARIOS,
     tuiUxFriction: tuiGate.observed?.uxFriction,
+    tuiUxDelta: tuiUxDelta?.observed,
     gates,
     rubricReferences: criteria.references ?? [],
   };
@@ -370,6 +387,66 @@ async function evaluateTuiGate(summary) {
       scenarios: scenarioResults,
     },
   };
+}
+
+function evaluateTuiUxDeltaGate(baselineSummary, currentFriction) {
+  const baselineFriction = extractTuiUxFriction(baselineSummary);
+  const baselineScore = baselineFriction?.score;
+  const currentScore = currentFriction?.score;
+  const failures = [];
+  if (typeof baselineScore !== 'number') failures.push('baseline live TUI UX friction score is missing');
+  if (typeof currentScore !== 'number') failures.push('current live TUI UX friction score is missing');
+  const scoreDelta =
+    typeof baselineScore === 'number' && typeof currentScore === 'number'
+      ? currentScore - baselineScore
+      : undefined;
+  if (scoreDelta !== undefined && scoreDelta < 0) {
+    failures.push(`live TUI UX friction score regressed by ${String(scoreDelta)}`);
+  }
+  const durationDeltaMs =
+    typeof baselineFriction?.durationMs === 'number' && typeof currentFriction?.durationMs === 'number'
+      ? currentFriction.durationMs - baselineFriction.durationMs
+      : undefined;
+  return {
+    name: 'live-tui-ux-friction-delta',
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    required: true,
+    reason:
+      failures.length === 0
+        ? `live TUI UX friction did not regress; score delta ${formatSignedNumber(scoreDelta ?? 0)}.`
+        : failures.join('; '),
+    observed: {
+      baselineScore,
+      currentScore,
+      scoreDelta,
+      baselineDurationMs: baselineFriction?.durationMs,
+      currentDurationMs: currentFriction?.durationMs,
+      durationDeltaMs,
+      verdict:
+        scoreDelta === undefined
+          ? 'unknown'
+          : scoreDelta > 0
+            ? 'improved'
+            : scoreDelta === 0
+              ? 'no-regression'
+              : 'regressed',
+      baselineRunId: baselineSummary.runId,
+      baselineStatus: baselineSummary.status,
+      currentStatus: currentFriction?.status,
+    },
+  };
+}
+
+function extractTuiUxFriction(summary) {
+  if (summary?.tuiUxFriction !== undefined) return summary.tuiUxFriction;
+  const tuiGate = Array.isArray(summary?.gates)
+    ? summary.gates.find((gate) => gate.name === 'live-tui-required-scenarios')
+    : undefined;
+  return tuiGate?.observed?.uxFriction;
+}
+
+function formatSignedNumber(value) {
+  return value >= 0 ? `+${String(value)}` : String(value);
 }
 
 async function validateTuiScreenArtifact(scenario, file, artifact) {
@@ -845,6 +922,9 @@ function renderMarkdown(report) {
     `- bench-system: ${report.inputs.systemSummary}`,
     `- bench-system-loop: ${report.inputs.loopSummary}`,
     `- live TUI: ${report.inputs.tuiSummary}`,
+    ...(report.inputs.baselineSotaSummary === undefined
+      ? []
+      : [`- baseline SOTA: ${report.inputs.baselineSotaSummary}`]),
     '',
     '## Gates',
     '',
@@ -866,6 +946,18 @@ function renderMarkdown(report) {
     for (const penalty of report.tuiUxFriction.penalties) {
       lines.push(`- penalty: ${penalty.name} -${penalty.points}`);
     }
+  }
+  if (report.tuiUxDelta !== undefined) {
+    lines.push(
+      '',
+      '## Live TUI UX Delta',
+      '',
+      `- baseline score: ${String(report.tuiUxDelta.baselineScore ?? 'unavailable')}`,
+      `- current score: ${String(report.tuiUxDelta.currentScore ?? 'unavailable')}`,
+      `- score delta: ${formatSignedNumber(report.tuiUxDelta.scoreDelta ?? 0)}`,
+      `- verdict: ${report.tuiUxDelta.verdict}`,
+      `- duration delta ms: ${String(report.tuiUxDelta.durationDeltaMs ?? 'unavailable')}`,
+    );
   }
   lines.push(
     '',
