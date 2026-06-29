@@ -116,6 +116,15 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ];
   }
 
+  if (options.gitStatus?.dirty === true) {
+    return [
+      { label: 'State', value: 'Worktree dirty' },
+      { label: 'Checks', value: READINESS_CHECKS },
+      { label: 'Done gate', value: DONE_GATE },
+      { label: 'Next', value: 'Review changed files before finishing.' },
+    ];
+  }
+
   const planMode = options.status?.planMode ?? options.planMode;
   return [
     { label: 'State', value: 'Ready' },

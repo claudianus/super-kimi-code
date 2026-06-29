@@ -39,7 +39,7 @@ describe('status panel report lines', () => {
       },
       gitStatus: {
         branch: 'main',
-        dirty: true,
+        dirty: false,
         ahead: 1,
         behind: 0,
         diffAdded: 12,
@@ -63,7 +63,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('>_ Kimi Code (v1.2.3)');
     expect(output).toContain('Model        Kimi K2 (thinking on)');
     expect(output).toContain('Directory    /tmp/project');
-    expect(output).toContain('Worktree     main [+12 -3 ↑1] dirty');
+    expect(output).toContain('Worktree     main [+12 -3 ↑1] clean');
     expect(output).toContain('Permissions  auto');
     expect(output).toContain('Plan mode    on');
     expect(output).toContain('Session      ses-1');
@@ -134,5 +134,36 @@ describe('status panel report lines', () => {
     const output = lines.join('\n');
     expect(output).toMatch(/State\s+Context high/);
     expect(output).toMatch(/Next\s+Run \/compact before long work\./);
+  });
+
+  it('surfaces a dirty worktree as the next readiness action', () => {
+    const lines = buildStatusReportLines({
+      version: '1.2.3',
+      model: 'k2',
+      workDir: '/tmp/project',
+      sessionId: 'ses-1',
+      sessionTitle: null,
+      thinking: true,
+      permissionMode: 'manual',
+      planMode: true,
+      contextUsage: 0.1,
+      contextTokens: 1000,
+      maxContextTokens: 10000,
+      availableModels: {},
+      gitStatus: {
+        branch: 'feature',
+        dirty: true,
+        ahead: 0,
+        behind: 0,
+        diffAdded: 0,
+        diffDeleted: 0,
+        pullRequest: null,
+      },
+    }).map(strip);
+
+    const output = lines.join('\n');
+    expect(output).toContain('Worktree     feature [±] dirty');
+    expect(output).toMatch(/State\s+Worktree dirty/);
+    expect(output).toMatch(/Next\s+Review changed files before finishing\./);
   });
 });
