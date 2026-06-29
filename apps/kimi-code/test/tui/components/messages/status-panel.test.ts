@@ -64,7 +64,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('Readiness');
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+read -> test -> change -> verify -> TUI check/);
-    expect(output).toMatch(/Next\s+Describe the task to start\./);
+    expect(output).toMatch(/Next\s+Describe the task; Kimi will plan first\./);
     expect(output).not.toContain('Advanced');
     expect(output).not.toContain('manual workflow commands');
     expect(output).not.toContain('Diagnostics');

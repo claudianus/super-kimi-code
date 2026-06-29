@@ -107,10 +107,14 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ];
   }
 
+  const planMode = options.status?.planMode ?? options.planMode;
   return [
     { label: 'State', value: 'Ready' },
     { label: 'Checks', value: READINESS_CHECKS },
-    { label: 'Next', value: 'Describe the task to start.' },
+    {
+      label: 'Next',
+      value: planMode ? 'Describe the task; Kimi will plan first.' : 'Describe the task to start.',
+    },
   ];
 }
 
