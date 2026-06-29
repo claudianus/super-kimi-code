@@ -10,6 +10,7 @@ const DEFAULT_OUTPUT_BASE = '.omo/evidence/kimi-agent-sota-gate';
 const DEFAULT_EVIDENCE_ROOT = '.omo/evidence';
 const SOTA_SUMMARY_FILENAME = 'sota-gate-summary.json';
 const AUTO_BASELINE_SCAN_LIMIT = 20_000;
+const LATEST_PASS_INPUT = 'latest-pass';
 const REQUIRED_TUI_SCENARIOS = Object.freeze([
   'startup',
   'help',
@@ -105,6 +106,54 @@ const REQUIRED_DEFINITION_OF_DONE_CONTRACTS = Object.freeze([
   { name: 'public-behavior-tested', pattern: /\bpublic behavior\b.*\btests\b/i },
   { name: 'real-surface-observed', pattern: /\bTUI\/CLI surface\b.*\bobserved\b/i },
 ]);
+const REQUIRED_WORKFLOW_VALIDATIONS = Object.freeze([
+  'tmuxPreflight',
+  'kimiCodeHomeReady',
+  'promptSubmitted',
+  'directPlanMode',
+  'standardCodingMode',
+  'targetWorktreeToolingLinked',
+  'workspaceChanged',
+  'multiFileWorkspaceChanged',
+  'verifierUnchanged',
+  'repositorySourceTestChanged',
+  'statusLimitedToWorkflowFiles',
+  'repositoryTargetedTest',
+  'diffContainsSentinel',
+  'verificationCommand',
+  'agentVerificationObserved',
+  'screenEvidence',
+  'kimiModelReady',
+  'adaptiveOperatorLoop',
+  'operatorTrajectory',
+]);
+const REQUIRED_ULTRAWORK_VALIDATIONS = Object.freeze([
+  'tmuxPreflight',
+  'kimiCodeHomeReady',
+  'tuiReady',
+  'promptSubmitted',
+  'planModeReset',
+  'targetWorktreeToolingLinked',
+  'ultraworkActivated',
+  'ultraPlanInterviewReached',
+  'questionAnswered',
+  'postQuestionProgressObserved',
+  'noQuestionToolContractError',
+  'noAutoQuestionPolicyConflict',
+  'workspaceChanged',
+  'multiFileWorkspaceChanged',
+  'verifierUnchanged',
+  'repositorySourceTestChanged',
+  'statusLimitedToWorkflowFiles',
+  'repositoryTargetedTest',
+  'diffContainsSentinel',
+  'verificationCommand',
+  'agentVerificationObserved',
+  'screenEvidence',
+  'kimiModelReady',
+  'adaptiveOperatorLoop',
+  'operatorTrajectory',
+]);
 const SECRET_PATTERNS = Object.freeze([
   /\bsk-[A-Za-z0-9_-]{8,}/,
   /\b[A-Za-z0-9_]*API_KEY\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/,
@@ -120,9 +169,11 @@ Local Super Kimi SOTA evidence gate.
 Required inputs:
   --system-summary <path>             bench-system phase summary JSON.
   --loop-summary <path>               bench-system-loop phase summary JSON.
-  --tui-summary <path>                live TUI launch summary JSON.
-  --workflow-summary <path>           live TUI real workflow summary JSON.
-  --ultrawork-summary <path>          Optional live TUI Ultrawork activation summary JSON.
+  --tui-summary <path|latest-pass>    live TUI launch summary JSON.
+  --workflow-summary <path|latest-pass>
+                                      live TUI real workflow summary JSON.
+  --ultrawork-summary <path|latest-pass>
+                                      Optional live TUI Ultrawork activation summary JSON.
 
 Options:
   --help                              Show this help.
@@ -292,12 +343,20 @@ async function buildReport(options, outputDir, runId) {
   const evidenceInputs = {
     systemSummary: path.resolve(options.systemSummary),
     loopSummary: path.resolve(options.loopSummary),
-    tuiSummary: path.resolve(options.tuiSummary),
-    workflowSummary: path.resolve(options.workflowSummary),
   };
-  if (options.ultraworkSummary !== undefined) {
-    evidenceInputs.ultraworkSummary = path.resolve(options.ultraworkSummary);
-  }
+  const tuiInput = await resolveEvidenceSummaryInput('tuiSummary', options.tuiSummary, outputDir);
+  const workflowInput = await resolveEvidenceSummaryInput(
+    'workflowSummary',
+    options.workflowSummary,
+    outputDir,
+  );
+  const ultraworkInput =
+    options.ultraworkSummary === undefined
+      ? undefined
+      : await resolveEvidenceSummaryInput('ultraworkSummary', options.ultraworkSummary, outputDir);
+  evidenceInputs.tuiSummary = tuiInput.path;
+  evidenceInputs.workflowSummary = workflowInput.path;
+  if (ultraworkInput !== undefined) evidenceInputs.ultraworkSummary = ultraworkInput.path;
   const baselineSelection = await selectBaselineSotaSummary(options, outputDir);
   const inputs = { ...evidenceInputs };
   if (baselineSelection !== undefined) inputs.baselineSotaSummary = baselineSelection.path;
@@ -375,6 +434,11 @@ async function buildReport(options, outputDir, runId) {
     primarySuccessSurface: PRIMARY_TUI_SUCCESS_SURFACE,
     auxiliarySuccessSurfaces: [AUXILIARY_PROMPT_BENCH_SURFACE],
     tuiUxBaseline: baselineSelection?.metadata,
+    inputSelections: {
+      tuiSummary: tuiInput.selection,
+      workflowSummary: workflowInput.selection,
+      ultraworkSummary: ultraworkInput?.selection,
+    },
     tuiUxFriction: tuiGate.observed?.uxFriction,
     tuiWorkflowProof: workflowGate.observed,
     tuiUltraworkProof: ultraworkGate?.observed,
@@ -886,6 +950,155 @@ async function selectBaselineSotaSummary(options, outputDir) {
   return findLatestAutoBaselineSotaSummary(path.resolve(DEFAULT_EVIDENCE_ROOT), outputDir);
 }
 
+async function resolveEvidenceSummaryInput(kind, value, outputDir) {
+  if (value !== LATEST_PASS_INPUT) {
+    return {
+      path: path.resolve(value),
+      selection: {
+        source: 'explicit-path',
+        path: path.resolve(value),
+      },
+    };
+  }
+
+  const selection = await findLatestPassingEvidenceSummary(kind, path.resolve(DEFAULT_EVIDENCE_ROOT), outputDir);
+  if (selection === undefined) {
+    throw new Error(`No latest passing ${kind} evidence summary found under ${DEFAULT_EVIDENCE_ROOT}`);
+  }
+  return {
+    path: selection.path,
+    selection,
+  };
+}
+
+async function findLatestPassingEvidenceSummary(kind, evidenceRoot, outputDir) {
+  const candidates = await findEvidenceSummaryFiles(evidenceRoot, {
+    excludeDir: outputDir,
+    limit: AUTO_BASELINE_SCAN_LIMIT,
+    kind,
+  });
+  for (const candidate of candidates) {
+    const summary = await readJsonIfFile(candidate.path);
+    if (!isUsableEvidenceSummary(kind, summary)) continue;
+    return {
+      source: 'auto-latest-pass',
+      kind,
+      path: candidate.path,
+      reason: latestEvidenceReason(kind),
+      phase: summary.phase,
+      summaryStatus: summary.status,
+      modifiedAt: candidate.modifiedAt,
+    };
+  }
+  return undefined;
+}
+
+async function findEvidenceSummaryFiles(rootDir, options) {
+  const files = [];
+  const stack = [''];
+  while (stack.length > 0 && files.length < options.limit) {
+    const relativeDir = stack.pop();
+    const absoluteDir = path.join(rootDir, relativeDir);
+    let entries;
+    try {
+      entries = await readdir(absoluteDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const relativePath = path.join(relativeDir, entry.name);
+      const absolutePath = path.join(rootDir, relativePath);
+      if (isPathInside(absolutePath, options.excludeDir)) continue;
+      if (entry.isDirectory()) {
+        stack.push(relativePath);
+        continue;
+      }
+      if (!entry.isFile() || !isEvidenceSummaryCandidate(options.kind, relativePath)) continue;
+      const info = await fileStatOrUndefined(absolutePath);
+      if (info === undefined) continue;
+      files.push({ path: absolutePath, modifiedAt: info.mtimeMs });
+      if (files.length >= options.limit) break;
+    }
+  }
+  return files.toSorted((left, right) => right.modifiedAt - left.modifiedAt);
+}
+
+function isEvidenceSummaryCandidate(kind, relativePath) {
+  const normalized = relativePath.split(path.sep).join('/');
+  if (kind === 'tuiSummary') {
+    return normalized.endsWith('/tui-launch.json') || normalized.endsWith('/tui/summary.json');
+  }
+  if (kind === 'workflowSummary') return normalized.endsWith('/tui-real-workflow.json');
+  if (kind === 'ultraworkSummary') return normalized.endsWith('/tui-ultrawork-workflow.json');
+  return false;
+}
+
+function isUsableEvidenceSummary(kind, summary) {
+  if (kind === 'tuiSummary') return isUsableTuiSummary(summary);
+  if (kind === 'workflowSummary') return isUsableWorkflowSummary(summary);
+  if (kind === 'ultraworkSummary') return isUsableUltraworkSummary(summary);
+  return false;
+}
+
+function isUsableTuiSummary(summary) {
+  if (summary?.phase !== 'tui-launch' || summary.status !== 'PASS') return false;
+  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
+  const captures = new Map(summary.captures.map((capture) => [capture.scenario, capture]));
+  const traces = new Map(summary.inputTraces.map((trace) => [trace.scenario, trace]));
+  return (
+    REQUIRED_TUI_SCENARIOS.every((scenario) => captures.get(scenario)?.status === 'PASS') &&
+    REQUIRED_TUI_INPUT_SCENARIOS.every((scenario) => traces.get(scenario)?.status === 'PASS')
+  );
+}
+
+function isUsableWorkflowSummary(summary) {
+  if (summary?.phase !== 'tui-real-workflow' || summary.status !== 'PASS') return false;
+  if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
+  if (REQUIRED_WORKFLOW_VALIDATIONS.some((name) => summary.validations?.[name]?.status !== 'PASS')) {
+    return false;
+  }
+  if (!Array.isArray(summary.workflow?.wait?.agentVerificationEvidence)) return false;
+  if (summary.workflow.wait.agentVerificationEvidence.length === 0) return false;
+  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
+  if (!Array.isArray(summary.workspace?.editFiles) || summary.workspace.editFiles.length < 2) return false;
+  if (summary.workspace?.editedFileCount < 2) return false;
+  if (summary.workspace?.diffExitCode !== 0) return false;
+  if (summary.workspace?.verificationExitCode !== 0) return false;
+  return summary.workspace?.targetedTestExitCode === 0;
+}
+
+function isUsableUltraworkSummary(summary) {
+  if (summary?.phase !== 'tui-ultrawork-workflow' || summary.status !== 'PASS') return false;
+  if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
+  if (REQUIRED_ULTRAWORK_VALIDATIONS.some((name) => summary.validations?.[name]?.status !== 'PASS')) {
+    return false;
+  }
+  if (!Array.isArray(summary.workflow?.wait?.activationEvidence)) return false;
+  if (summary.workflow.wait.activationEvidence.length === 0) return false;
+  if (!Array.isArray(summary.workflow?.wait?.interviewEvidence)) return false;
+  if (summary.workflow.wait.interviewEvidence.length === 0) return false;
+  if (!Array.isArray(summary.workflow?.wait?.questionAnswerEvidence)) return false;
+  if (summary.workflow.wait.questionAnswerEvidence.length === 0) return false;
+  if (!Array.isArray(summary.workflow?.wait?.postQuestionProgressEvidence)) return false;
+  if (summary.workflow.wait.postQuestionProgressEvidence.length === 0) return false;
+  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
+  if (!Array.isArray(summary.workspace?.editFiles) || summary.workspace.editFiles.length < 2) return false;
+  if (summary.workspace?.editedFileCount < 2) return false;
+  if (summary.workspace?.diffExitCode !== 0) return false;
+  if (summary.workspace?.verificationExitCode !== 0) return false;
+  return summary.workspace?.targetedTestExitCode === 0;
+}
+
+function latestEvidenceReason(kind) {
+  if (kind === 'tuiSummary') {
+    return 'Selected the latest passing live TUI launch summary with required screen and input traces.';
+  }
+  if (kind === 'workflowSummary') {
+    return 'Selected the latest passing live TUI real workflow summary with source/test, clean-scope, and agent verification evidence.';
+  }
+  return 'Selected the latest passing live TUI Ultrawork workflow summary with activation, interview, clean-scope, and verification evidence.';
+}
+
 async function findLatestAutoBaselineSotaSummary(evidenceRoot, outputDir) {
   const candidates = await findSotaSummaryFiles(evidenceRoot, {
     excludeDir: outputDir,
@@ -1024,29 +1237,8 @@ async function evaluateWorkflowGate(summary) {
     failures.push(`KIMI_CODE_HOME mode is ${String(summary.kimiCodeHomeMode)}`);
   }
 
-  const requiredValidations = [
-    'tmuxPreflight',
-    'kimiCodeHomeReady',
-    'promptSubmitted',
-    'directPlanMode',
-    'standardCodingMode',
-    'targetWorktreeToolingLinked',
-    'workspaceChanged',
-    'multiFileWorkspaceChanged',
-    'verifierUnchanged',
-    'repositorySourceTestChanged',
-    'statusLimitedToWorkflowFiles',
-    'repositoryTargetedTest',
-    'diffContainsSentinel',
-    'verificationCommand',
-    'agentVerificationObserved',
-    'screenEvidence',
-    'kimiModelReady',
-    'adaptiveOperatorLoop',
-    'operatorTrajectory',
-  ];
   const validationStatuses = {};
-  for (const name of requiredValidations) {
+  for (const name of REQUIRED_WORKFLOW_VALIDATIONS) {
     const status = summary.validations?.[name]?.status;
     validationStatuses[name] = status;
     if (status !== 'PASS') failures.push(`${name} validation is ${String(status)}`);
@@ -1139,35 +1331,8 @@ async function evaluateUltraworkGate(summary) {
     failures.push(`KIMI_CODE_HOME mode is ${String(summary.kimiCodeHomeMode)}`);
   }
 
-  const requiredValidations = [
-    'tmuxPreflight',
-    'kimiCodeHomeReady',
-    'tuiReady',
-    'promptSubmitted',
-    'planModeReset',
-    'targetWorktreeToolingLinked',
-    'ultraworkActivated',
-    'ultraPlanInterviewReached',
-    'questionAnswered',
-    'postQuestionProgressObserved',
-    'noQuestionToolContractError',
-    'noAutoQuestionPolicyConflict',
-    'workspaceChanged',
-    'multiFileWorkspaceChanged',
-    'verifierUnchanged',
-    'repositorySourceTestChanged',
-    'statusLimitedToWorkflowFiles',
-    'repositoryTargetedTest',
-    'diffContainsSentinel',
-    'verificationCommand',
-    'agentVerificationObserved',
-    'screenEvidence',
-    'kimiModelReady',
-    'adaptiveOperatorLoop',
-    'operatorTrajectory',
-  ];
   const validationStatuses = {};
-  for (const name of requiredValidations) {
+  for (const name of REQUIRED_ULTRAWORK_VALIDATIONS) {
     const status = summary.validations?.[name]?.status;
     validationStatuses[name] = status;
     if (status !== 'PASS') failures.push(`${name} validation is ${String(status)}`);
