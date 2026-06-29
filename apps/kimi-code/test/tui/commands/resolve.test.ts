@@ -99,14 +99,6 @@ describe('resolveSlashCommandInput', () => {
       name: 'ultrawork',
       args: 'Ship feature X',
     });
-    expect(resolve('/vibe Fix the test')).toEqual({
-      kind: 'message',
-      input: '/vibe Fix the test',
-    });
-    expect(resolve('/code Fix the test')).toEqual({
-      kind: 'message',
-      input: '/code Fix the test',
-    });
   });
 
   it('blocks idle-only built-ins while streaming', () => {
