@@ -12,6 +12,7 @@ import {
 } from './memory';
 
 const DEFAULT_PREFLIGHT_RECALL_QUERY = 'super kimi harness knowledge-map browser-use computer-use llm-wiki readiness';
+const PREFLIGHT_RECALL_MEMORY_SUBJECT = 'preflight-readiness';
 const PREFLIGHT_FRESHNESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 const PREFLIGHT_REFRESH_EVIDENCE_ROOT = '.omo/evidence/super-kimi-preflight-refresh';
 const PREFLIGHT_RUNTIME_EVIDENCE_ROOT = '.omo/evidence/preflight-readiness';
@@ -539,10 +540,10 @@ function nextPreflightAction(
   freshness: PreflightFreshness,
 ): string {
   if (!isBenchReady(bench)) return bench.nextAction;
-  if (!isMemoryReady(memory)) return 'Create a durable memory with /memory remember <subject> :: <content>.';
+  if (!isMemoryReady(memory)) return `Run ${preflightRecallMemoryCommand(memory.query)}.`;
   if (memory.query.length === 0) return 'Run /preflight --query=<recall query> to verify Kimi Recall retrieval.';
   if (memory.searchError !== undefined) return 'Fix recall search, then rerun /preflight.';
-  if ((memory.searchResults?.length ?? 0) === 0) return 'Add or refine durable memories for the preflight recall query.';
+  if ((memory.searchResults?.length ?? 0) === 0) return `Run ${preflightRecallMemoryCommand(memory.query)}, then rerun /preflight.`;
   if (!memory.evidence.llmWiki.ready) return 'Add llm-wiki or durable-memory evidence under .omo/evidence.';
   if (!memory.evidence.knowledgeMap.ready) return 'Capture Kimi Knowledge Map evidence under .omo/evidence.';
   if (!memory.evidence.browserUse.ready) return 'Capture browser-use evidence under .omo/evidence.';
@@ -551,6 +552,11 @@ function nextPreflightAction(
     return 'Run the Refresh commands below, recapture runtime evidence, then rerun /preflight.';
   }
   return 'Ready: run the next bounded Ultrawork loop from this preflight.';
+}
+
+function preflightRecallMemoryCommand(query: string): string {
+  const content = query.trim().length === 0 ? DEFAULT_PREFLIGHT_RECALL_QUERY : query.trim();
+  return `/memory remember ${PREFLIGHT_RECALL_MEMORY_SUBJECT} :: ${content}`;
 }
 
 function buildPreflightRefreshPlan(

@@ -282,6 +282,112 @@ describe('preflight slash command status surface', () => {
     expect(text).not.toContain('sk-proj-1234567890abcdef');
   });
 
+  it('gives a copyable memory command when preflight recall has no durable context', () => {
+    const status = buildPreflightStatus({
+      bench: {
+        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        status: 'PASS',
+        score: 1,
+        passRate: 1,
+        holdout: 'active',
+        providerBlock: 'not blocked',
+        redaction: 'PASS',
+        noSecret: true,
+        nextAction: 'Run the next bounded Ultrawork loop.',
+        warnings: [],
+      },
+      memory: {
+        stats: memoryStats({ total: 0, active: 0 }),
+        query: 'super kimi harness knowledge-map browser-use computer-use llm-wiki readiness',
+        searchResults: [],
+        evidence: {
+          sourceRoot: '/repo/.omo/evidence',
+          llmWiki: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No llm-wiki or durable-memory evidence found.',
+          },
+          knowledgeMap: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No Kimi Knowledge Map evidence found.',
+          },
+          browserUse: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No browser-use evidence found.',
+          },
+          computerUse: {
+            ready: false,
+            matchCount: 0,
+            summary: 'No computer-use evidence found.',
+          },
+          warnings: [],
+        },
+      },
+      freshness: preflightFreshness('missing'),
+    });
+    const text = buildPreflightLines(status).join('\n');
+
+    expect(text).toContain(
+      'Next  Run /memory remember preflight-readiness :: super kimi harness knowledge-map browser-use computer-use llm-wiki readiness.',
+    );
+
+    const noRecallStatus = buildPreflightStatus({
+      bench: {
+        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        status: 'PASS',
+        score: 1,
+        passRate: 1,
+        holdout: 'active',
+        providerBlock: 'not blocked',
+        redaction: 'PASS',
+        noSecret: true,
+        nextAction: 'Run the next bounded Ultrawork loop.',
+        warnings: [],
+      },
+      memory: {
+        stats: memoryStats({ total: 1, active: 1 }),
+        query: 'custom recall target',
+        searchResults: [],
+        evidence: {
+          sourceRoot: '/repo/.omo/evidence',
+          llmWiki: {
+            ready: true,
+            matchCount: 1,
+            sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+            summary: 'evidence found',
+          },
+          knowledgeMap: {
+            ready: true,
+            matchCount: 1,
+            sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+            summary: 'evidence found',
+          },
+          browserUse: {
+            ready: true,
+            matchCount: 1,
+            sourcePath: '/repo/.omo/evidence/browser-use.json',
+            summary: 'evidence found',
+          },
+          computerUse: {
+            ready: true,
+            matchCount: 1,
+            sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+            summary: 'evidence found',
+          },
+          warnings: [],
+        },
+      },
+      freshness: preflightFreshness('fresh'),
+    });
+    const noRecallText = buildPreflightLines(noRecallStatus).join('\n');
+
+    expect(noRecallText).toContain(
+      'Next  Run /memory remember preflight-readiness :: custom recall target, then rerun /preflight.',
+    );
+  });
+
   it('blocks otherwise ready preflight state when evidence is stale', () => {
     const status = buildPreflightStatus({
       bench: {
