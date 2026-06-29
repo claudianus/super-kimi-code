@@ -3868,11 +3868,12 @@ async function runTuiLaunchPhase(context) {
       'tmux set-option -t <session> extended-keys on',
       'tmux set-option -t <session> extended-keys-format csi-u',
       'KIMI_CODE_HOME=<tmp-home>',
+      'KIMI_CODE_DEV_CWD=<disposable-target-worktree>',
       'corepack',
       'pnpm',
       '--silent',
       '-C',
-      'apps/kimi-code',
+      '<source>/apps/kimi-code',
       'run',
       'dev',
       '--',
@@ -3965,7 +3966,8 @@ async function runTuiLaunchPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
-      buildTuiDevShellCommand('apps/kimi-code'),
+      `KIMI_CODE_DEV_CWD=${shellQuote(context.targetWorktree)}`,
+      buildTuiDevShellCommand(shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))),
       '--auto',
       '--add-dir',
       shellQuote(context.targetWorktree),
@@ -3983,7 +3985,7 @@ async function runTuiLaunchPhase(context) {
         '-y',
         '40',
         '-c',
-        context.sourceCheckout,
+        context.targetWorktree,
         launchShellCommand,
       ],
       cwd: context.sourceCheckout,
@@ -4001,7 +4003,9 @@ async function runTuiLaunchPhase(context) {
     cleanupOverrides.liveProductCommandsStarted = true;
 
     await sleep(4_000);
-    summary.captures.push(await captureTmuxPane(context, tmuxSession, 'startup'));
+    const startupCapture = await captureTmuxPane(context, tmuxSession, 'startup');
+    summary.captures.push(startupCapture);
+    summary.validations.launchWorkspace = await validateTuiLaunchWorkspace(context, startupCapture);
 
     for (const scenario of TUI_CAPTURE_SCENARIOS.filter((item) => item.name !== 'startup')) {
       const keysToSend =
@@ -4299,6 +4303,7 @@ async function runTuiRealWorkflowPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
+      `KIMI_CODE_DEV_CWD=${shellQuote(context.targetWorktree)}`,
       buildTuiDevShellCommand(shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))),
       '--auto',
       '--add-dir',
@@ -4792,6 +4797,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     const launchShellCommand = [
       buildTmuxKeyboardSetupCommand(tmuxSession),
       `KIMI_CODE_HOME=${shellQuote(context.plannedKimiCodeHome)}`,
+      `KIMI_CODE_DEV_CWD=${shellQuote(context.targetWorktree)}`,
       buildTuiDevShellCommand(shellQuote(path.join(context.sourceCheckout, 'apps', 'kimi-code'))),
       '--auto',
       '--add-dir',
@@ -7804,6 +7810,60 @@ function validateTuiScreenProof(captures) {
             .join(', ')}`,
     requiredScenarios: REQUIRED_TUI_CAPTURE_SCENARIOS,
     scenarioResults,
+  };
+}
+
+async function validateTuiLaunchWorkspace(context, startupCapture) {
+  if (startupCapture.status !== 'PASS') {
+    return {
+      status: 'FAIL',
+      reason: 'startup screen proof must pass before validating launch workspace.',
+      startupStatus: startupCapture.status,
+    };
+  }
+
+  const raw = await readFile(startupCapture.path, 'utf8');
+  const directoryLine = raw
+    .split(/\r?\n/)
+    .map((line) => normalizeScreenText(line))
+    .find((line) => /\bDirectory:/.test(line));
+  const normalized = normalizeScreenText(raw);
+  const inspected = directoryLine ?? normalized;
+  const pathVariants = (value) =>
+    [
+      value,
+      value.startsWith('/var/') ? `/private${value}` : undefined,
+      value.startsWith('/private/var/') ? value.slice('/private'.length) : undefined,
+    ]
+      .filter((item) => item !== undefined && item.length > 0)
+      .map((item) => normalizeScreenText(item));
+  const targetMarkers = [
+    'super-kimi-autonomous-qa',
+    ...pathVariants(context.targetWorktree),
+    ...pathVariants(context.tempRoot),
+    path.basename(context.targetWorktree),
+    path.basename(context.tempRoot),
+  ];
+  const targetVisible = targetMarkers.some((marker) => {
+    if (marker.length === 0) return false;
+    if (inspected.includes(marker)) return true;
+    return normalized.includes(marker);
+  });
+  const sourceMarkers = [
+    path.basename(context.sourceCheckout),
+    ...pathVariants(context.sourceCheckout),
+  ];
+  const sourceVisible = sourceMarkers.some((marker) => inspected.includes(marker));
+
+  return {
+    status: targetVisible && !sourceVisible ? 'PASS' : 'FAIL',
+    reason:
+      targetVisible && !sourceVisible
+        ? 'startup screen shows the disposable target worktree instead of the source checkout.'
+        : 'startup screen does not prove that the TUI launched in the disposable target worktree.',
+    directoryLine,
+    expectedTargetWorkspace: context.targetWorktree,
+    forbiddenSourceCheckout: context.sourceCheckout,
   };
 }
 
