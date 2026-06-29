@@ -20,6 +20,8 @@ import type { ColorToken } from '#/tui/theme';
 const LEFT_MARGIN = 2;
 const SIDE_PADDING = 1;
 const BOX_OVERHEAD = LEFT_MARGIN + 2 + 2 * SIDE_PADDING;
+const CONTEXT_COMPACT_RATIO = 0.85;
+const CONTEXT_WRAP_UP_RATIO = 0.7;
 
 type Colorize = (text: string) => string;
 
@@ -178,6 +180,13 @@ export function buildUsageReportLines(options: UsageReportOptions): string[] {
     const bar = renderProgressBar(ratio, 20);
     const pct = `${(ratio * 100).toFixed(1)}%`;
     const barColoured = currentTheme.fg(severityColor(ratioSeverity(ratio)), bar);
+    const remaining = Math.max(0, options.maxContextTokens - options.contextTokens);
+    const next =
+      ratio >= CONTEXT_COMPACT_RATIO
+        ? 'Run /compact before long work.'
+        : ratio >= CONTEXT_WRAP_UP_RATIO
+          ? 'Finish the current step, then /compact.'
+          : 'Continue; plenty of room for long work.';
     lines.push('');
     lines.push(accent('Context window'));
     lines.push(
@@ -188,6 +197,8 @@ export function buildUsageReportLines(options: UsageReportOptions): string[] {
           )})`,
         ),
     );
+    lines.push(`  ${muted('Remaining')}  ${value(`${formatTokenCount(remaining)} tokens`)}`);
+    lines.push(`  ${muted('Next')}       ${value(next)}`);
   }
 
   const managedSection = buildManagedUsageReportLines({

@@ -43,6 +43,8 @@ describe('UsagePanelComponent', () => {
     expect(lines).toContain('  kimi  input 2.0k  output 250  total 2.3k');
     expect(lines).toContain('Context window');
     expect(lines.join('\n')).toContain('25.0%');
+    expect(lines.join('\n')).toMatch(/Remaining\s+7\.5k tokens/);
+    expect(lines.join('\n')).toMatch(/Next\s+Continue; plenty of room for long work\./);
     expect(lines).toContain('Plan usage');
     expect(lines.join('\n')).toContain('20% used');
     expect(lines.join('\n')).toContain('resets tomorrow');
@@ -58,6 +60,21 @@ describe('UsagePanelComponent', () => {
 
     expect(lines).toContain('Session usage');
     expect(lines).toContain('  No token usage recorded yet. Send a message to start tracking.');
+    expect(lines.join('\n')).toMatch(/Remaining\s+10\.0k tokens/);
+    expect(lines.join('\n')).toMatch(/Next\s+Continue; plenty of room for long work\./);
+  });
+
+  it('shows compact as the next action when context is high', () => {
+    const lines = buildUsageReportLines({
+      sessionUsage: undefined,
+      contextUsage: 0.9,
+      contextTokens: 9000,
+      maxContextTokens: 10000,
+    }).map(strip);
+
+    expect(lines.join('\n')).toContain('90.0%');
+    expect(lines.join('\n')).toMatch(/Remaining\s+1\.0k tokens/);
+    expect(lines.join('\n')).toMatch(/Next\s+Run \/compact before long work\./);
   });
 
   it('wraps preformatted usage lines in a bordered panel', () => {
