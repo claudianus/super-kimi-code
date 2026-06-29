@@ -119,6 +119,44 @@ describe('selectBannerState', () => {
     expect(selectBannerState({ weird: true }, '0.14.0', now, () => 0)).toBeNull();
   });
 
+  it('filters the retired goal-mode command banner from the active slot', () => {
+    const result = selectBannerState(
+      {
+        banner_enabled: true,
+        banner_id: 'goal_mode_20260625',
+        banner_title: 'Goal Mode',
+        banner_maintext: 'use /goal to work toward a defined outcome across turns',
+        banner_subtext: 'Best for multi-step tasks with a clear, verifiable finish line',
+      },
+      '0.20.1',
+      now,
+      () => 0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('skips retired goal-mode fallback entries', () => {
+    const result = selectBannerState(
+      {
+        banner_enabled: false,
+        banner_fallback_enabled: true,
+        banner_fallback_list: [
+          {
+            enabled: true,
+            banner_id: 'goal_mode_20260625',
+            banner_title: 'Goal Mode',
+            banner_maintext: 'use /goal to work toward a defined outcome across turns',
+          },
+          { enabled: true, banner_title: 'Tip', banner_maintext: 'Describe the task to start.' },
+        ],
+      },
+      '0.20.1',
+      now,
+      () => 0,
+    );
+    expectAlwaysBanner(result, { tag: 'Tip', mainText: 'Describe the task to start.', subText: null });
+  });
+
   it('falls back to the fallback list when banner_enabled is missing', () => {
     const result = selectBannerState(
       {

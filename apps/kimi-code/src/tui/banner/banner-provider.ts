@@ -70,6 +70,7 @@ interface BannerProviderLoadOptions {
 
 const HOUR_MS = 60 * 60 * 1000;
 export const DEFAULT_COOLDOWN_TTL_HOURS = 24;
+const RETIRED_BANNER_KEYS = new Set(['goal_mode_20260625']);
 
 function normalizeTag(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -173,6 +174,15 @@ function toBannerState(input: BannerCandidateInput): BannerState {
   };
 }
 
+function isRetiredBanner(banner: BannerState): boolean {
+  if (RETIRED_BANNER_KEYS.has(banner.key)) return true;
+  const haystack = [banner.tag, banner.mainText, banner.subText]
+    .filter((text): text is string => typeof text === 'string')
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes('goal mode') && haystack.includes('/goal');
+}
+
 function pickActiveBanner(
   json: TipsBannerJson,
   clientVersion: string,
@@ -186,7 +196,7 @@ function pickActiveBanner(
   const mainText = normalizeText(json.banner_maintext);
   if (mainText === null) return null;
   const display = parseBannerDisplay(json.banner_display);
-  return toBannerState({
+  const banner = toBannerState({
     id: json.banner_id,
     tag: json.banner_title,
     mainText,
@@ -196,6 +206,7 @@ function pickActiveBanner(
     startTime: json.banner_start_time,
     endTime: json.banner_end_time,
   });
+  return isRetiredBanner(banner) ? null : banner;
 }
 
 function pickFallbackCandidates(
@@ -213,16 +224,15 @@ function pickFallbackCandidates(
     const mainText = normalizeText(item.banner_maintext);
     if (mainText === null) continue;
     const display = parseBannerDisplay(item.banner_display);
-    candidates.push(
-      toBannerState({
-        id: item.banner_id,
-        tag: item.banner_title,
-        mainText,
-        subText: item.banner_subtext,
-        display,
-        ttlHours: display === 'cooldown' ? parseBannerDisplayTtlHours(item.banner_display_ttl_hours) : undefined,
-      }),
-    );
+    const banner = toBannerState({
+      id: item.banner_id,
+      tag: item.banner_title,
+      mainText,
+      subText: item.banner_subtext,
+      display,
+      ttlHours: display === 'cooldown' ? parseBannerDisplayTtlHours(item.banner_display_ttl_hours) : undefined,
+    });
+    if (!isRetiredBanner(banner)) candidates.push(banner);
   }
   return candidates;
 }
