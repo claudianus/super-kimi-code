@@ -258,6 +258,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: [],
     description: 'Ask a forked side agent a question',
     priority: 90,
+    visibility: 'advanced',
     availability: 'always',
   },
   {
@@ -343,6 +344,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: ['experimental'],
     description: 'Manage experimental features',
     priority: 60,
+    visibility: 'advanced',
     availability: 'idle-only',
   },
   {
@@ -350,6 +352,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: [],
     description: 'Reload session and apply config.toml settings plus tui.toml UI preferences',
     priority: 60,
+    visibility: 'advanced',
     availability: 'idle-only',
   },
   {
@@ -357,6 +360,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: [],
     description: 'Reload only tui.toml UI preferences',
     priority: 60,
+    visibility: 'advanced',
     availability: 'always',
   },
   {
@@ -467,6 +471,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: [],
     description: 'Export current session as a debug ZIP archive',
     priority: 40,
+    visibility: 'diagnostic',
   },
   {
     name: 'exit',

@@ -67,7 +67,7 @@ describe('built-in slash command registry', () => {
     expect(resolveSlashCommandAvailability(swarm!, 'Ship feature X')).toBe('idle-only');
   });
 
-  it('keeps harness QA commands out of primary help while preserving diagnostics help', () => {
+  it('keeps advanced and diagnostics commands out of primary help', () => {
     const primaryNames = slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'primary').map((command) => command.name);
     const advancedNames = slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'advanced').map((command) => command.name);
     const diagnosticNames = slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'diagnostics').map((command) => command.name);
@@ -76,8 +76,15 @@ describe('built-in slash command registry', () => {
     expect(primaryNames).not.toContain('preflight');
     expect(primaryNames).not.toContain('ultrawork');
     expect(primaryNames).not.toContain('ultraswarm');
-    expect(advancedNames).toEqual(expect.arrayContaining(['ultrawork', 'ultraswarm']));
-    expect(diagnosticNames).toEqual(expect.arrayContaining(['bench', 'preflight']));
+    expect(primaryNames).not.toContain('btw');
+    expect(primaryNames).not.toContain('experiments');
+    expect(primaryNames).not.toContain('reload');
+    expect(primaryNames).not.toContain('reload-tui');
+    expect(primaryNames).not.toContain('export-debug-zip');
+    expect(advancedNames).toEqual(
+      expect.arrayContaining(['btw', 'experiments', 'reload', 'reload-tui', 'ultrawork', 'ultraswarm']),
+    );
+    expect(diagnosticNames).toEqual(expect.arrayContaining(['bench', 'export-debug-zip', 'preflight']));
     expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced', 'diagnostics']);
   });
 
