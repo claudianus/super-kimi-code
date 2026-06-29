@@ -275,6 +275,7 @@ export function buildPreflightLines(status: PreflightStatus): string[] {
     const candidatesSummary = refreshCandidatesSummary(status.refreshRun.runtimeCandidates);
     if (candidatesSummary !== undefined) {
       lines.push(`Refresh candidates  ${candidatesSummary}`);
+      lines.push('Refresh candidate inspect  summary.md under Refresh last evidence');
       lines.push(`Refresh candidate action  ${refreshCandidateActionSummary(
         status.refreshRun.runtimeCandidates,
       )}`);
@@ -891,10 +892,10 @@ function refreshGatesSummary(gates: PreflightRefreshGates | undefined): string |
 
 function refreshCandidatesSummary(candidates: readonly PreflightRuntimeCandidate[]): string | undefined {
   if (candidates.length === 0) return undefined;
-  return candidates
-    .slice(0, 4)
-    .map((candidate) => `${candidate.channel}:${candidate.state} ${candidate.sourcePath}`)
-    .join('; ');
+  const noun = candidates.length === 1 ? 'candidate' : 'candidates';
+  const staleCount = candidates.filter((candidate) => candidate.state !== 'fresh').length;
+  if (staleCount === 0) return `${candidates.length} ${noun}; all fresh`;
+  return `${candidates.length} ${noun}; ${staleCount} stale`;
 }
 
 function refreshCandidateActionSummary(

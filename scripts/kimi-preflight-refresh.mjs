@@ -197,11 +197,10 @@ function main() {
   console.log(`Reason: ${reason}`);
   if (missingOrStaleRuntimeEvidence.length > 0) {
     console.log(`Missing/stale runtime evidence: ${missingOrStaleRuntimeEvidence.map((item) => item.label).join(', ')}`);
-    const candidateLabels = missingOrStaleRuntimeEvidence
-      .filter((item) => item.candidatePath !== undefined)
-      .map((item) => `${item.label}=${item.candidatePath}`);
-    if (candidateLabels.length > 0) {
-      console.log(`Existing candidate evidence: ${candidateLabels.join(', ')}`);
+    const candidateCount = Object.keys(runtimeEvidenceCandidates).length;
+    if (candidateCount > 0) {
+      console.log(`Existing candidate evidence: ${candidateCount} found`);
+      console.log(`Candidate inspect: ${path.join(evidenceRoot, 'summary.md')}`);
       console.log(`Candidate action: ${runtimeEvidenceCandidateAction}`);
       console.log(`Candidate target: ${runtimeEvidenceCandidateTarget}`);
       console.log(`Candidate rerun: ${runtimeEvidenceCandidateRerunCommand}`);
