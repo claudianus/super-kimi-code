@@ -54,6 +54,15 @@ const ULTRAWORK_COMMAND = {
   aliases: ['uw'],
   description: 'Start a guided autonomous coding workflow',
   visibility: 'advanced' as const,
+  getArgumentCompletions: (prefix: string) =>
+    prefix.length === 0
+      ? [
+          {
+            value: 'replace',
+            label: 'replace',
+          },
+        ]
+      : null,
 };
 
 const ADD_DIR_COMMAND = {
@@ -226,19 +235,18 @@ describe('FileMentionProvider', () => {
     });
   });
 
-  it('keeps advanced commands out of bare slash but finds them by prefix', async () => {
+  it('keeps advanced commands out of slash name suggestions but supports exact command arguments', async () => {
     const provider = new FileMentionProvider([HELP_COMMAND, ULTRAWORK_COMMAND], workDir, NO_FD);
 
     const bare = await provider.getSuggestions(['/'], 0, 1, { signal: ctrl() });
     const prefixed = await provider.getSuggestions(['/ul'], 0, 3, { signal: ctrl() });
+    const exactArgs = await provider.getSuggestions(['/ultrawork '], 0, '/ultrawork '.length, { signal: ctrl() });
 
     expect(bare).not.toBeNull();
     expect(bare!.items.map((item) => item.value)).not.toContain('ultrawork');
-    expect(prefixed).not.toBeNull();
-    expect(prefixed!.items[0]).toMatchObject({
-      value: 'ultrawork',
-      label: 'ultrawork',
-    });
+    expect(prefixed).toBeNull();
+    expect(exactArgs).not.toBeNull();
+    expect(exactArgs!.items.map((item) => item.value)).toEqual(['replace']);
   });
 
   it('includes the argument hint in the description like the inner provider does', async () => {

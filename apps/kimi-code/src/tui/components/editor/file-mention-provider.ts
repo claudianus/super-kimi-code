@@ -438,7 +438,7 @@ function shouldOfferSlashCommand(
   const visibility = command.visibility ?? 'primary';
   if (visibility === 'hidden' || visibility === 'diagnostic') return false;
   if (tokens.length === 0) return visibility === 'primary';
-  return visibility === 'primary' || visibility === 'advanced';
+  return visibility === 'primary';
 }
 
 function shouldSuppressLeadingWhitespaceSlashPath(
