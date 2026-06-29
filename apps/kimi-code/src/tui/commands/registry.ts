@@ -234,7 +234,8 @@ export const BUILTIN_SLASH_COMMANDS = [
   },
   {
     name: 'ultrawork',
-    aliases: ['ultragoal', 'uw', 'ug'],
+    aliases: ['uw'],
+    hiddenAliases: ['ultragoal', 'ug'],
     description: 'Start a guided autonomous coding workflow',
     priority: 100,
     visibility: 'advanced',
@@ -497,7 +498,10 @@ export type BuiltinSlashCommandName = BuiltinSlashCommand['name'];
 export function findBuiltInSlashCommand(commandName: string): BuiltinSlashCommand | undefined {
   const commands = BUILTIN_SLASH_COMMANDS as readonly KimiSlashCommand<BuiltinSlashCommandName>[];
   return commands.find(
-    (command) => command.name === commandName || command.aliases.includes(commandName),
+    (command) =>
+      command.name === commandName ||
+      command.aliases.includes(commandName) ||
+      (command.hiddenAliases?.includes(commandName) ?? false),
   ) as BuiltinSlashCommand | undefined;
 }
 

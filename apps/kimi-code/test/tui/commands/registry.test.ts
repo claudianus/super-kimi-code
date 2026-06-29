@@ -43,6 +43,8 @@ describe('built-in slash command registry', () => {
     expect(findBuiltInSlashCommand('pf')?.name).toBe('preflight');
     expect(findBuiltInSlashCommand('ultraswarm')?.name).toBe('ultraswarm');
     expect(findBuiltInSlashCommand('us')?.name).toBe('ultraswarm');
+    expect(findBuiltInSlashCommand('ultragoal')?.name).toBe('ultrawork');
+    expect(findBuiltInSlashCommand('ug')?.name).toBe('ultrawork');
     expect(findBuiltInSlashCommand('vibe')).toBeUndefined();
     expect(findBuiltInSlashCommand('code')).toBeUndefined();
     expect(findBuiltInSlashCommand('mcp')?.name).toBe('mcp');
@@ -100,6 +102,10 @@ describe('built-in slash command registry', () => {
     );
     expect(advancedNames).not.toContain('ultraswarm');
     expect(diagnosticNames).not.toContain('ultraswarm');
+    const ultrawork = slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'advanced').find(
+      (command) => command.name === 'ultrawork',
+    );
+    expect(ultrawork?.aliases).toEqual(['uw']);
     expect(diagnosticNames).toEqual(expect.arrayContaining(['bench', 'export-debug-zip', 'preflight']));
     const help = findBuiltInSlashCommand('help') as KimiSlashCommand | undefined;
     expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced', 'diagnostics']);

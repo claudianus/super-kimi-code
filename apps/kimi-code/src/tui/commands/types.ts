@@ -7,6 +7,7 @@ export type SlashCommandVisibility = 'primary' | 'advanced' | 'diagnostic' | 'hi
 export interface KimiSlashCommand<Name extends string = string> extends SlashCommand {
   readonly name: Name;
   readonly aliases: readonly string[];
+  readonly hiddenAliases?: readonly string[];
   readonly description: string;
   readonly priority?: number;
   readonly availability?: SlashCommandAvailability | ((args: string) => SlashCommandAvailability);
