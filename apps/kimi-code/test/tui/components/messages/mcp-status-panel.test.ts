@@ -7,6 +7,30 @@ function strip(text: string): string {
 }
 
 describe('buildMcpStatusReportLines', () => {
+  it('suggests Scrapling when no MCP web research backend is configured', () => {
+    const lines = buildMcpStatusReportLines({ servers: [] }).map(strip);
+
+    expect(lines.join('\n')).toContain('No MCP servers configured. Run /mcp-config to add one.');
+    expect(lines.join('\n')).toContain('Web research: run /mcp-config and add Scrapling');
+    expect(lines.join('\n')).toContain('scrapling mcp');
+  });
+
+  it('does not repeat the Scrapling suggestion when a Scrapling server exists', () => {
+    const lines = buildMcpStatusReportLines({
+      servers: [
+        {
+          name: 'scrapling',
+          transport: 'stdio',
+          status: 'connected',
+          toolCount: 10,
+        },
+      ],
+    }).map(strip);
+
+    expect(lines.join('\n')).toContain('scrapling');
+    expect(lines.join('\n')).not.toContain('add Scrapling via /mcp-config');
+  });
+
   it('folds a multi-line server error onto one row so the panel box stays intact', () => {
     const lines = buildMcpStatusReportLines({
       servers: [

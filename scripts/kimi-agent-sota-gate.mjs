@@ -130,6 +130,18 @@ const REQUIRED_FREE_WEB_RESEARCH_CONTRACTS = Object.freeze([
   { name: 'public-browser-automation', pattern: /\bbrowser automation\b[\s\S]*\bpublic\b[\s\S]*\bDOM\b[\s\S]*\bscreenshots\b/i },
   { name: 'authorized-access-boundary', pattern: /\bpublic pages\b[\s\S]*\buser-provided authenticated sessions\b[\s\S]*\bauthorized test targets\b[\s\S]*\bdo not defeat\b[\s\S]*\bCAPTCHA\b[\s\S]*\bpaywall\b[\s\S]*\blogin\b/i },
 ]);
+const REQUIRED_SCRAPLING_READINESS_SURFACES = Object.freeze([
+  {
+    name: 'mcp-status-scrapling-hint',
+    file: 'apps/kimi-code/src/tui/components/messages/mcp-status-panel.ts',
+    pattern: /\bScrapling\b[\s\S]*\bscrapling mcp\b/i,
+  },
+  {
+    name: 'mcp-config-scrapling-recipe',
+    file: 'packages/agent-core/src/skill/builtin/mcp-config.md',
+    pattern: /Scrapling web research backend[\s\S]*command: "scrapling"[\s\S]*args: \["mcp"\]/i,
+  },
+]);
 const REQUIRED_XP_LITE_CONTRACTS = Object.freeze([
   { name: 'inspect-first', pattern: /\binspect\b.*\bfiles\b.*\btests\b.*\bproject\b/i },
   { name: 'small-focused-change', pattern: /\bsmall\b.*\bfocused\b/i },
@@ -946,6 +958,29 @@ async function evaluateFreeWebResearchHarnessGate(criteria) {
       failures.push(`Ultrawork contract is missing free web research topics: ${missingContract.join(', ')}`);
     }
   }
+  const missingReadiness = [];
+  const readinessArtifacts = [];
+  for (const surface of REQUIRED_SCRAPLING_READINESS_SURFACES) {
+    const surfacePath = path.resolve(surface.file);
+    const surfaceArtifact = await fileStatus(surfacePath);
+    readinessArtifacts.push({
+      name: surface.name,
+      path: surface.file,
+      exists: surfaceArtifact.exists,
+      bytes: surfaceArtifact.bytes,
+    });
+    if (!surfaceArtifact.exists || surfaceArtifact.bytes === 0) {
+      missingReadiness.push(surface.name);
+      continue;
+    }
+    const text = await readFile(surfacePath, 'utf8');
+    if (!surface.pattern.test(text)) {
+      missingReadiness.push(surface.name);
+    }
+  }
+  if (missingReadiness.length > 0) {
+    failures.push(`Scrapling readiness surfaces are missing: ${missingReadiness.join(', ')}`);
+  }
   return {
     name: 'free-web-research-harness-contract',
     status: failures.length === 0 ? 'PASS' : 'FAIL',
@@ -961,6 +996,8 @@ async function evaluateFreeWebResearchHarnessGate(criteria) {
       costPolicy: criteria.freeWebResearchHarness?.principle,
       missingCriteria,
       missingContract,
+      missingReadiness,
+      readinessArtifacts,
     },
   };
 }
@@ -2916,6 +2953,7 @@ function renderMarkdown(report) {
       `- cost policy: ${String(report.freeWebResearchHarness.costPolicy ?? 'unavailable')}`,
       '- advanced backend: Scrapling-compatible optional MCP/CLI/fetcher path for authorized public-page extraction',
       '- access boundary: public pages, user-provided authenticated sessions, and explicitly authorized test targets',
+      `- readiness surfaces: ${String(report.freeWebResearchHarness.readinessArtifacts?.length ?? 0)}`,
       `- criteria items: ${String(report.freeWebResearchHarness.criteriaCount ?? 0)}`,
       `- contract path: ${report.freeWebResearchHarness.contractPath}`,
     );

@@ -85,6 +85,13 @@ omit it. For less common fields (`enabled`, `startupTimeoutMs`,
 truth is `McpServerStdioConfigSchema` / `McpServerHttpConfigSchema` in
 `packages/agent-core/src/config/schema.ts`.
 
+When the user asks to add the Scrapling web research backend, use a stdio
+entry named `scrapling` with `command: "scrapling"` and `args: ["mcp"]`.
+If `scrapling --help` does not show the `mcp` command, tell them the
+installed package is missing AI/MCP extras and needs `pip install
+"scrapling[ai]"` followed by `scrapling install` before the server can
+start.
+
 If the user only wants to **see** what's configured, read all three files,
 show a merged view with enough source-path context to inspect or remove a
 server from the file that actually declared it, and stop — no scope

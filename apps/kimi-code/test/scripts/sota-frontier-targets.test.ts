@@ -58,6 +58,8 @@ describe('free web research harness criteria', () => {
     expect(harness.requirements.join('\n')).toContain('Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
     expect(harness.requirements.join('\n')).toContain('Scrapling MCP, CLI, or fetchers');
     expect(harness.requirements.join('\n')).toContain('adaptive element relocation');
+    expect(harness.requirements.join('\n')).toContain('TUI MCP/status surface');
+    expect(harness.requirements.join('\n')).toContain('mcp-config recipe');
     expect(harness.safetyBoundaries.join('\n')).toContain('Authorized/public access is the boundary');
     expect(harness.safetyBoundaries.join('\n')).toContain('do not defeat CAPTCHA, paywall, login');
   });

@@ -103,6 +103,9 @@ export function buildMcpStatusReportLines(options: McpStatusReportOptions): stri
 
   if (servers.length === 0) {
     lines.push(muted('  No MCP servers configured. Run /mcp-config to add one.'));
+    lines.push(
+      muted('  Web research: run /mcp-config and add Scrapling with command `scrapling mcp`.'),
+    );
     return lines;
   }
 
@@ -147,6 +150,11 @@ export function buildMcpStatusReportLines(options: McpStatusReportOptions): stri
   lines.push('');
   lines.push(`  ${value(buildSummary(servers))}`);
   lines.push(`  ${muted('Configure with')} ${value('/mcp-config')}`);
+  if (!servers.some((server) => server.name.toLowerCase().includes('scrapling'))) {
+    lines.push(
+      `  ${muted('Web research backend:')} ${value('add Scrapling via /mcp-config as `scrapling mcp`')}`,
+    );
+  }
 
   return lines;
 }
