@@ -45,3 +45,17 @@ describe('frontier benchmark targets', () => {
     expect(markdown).toContain('not claimed local Super Kimi scores');
   });
 });
+
+describe('free web research harness criteria', () => {
+  it('requires a no-subscription WebSearch and FetchURL research path', () => {
+    const harness = criteria.freeWebResearchHarness;
+
+    expect(harness.priority).toBe('primary-ultrawork-capability');
+    expect(harness.principle).toContain('without a paid search subscription');
+    expect(harness.requirements.join('\n')).toContain('local no-subscription provider');
+    expect(harness.requirements.join('\n')).toContain('Use FetchURL to fetch primary sources');
+    expect(harness.requirements.join('\n')).toContain('3-12 keyword queries');
+    expect(harness.requirements.join('\n')).toContain('Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
+    expect(harness.safetyBoundaries.join('\n')).toContain('Do not attempt CAPTCHA, paywall, authentication');
+  });
+});

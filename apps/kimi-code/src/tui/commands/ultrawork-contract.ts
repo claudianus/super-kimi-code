@@ -82,6 +82,15 @@ const ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE = [
   '- Label important relationships as EXTRACTED, INFERRED, or AMBIGUOUS, and resolve AMBIGUOUS edges with targeted reads, tests, or TUI observation before making architectural claims.',
   '- Prefer path/affected-style questions first: what files, tests, tools, and UX surfaces are connected to this change, and what minimal evidence proves those edges?',
 ].join('\n');
+const ULTRAWORK_WEB_RESEARCH_GUIDANCE = [
+  'Kimi Free Web Research:',
+  '- Treat no-subscription web research as a primary Ultrawork capability for current libraries, APIs, model releases, benchmarks, security, architecture, and debugging work.',
+  '- Prefer the built-in WebSearch and FetchURL tools; WebSearch must have a local no-subscription provider before paid or external search services. Use precise 3-12 keyword queries, then fetch primary sources before relying on snippets.',
+  '- Prioritize official docs, release notes, GitHub issues and PRs, papers, benchmark pages, and dated primary sources; record source URLs for claims that affect implementation.',
+  '- Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.',
+  '- Use browser automation only for public pages and legitimate observation such as rendered DOM, screenshots, downloads, or PDF extraction; Do not attempt CAPTCHA, paywall, authentication/auth, policy, or access-control bypass.',
+  '- Default path must work without a paid search subscription or extra-cost search API; optional paid providers are only an explicitly configured accelerator.',
+].join('\n');
 const ULTRAWORK_BENCH_GUIDANCE = [
   'Kimi Agent Bench:',
   '- For benchmark, loop-improvement, or TUI QA work, prefer the internal Super Kimi agent bench and QA harness before ad-hoc claims.',
@@ -208,6 +217,7 @@ export function buildUltraworkPrompt(
     '- Use swarm mode as the execution substrate; invoke the UltraSwarm tool only when specialist parallel work materially improves quality or speed.',
     `- ${ULTRAWORK_LEAN_CONTEXT_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE.replaceAll('\n', '\n  ')}`,
+    `- ${ULTRAWORK_WEB_RESEARCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_XP_DOD_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_HUMAN_WRITING_GUIDANCE.replaceAll('\n', '\n  ')}`,

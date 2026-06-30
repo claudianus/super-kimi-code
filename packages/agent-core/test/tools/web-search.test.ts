@@ -11,6 +11,7 @@ import {
   WebSearchTool,
   type WebSearchProvider,
 } from '../../src/tools/builtin/web/web-search';
+import { LocalWebSearchProvider } from '../../src/tools/providers/local-web-search';
 import { MoonshotWebSearchProvider } from '../../src/tools/providers/moonshot-web-search';
 import { toolContentString } from './fixtures/fake-kaos';
 import { executeTool } from './fixtures/execute-tool';
@@ -121,6 +122,9 @@ describe('WebSearchTool', () => {
     const description = tool.description.toLowerCase();
     expect(description).toContain('cite');
     expect(description).toContain('source');
+    expect(description).toContain('no-subscription local search provider');
+    expect(description).toContain('fetchurl');
+    expect(description).toContain('primary source urls');
   });
 
   it('returns no results message when provider returns empty', async () => {
@@ -269,6 +273,55 @@ describe('WebSearchTool', () => {
     const tool = new WebSearchTool(fakeProvider());
     expect(tool.description.toLowerCase()).toMatch(/internet|search the web/);
     expect(tool.description.toLowerCase()).toContain('search');
+  });
+});
+
+describe('LocalWebSearchProvider', () => {
+  it('parses public DuckDuckGo HTML results without a managed search service', async () => {
+    const html = [
+      '<html><body>',
+      '<div class="result">',
+      '<a class="result__a" href="/l/?uddg=https%3A%2F%2Fexample.com%2Fdocs">Example Docs</a>',
+      '<a class="result__snippet">Official docs snippet</a>',
+      '</div>',
+      '<div class="result">',
+      '<a class="result__a" href="https://example.test/blog">Example Blog</a>',
+      '<a class="result__snippet">Blog snippet</a>',
+      '</div>',
+      '</body></html>',
+    ].join('');
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(html, {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    }));
+    const provider = new LocalWebSearchProvider({
+      fetchImpl,
+      searchUrl: 'https://duckduckgo.com/html/',
+    });
+
+    const results = await provider.search('kimi code latest docs', { limit: 1 });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const requestUrl = fetchImpl.mock.calls[0]?.[0] as URL;
+    expect(requestUrl.hostname).toBe('duckduckgo.com');
+    expect(requestUrl.searchParams.get('q')).toBe('kimi code latest docs');
+    expect(results).toEqual([
+      {
+        title: 'Example Docs',
+        url: 'https://example.com/docs',
+        snippet: 'Official docs snippet',
+      },
+    ]);
+  });
+
+  it('rejects oversized local search responses before parsing', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response('too large', {
+      status: 200,
+      headers: { 'content-length': '99' },
+    }));
+    const provider = new LocalWebSearchProvider({ fetchImpl, maxBytes: 10 });
+
+    await expect(provider.search('query')).rejects.toThrow(/too large/i);
   });
 });
 

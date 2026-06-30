@@ -119,6 +119,16 @@ const KNOWLEDGE_MAP_CONTRACT_PHRASES = Object.freeze([
   'EXTRACTED, INFERRED, or AMBIGUOUS',
   'path/affected-style questions',
 ]);
+const REQUIRED_FREE_WEB_RESEARCH_CONTRACTS = Object.freeze([
+  { name: 'no-subscription-default', pattern: /\bwithout\b.*\bpaid search subscription\b/i },
+  { name: 'local-websearch-provider', pattern: /\bWebSearch\b.*\blocal\b.*\bno-subscription provider\b/i },
+  { name: 'fetch-primary-sources', pattern: /\bFetchURL\b.*\bprimary sources\b/i },
+  { name: 'precise-keyword-queries', pattern: /\b3-12 keyword queries\b/i },
+  { name: 'primary-source-priority', pattern: /\bofficial docs\b[\s\S]*\bGitHub issues and PRs\b[\s\S]*\bpapers\b/i },
+  { name: 'durable-findings', pattern: /\bKimi Knowledge Map\b[\s\S]*\bmemory\b[\s\S]*\bbenchmark radar\b[\s\S]*\bSOTA criteria\b/i },
+  { name: 'public-browser-automation', pattern: /\bbrowser automation\b[\s\S]*\bpublic\b[\s\S]*\bDOM\b[\s\S]*\bscreenshots\b/i },
+  { name: 'no-access-bypass', pattern: /\bDo not attempt CAPTCHA\b[\s\S]*\bpaywall\b[\s\S]*\bauthentication\b[\s\S]*\baccess-control bypass\b/i },
+]);
 const REQUIRED_XP_LITE_CONTRACTS = Object.freeze([
   { name: 'inspect-first', pattern: /\binspect\b.*\bfiles\b.*\btests\b.*\bproject\b/i },
   { name: 'small-focused-change', pattern: /\bsmall\b.*\bfocused\b/i },
@@ -422,11 +432,13 @@ async function buildReport(options, outputDir, runId) {
     ultraworkSummary === undefined ? undefined : await evaluateUltraworkGate(ultraworkSummary);
   const harnessRadarGate = evaluateHarnessRadarGate(harnessRadar);
   const frontierTargetGate = evaluateFrontierTargetGate(criteria);
+  const freeWebResearchGate = await evaluateFreeWebResearchHarnessGate(criteria);
   const gates = [
     evaluateSystemGate(systemSummary),
     evaluateLoopGate(loopSummary),
     harnessRadarGate,
     frontierTargetGate,
+    freeWebResearchGate,
     tuiGate,
     workflowGate,
     ...(ultraworkGate === undefined ? [] : [ultraworkGate]),
@@ -497,6 +509,7 @@ async function buildReport(options, outputDir, runId) {
     tuiUltraworkProof: ultraworkGate?.observed,
     harnessRadarProof: harnessRadarGate.observed,
     frontierBenchmarkTargets: frontierTargetGate.observed,
+    freeWebResearchHarness: freeWebResearchGate.observed,
     tuiUxDelta: tuiUxDelta?.observed,
     loopScorecard,
     tuiNextActions,
@@ -901,6 +914,52 @@ async function evaluateHumanWritingHarnessGate(scorecard) {
       rubricCount: Array.isArray(scorecard.humanWriting) ? scorecard.humanWriting.length : 0,
       missingContract,
       missingRubric,
+    },
+  };
+}
+
+async function evaluateFreeWebResearchHarnessGate(criteria) {
+  const contractPath = path.resolve(ULTRAWORK_CONTRACT_PATH);
+  const contractArtifact = await fileStatus(contractPath);
+  const failures = [];
+  const criteriaItems = [
+    criteria.freeWebResearchHarness?.principle,
+    ...(Array.isArray(criteria.freeWebResearchHarness?.requirements)
+      ? criteria.freeWebResearchHarness.requirements
+      : []),
+    ...(Array.isArray(criteria.freeWebResearchHarness?.safetyBoundaries)
+      ? criteria.freeWebResearchHarness.safetyBoundaries
+      : []),
+  ].filter((item) => typeof item === 'string');
+  const missingCriteria = missingContractTopics(criteriaItems, REQUIRED_FREE_WEB_RESEARCH_CONTRACTS);
+  if (missingCriteria.length > 0) {
+    failures.push(`SOTA criteria is missing free web research topics: ${missingCriteria.join(', ')}`);
+  }
+  let missingContract = REQUIRED_FREE_WEB_RESEARCH_CONTRACTS.map((topic) => topic.name);
+  if (!contractArtifact.exists || contractArtifact.bytes === 0) {
+    failures.push(`missing Ultrawork contract: ${ULTRAWORK_CONTRACT_PATH}`);
+  } else {
+    const contract = await readFile(contractPath, 'utf8');
+    missingContract = missingContractTopics([contract], REQUIRED_FREE_WEB_RESEARCH_CONTRACTS);
+    if (missingContract.length > 0) {
+      failures.push(`Ultrawork contract is missing free web research topics: ${missingContract.join(', ')}`);
+    }
+  }
+  return {
+    name: 'free-web-research-harness-contract',
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    required: true,
+    reason:
+      failures.length === 0
+        ? 'Free-first web research is enforced as a primary Ultrawork harness contract.'
+        : failures.join('; '),
+    observed: {
+      contractPath,
+      contractBytes: contractArtifact.bytes,
+      criteriaCount: criteriaItems.length,
+      costPolicy: criteria.freeWebResearchHarness?.principle,
+      missingCriteria,
+      missingContract,
     },
   };
 }
@@ -2845,6 +2904,17 @@ function renderMarkdown(report) {
       '## Frontier Benchmark Targets',
       '',
       ...frontierTargetMarkdownLines(report.frontierBenchmarkTargets),
+    );
+  }
+  if (report.freeWebResearchHarness !== undefined) {
+    lines.push(
+      '',
+      '## Free Web Research Harness',
+      '',
+      `- status: ${gateStatus(report.gates.find((gate) => gate.name === 'free-web-research-harness-contract'))}`,
+      `- cost policy: ${String(report.freeWebResearchHarness.costPolicy ?? 'unavailable')}`,
+      `- criteria items: ${String(report.freeWebResearchHarness.criteriaCount ?? 0)}`,
+      `- contract path: ${report.freeWebResearchHarness.contractPath}`,
     );
   }
   lines.push(

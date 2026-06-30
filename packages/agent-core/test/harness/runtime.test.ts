@@ -46,10 +46,10 @@ function setCoreKaos(core: KimiCore, kaos: Promise<Kaos>): void {
   (core as unknown as { kaos?: Promise<Kaos> }).kaos = kaos;
 }
 
-function rejectedKaos(error: Error): Promise<Kaos> {
-  const promise = Promise.reject(error) as Promise<Kaos>;
-  promise.catch(() => undefined);
-  return promise;
+function setCoreKaosFailure(core: KimiCore, error: Error): void {
+  (core as unknown as { getKaos: () => Promise<Kaos> }).getKaos = async () => {
+    throw error;
+  };
 }
 
 // Builds a Kaos that behaves like the ACP reverse-RPC bridge during
@@ -794,11 +794,9 @@ max_context_size = 100000
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
-    setCoreKaos(
+    setCoreKaosFailure(
       core,
-      rejectedKaos(
-        new KimiError(ErrorCodes.SHELL_GIT_BASH_NOT_FOUND, 'Git Bash missing'),
-      ),
+      new KimiError(ErrorCodes.SHELL_GIT_BASH_NOT_FOUND, 'Git Bash missing'),
     );
 
     await expect(
@@ -834,11 +832,9 @@ max_context_size = 100000
       model: 'default-mock',
     });
     await rpc.closeSession({ sessionId: created.id });
-    setCoreKaos(
+    setCoreKaosFailure(
       core,
-      rejectedKaos(
-        new KimiError(ErrorCodes.SHELL_GIT_BASH_NOT_FOUND, 'Git Bash missing'),
-      ),
+      new KimiError(ErrorCodes.SHELL_GIT_BASH_NOT_FOUND, 'Git Bash missing'),
     );
 
     await expect(rpc.resumeSession({ sessionId: created.id })).rejects.toMatchObject({
@@ -871,7 +867,7 @@ max_context_size = 100000
       model: 'default-mock',
     });
     const before = core.sessions.get(created.id);
-    expect(before?.options.toolServices?.webSearcher).toBeUndefined();
+    expect(before?.options.toolServices?.webSearcher).toBeDefined();
 
     await writeFile(
       configPath,

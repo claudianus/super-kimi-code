@@ -87,6 +87,23 @@
     "permission-mode",
     "exit"
   ],
+  "freeWebResearchHarness": {
+    "priority": "primary-ultrawork-capability",
+    "principle": "Default Ultrawork research must work without a paid search subscription or extra-cost search API while still preferring source-backed current evidence.",
+    "requirements": [
+      "WebSearch is available through a local no-subscription provider when a managed search service is not configured.",
+      "Use FetchURL to fetch primary sources before relying on snippets.",
+      "Use precise 3-12 keyword queries for current libraries, APIs, model releases, benchmarks, security, architecture, and debugging work.",
+      "Prioritize official docs, release notes, GitHub issues and PRs, papers, benchmark pages, and dated primary sources.",
+      "Persist durable findings into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.",
+      "Use browser automation for public rendered pages, DOM observation, screenshots, downloads, and PDF extraction when plain fetch is insufficient."
+    ],
+    "safetyBoundaries": [
+      "Do not attempt CAPTCHA, paywall, authentication, policy, or access-control bypass.",
+      "Do not treat browser UI or apps/kimi-web as a success surface for TUI/CLI harness work.",
+      "If a source blocks access, find an alternate public source or ask the user for legitimate access."
+    ]
+  },
   "frontierBenchmarkTargets": {
     "model": "Claude Sonnet 5",
     "scope": "Aspirational external frontier targets for Super Kimi harness design and evaluation; these are not claimed local Super Kimi scores.",

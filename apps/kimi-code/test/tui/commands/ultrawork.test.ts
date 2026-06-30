@@ -153,6 +153,17 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('compact project knowledge map');
     expect(prompt).toContain('EXTRACTED, INFERRED, or AMBIGUOUS');
     expect(prompt).toContain('path/affected-style questions');
+    expect(prompt).toContain('Kimi Free Web Research');
+    expect(prompt).toContain('no-subscription web research as a primary Ultrawork capability');
+    expect(prompt).toContain('built-in WebSearch and FetchURL tools');
+    expect(prompt).toContain('precise 3-12 keyword queries');
+    expect(prompt).toContain('fetch primary sources before relying on snippets');
+    expect(prompt).toContain('official docs, release notes, GitHub issues and PRs, papers, benchmark pages');
+    expect(prompt).toContain('Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
+    expect(prompt).toContain(
+      'Do not attempt CAPTCHA, paywall, authentication/auth, policy, or access-control bypass',
+    );
+    expect(prompt).toContain('without a paid search subscription or extra-cost search API');
     expect(prompt).toContain('Kimi Agent Bench');
     expect(prompt).toContain('node scripts/kimi-agent-sota-gate.mjs');
     expect(prompt).toContain('node scripts/qa-super-kimi-autonomous.mjs --phase sota-gate');
