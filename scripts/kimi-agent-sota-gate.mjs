@@ -1545,6 +1545,8 @@ async function evaluateUltraworkGate(summary) {
         : 0,
       adaptiveObservationCount: summary.validations?.adaptiveOperatorLoop?.observationCount,
       adaptiveInterventionsAttempted: summary.validations?.adaptiveOperatorLoop?.interventionsAttempted,
+      usageTelemetryStatus: summary.validations?.usageTelemetryVisible?.status,
+      usageTelemetryMetrics: summary.validations?.usageTelemetryVisible?.metrics,
       trajectorySteps: Array.isArray(summary.operatorTrajectory?.steps)
         ? summary.operatorTrajectory.steps.map((step) => ({
             name: step.name,
@@ -2680,6 +2682,15 @@ function renderMarkdown(report) {
       `- adaptive observations: ${String(report.tuiUltraworkProof.adaptiveObservationCount ?? 'unavailable')}`,
       `- adaptive interventions: ${String(report.tuiUltraworkProof.adaptiveInterventionsAttempted ?? 'unavailable')}`,
     );
+    if (report.tuiUltraworkProof.usageTelemetryMetrics !== undefined) {
+      const metrics = report.tuiUltraworkProof.usageTelemetryMetrics;
+      lines.push(
+        `- usage telemetry: ${String(report.tuiUltraworkProof.usageTelemetryStatus)}`,
+        `- token totals: input ${String(metrics.inputTokensApprox ?? 'unavailable')}, output ${String(metrics.outputTokensApprox ?? 'unavailable')}, total ${String(metrics.totalTokensApprox ?? 'unavailable')}`,
+        `- cache telemetry: read ${String(metrics.cacheReadTokensApprox ?? 'unavailable')}, write ${String(metrics.cacheWriteTokensApprox ?? 'unavailable')}, share ${String(metrics.cacheSharePercent ?? 'unavailable')}%`,
+        `- remaining context: ${String(metrics.remainingContextTokensApprox ?? 'unavailable')} tokens`,
+      );
+    }
   }
   if (report.tuiNextActions !== undefined) {
     lines.push(

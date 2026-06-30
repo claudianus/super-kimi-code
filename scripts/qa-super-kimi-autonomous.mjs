@@ -6446,6 +6446,7 @@ async function validateUltraworkUsageTelemetry(captures) {
     };
   }
   const normalized = normalizeScreenText(raw);
+  const metrics = extractUltraworkUsageMetrics(normalized);
   const evidence = [
     {
       name: 'sessionUsage',
@@ -6469,19 +6470,99 @@ async function validateUltraworkUsageTelemetry(captures) {
         ? 'PASS'
         : 'FAIL',
     },
+    {
+      name: 'numericUsageMetrics',
+      status: hasCompleteUltraworkUsageMetrics(metrics) ? 'PASS' : 'FAIL',
+    },
   ];
   const passed = evidence.every((item) => item.status === 'PASS');
   return {
     status: passed ? 'PASS' : 'FAIL',
     reason: passed
-      ? 'Live /usage screen shows session token totals, cache read/write telemetry, and context-window remaining tokens.'
+      ? 'Live /usage screen shows structured session token totals, cache read/write telemetry, and context-window remaining tokens.'
       : `Live /usage screen is missing telemetry evidence: ${evidence
           .filter((item) => item.status !== 'PASS')
           .map((item) => item.name)
           .join(', ')}.`,
     path: usageCapture.path,
     evidence,
+    metrics,
   };
+}
+
+function extractUltraworkUsageMetrics(text) {
+  const metrics = {};
+  const textLine = cleanUsageTelemetryLine(text);
+  const modelPattern = String.raw`([A-Za-z0-9_.@-]+\/[A-Za-z0-9_.@/-]+)`;
+
+  const sessionMatch = textLine.match(
+    new RegExp(
+      String.raw`\b${modelPattern}\s+input\s+([0-9][\d.,]*(?:[km])?)\s+output\s+([0-9][\d.,]*(?:[km])?)\s+total\s+([0-9][\d.,]*(?:[km])?)(?:\s|$)`,
+      'i',
+    ),
+  );
+  if (sessionMatch !== null) {
+    metrics.model = sessionMatch[1].trim();
+    metrics.inputTokensApprox = parseCompactTokenCount(sessionMatch[2]);
+    metrics.outputTokensApprox = parseCompactTokenCount(sessionMatch[3]);
+    metrics.totalTokensApprox = parseCompactTokenCount(sessionMatch[4]);
+  }
+
+  const cacheMatch = textLine.match(
+    new RegExp(
+      String.raw`\b${modelPattern}\s+cache\s+read\s+([0-9][\d.,]*(?:[km])?)\s+write\s+([0-9][\d.,]*(?:[km])?)\s+share\s+([0-9]+)%`,
+      'i',
+    ),
+  );
+  if (cacheMatch !== null) {
+    metrics.model = metrics.model ?? cacheMatch[1].trim();
+    metrics.cacheReadTokensApprox = parseCompactTokenCount(cacheMatch[2]);
+    metrics.cacheWriteTokensApprox = parseCompactTokenCount(cacheMatch[3]);
+    metrics.cacheSharePercent = Number(cacheMatch[4]);
+  }
+
+  const contextMatch = textLine.match(
+    /([0-9]+(?:\.[0-9]+)?)%\s+\(([0-9][\d.,]*(?:[km])?)\s*\/\s*([0-9][\d.,]*(?:[km])?)\)/i,
+  );
+  if (contextMatch !== null) {
+    metrics.contextUsagePercent = Number(contextMatch[1]);
+    metrics.contextTokensApprox = parseCompactTokenCount(contextMatch[2]);
+    metrics.maxContextTokensApprox = parseCompactTokenCount(contextMatch[3]);
+  }
+
+  const remainingMatch = textLine.match(/\bRemaining\s+([0-9][\d.,]*(?:[km])?)\s+tokens\b/i);
+  if (remainingMatch !== null) {
+    metrics.remainingContextTokensApprox = parseCompactTokenCount(remainingMatch[1]);
+  }
+  return metrics;
+}
+
+function cleanUsageTelemetryLine(line) {
+  return line
+    .replaceAll(/[│┃║╭╮╰╯┌┐└┘─━═┬┴├┤┼]/g, ' ')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+}
+
+function parseCompactTokenCount(value) {
+  const normalized = value.trim().toLowerCase().replaceAll(',', '');
+  const match = normalized.match(/^([0-9]+(?:\.[0-9]+)?)([km])?$/);
+  if (match === null) return undefined;
+  const amount = Number(match[1]);
+  const multiplier = match[2] === 'm' ? 1_000_000 : match[2] === 'k' ? 1_000 : 1;
+  return Math.round(amount * multiplier);
+}
+
+function hasCompleteUltraworkUsageMetrics(metrics) {
+  return [
+    metrics.inputTokensApprox,
+    metrics.outputTokensApprox,
+    metrics.totalTokensApprox,
+    metrics.cacheReadTokensApprox,
+    metrics.cacheWriteTokensApprox,
+    metrics.cacheSharePercent,
+    metrics.remainingContextTokensApprox,
+  ].every((value) => typeof value === 'number' && Number.isFinite(value));
 }
 
 function validateUltraworkInterview(waitResult) {
