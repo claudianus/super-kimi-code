@@ -243,12 +243,15 @@ describe('handleUltraworkCommand', () => {
     expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({ swarmMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({
-      activityTip: 'Ultrawork auto-orchestrates UltraPlan, UltraGoal, UltraSwarm, Verify',
+      activityTip: 'Ultrawork links UltraPlan, UltraGoal, UltraSwarm, and Verify automatically',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
     expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');
     expect(renderedMarker(host)).toContain(
-      'Auto-orchestrated: UltraPlan | UltraGoal | UltraSwarm | Verify',
+      'One workflow: stages are chosen and linked automatically',
+    );
+    expect(renderedMarker(host)).toContain(
+      'Next: clarify only if needed, then implement and verify',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(

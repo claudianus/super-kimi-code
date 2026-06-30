@@ -6134,7 +6134,10 @@ function inspectUltraworkWorkflowSignals(output) {
   ]);
   const linkedStagesVisible = matchesAny(output, [
     /Tip:\s*Ultrawork\s+auto-orchestrates\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify/i,
+    /Tip:\s*Ultrawork\s+links\s+UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*and\s*Verify\s+automatically/i,
+    /UltraPlan\s*->\s*UltraGoal\s*->\s*UltraSwarm\s*->\s*Verify/i,
     /Auto-orchestrated:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
+    /One workflow:\s*stages are chosen and linked automatically/i,
     /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
   ]);
   const policyConflictPatterns = [

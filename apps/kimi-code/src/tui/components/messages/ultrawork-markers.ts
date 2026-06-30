@@ -6,7 +6,8 @@ import { currentTheme } from '#/tui/theme/theme';
 export type UltraworkModeMarkerState = 'active' | 'ended';
 
 const ULTRAWORK_PIPELINE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
-const ULTRAWORK_STAGE_STATUS = 'Auto-orchestrated: UltraPlan | UltraGoal | UltraSwarm | Verify';
+const ULTRAWORK_STAGE_STATUS = 'One workflow: stages are chosen and linked automatically';
+const ULTRAWORK_NEXT_ACTION = 'Next: clarify only if needed, then implement and verify';
 
 export class UltraworkModeMarkerComponent implements Component {
   constructor(
@@ -33,8 +34,19 @@ export class UltraworkModeMarkerComponent implements Component {
       stageStatusToken,
       truncateToWidth(`  ${ULTRAWORK_STAGE_STATUS}`, safeWidth, '…'),
     );
+    const nextActionLine = currentTheme.fg(
+      stageStatusToken,
+      truncateToWidth(`  ${ULTRAWORK_NEXT_ACTION}`, safeWidth, '…'),
+    );
     const taskLine = currentTheme.fg('textDim', truncateToWidth(`  ${this.taskDescription}`, safeWidth, '…'));
-    return ['', truncateToWidth(marker + label, safeWidth, '…'), pipelineLine, stageStatusLine, taskLine];
+    return [
+      '',
+      truncateToWidth(marker + label, safeWidth, '…'),
+      pipelineLine,
+      stageStatusLine,
+      nextActionLine,
+      taskLine,
+    ];
   }
 }
 

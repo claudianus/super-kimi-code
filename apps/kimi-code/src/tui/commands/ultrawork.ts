@@ -25,7 +25,7 @@ interface UltraworkSetupState {
 }
 
 const ULTRAWORK_ACTIVITY_TIP =
-  'Ultrawork auto-orchestrates UltraPlan, UltraGoal, UltraSwarm, Verify';
+  'Ultrawork links UltraPlan, UltraGoal, UltraSwarm, and Verify automatically';
 
 export {
   buildUltraworkPrompt,
