@@ -11,6 +11,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import net from 'node:net';
 
+import { defaultUserSurfaceLeakFailures } from './tui-surface-leaks.mjs';
+
 const DEFAULT_EVIDENCE_BASE = '.omo/evidence/super-kimi-autonomous-qa-env';
 const DEFAULT_SOTA_TUI_SUMMARY_PATH =
   '.omo/evidence/kimi-agent-bench/system-suite/tui-launch-tmux/tui/summary.json';
@@ -8554,22 +8556,6 @@ function inspectTuiCapture(scenario, output) {
         : failures.join('; '),
     failures,
   };
-}
-
-function defaultUserSurfaceLeakFailures(scenario, output) {
-  if (scenario !== 'help' && scenario !== 'autocomplete') return [];
-  const leakPatterns = [
-    { label: 'diagnostics help mode', pattern: /\bdiagnostics?\b/i },
-    { label: 'preflight command', pattern: /\/?preflight\b/i },
-    { label: 'bench command', pattern: /\/?bench\b/i },
-    { label: 'internal QA wording', pattern: /\binternal\s+QA\b/i },
-    { label: 'harness QA wording', pattern: /\bharness\s+QA\b/i },
-    { label: 'Ultrawork manual command', pattern: /\/?ultrawork\b/i },
-    { label: 'Ultraswarm manual command', pattern: /\/?ultraswarm\b/i },
-  ];
-  return leakPatterns
-    .filter((entry) => entry.pattern.test(output))
-    .map((entry) => `default ${scenario} capture exposes ${entry.label}`);
 }
 
 function validateTuiScreenProof(captures) {

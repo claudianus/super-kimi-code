@@ -5,6 +5,8 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
+import { defaultUserSurfaceLeakFailures } from './tui-surface-leaks.mjs';
+
 const DEFAULT_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
 const DEFAULT_OUTPUT_BASE = '.omo/evidence/kimi-agent-sota-gate';
 const DEFAULT_EVIDENCE_ROOT = '.omo/evidence';
@@ -2009,22 +2011,6 @@ function hasXpDodReadinessContract(output) {
     /\bScreen check\b\s+open changed screen before finishing/i,
     /\bDone gate\b\s+tests\/typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
   ].every((pattern) => pattern.test(output));
-}
-
-function defaultUserSurfaceLeakFailures(scenario, output) {
-  if (scenario !== 'help' && scenario !== 'autocomplete') return [];
-  const leakPatterns = [
-    { label: 'diagnostics help mode', pattern: /\bdiagnostics?\b/i },
-    { label: 'preflight command', pattern: /\/?preflight\b/i },
-    { label: 'bench command', pattern: /\/?bench\b/i },
-    { label: 'internal QA wording', pattern: /\binternal\s+QA\b/i },
-    { label: 'harness QA wording', pattern: /\bharness\s+QA\b/i },
-    { label: 'Ultrawork manual command', pattern: /\/?ultrawork\b/i },
-    { label: 'Ultraswarm manual command', pattern: /\/?ultraswarm\b/i },
-  ];
-  return leakPatterns
-    .filter((entry) => entry.pattern.test(output))
-    .map((entry) => `default ${scenario} capture exposes ${entry.label}`);
 }
 
 function matchesAny(output, patterns) {
