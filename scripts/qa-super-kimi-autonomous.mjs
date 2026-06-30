@@ -5502,6 +5502,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     summary.validations.ultraworkActivated = validateUltraworkActivation(waitResult);
     summary.validations.linkedUltraworkStages = validateUltraworkLinkedStages(waitResult);
     summary.validations.swarmDecisionEvidence = validateUltraworkSwarmDecision(waitResult);
+    summary.validations.swarmDecisionOutcome = validateUltraworkSwarmDecisionOutcome(waitResult);
     summary.validations.ultraPlanInterviewReached = validateUltraworkInterview(waitResult);
     summary.validations.questionAnswered = validateUltraworkQuestionAnswered(waitResult);
     summary.validations.postQuestionProgressObserved = validateUltraworkPostQuestionProgress(waitResult);
@@ -5837,6 +5838,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
   const phaseTransitionErrorEvidence = [];
   const linkedStageEvidence = [];
   const swarmDecisionEvidence = [];
+  const swarmDecisionOutcomeEvidence = [];
   const agentVerificationEvidence = [];
   const submittedQuestionPanels = new Set();
   let questionAnswerCount = 0;
@@ -5915,6 +5917,12 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         reason: signals.swarmDecisionReason,
       });
     }
+    if (signals.swarmDecisionOutcomeVisible && swarmDecisionOutcomeEvidence.length === 0) {
+      swarmDecisionOutcomeEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: signals.swarmDecisionOutcomeReason,
+      });
+    }
     const state = classifyUltraworkWorkflowScreenState(normalized);
     const decision = decideUltraworkOperatorAction(state);
     observations.push({
@@ -5932,6 +5940,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
       phaseTransitionError: signals.phaseTransitionError,
       linkedStagesVisible: signals.linkedStagesVisible,
       swarmDecisionVisible: signals.swarmDecisionVisible,
+      swarmDecisionOutcomeVisible: signals.swarmDecisionOutcomeVisible,
       workspaceComplete,
       completedFiles: {
         source: fileState?.source.complete ?? false,
@@ -5958,6 +5967,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         phaseTransitionErrorEvidence,
         linkedStageEvidence,
         swarmDecisionEvidence,
+        swarmDecisionOutcomeEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -5966,9 +5976,11 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
     const sourceTestComplete = !sourceTestRequired || workspaceComplete;
     const agentVerificationComplete =
       !sourceTestRequired || agentVerificationEvidence.length > 0;
+    const swarmDecisionOutcomeComplete = swarmDecisionOutcomeEvidence.length > 0;
     if (
       activationEvidence.length > 0 &&
       postQuestionProgressEvidence.length > 0 &&
+      swarmDecisionOutcomeComplete &&
       sourceTestComplete &&
       agentVerificationComplete
     ) {
@@ -5991,6 +6003,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         phaseTransitionErrorEvidence,
         linkedStageEvidence,
         swarmDecisionEvidence,
+        swarmDecisionOutcomeEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -6072,7 +6085,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
     reason:
       workflowPaths === undefined
         ? `timed out after ${String(TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS)}ms waiting for Ultrawork activation and workflow progress evidence.`
-        : `timed out after ${String(TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS)}ms waiting for Ultrawork activation, workflow progress, source/test completion, and in-TUI agent verification evidence.`,
+        : `timed out after ${String(TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS)}ms waiting for Ultrawork activation, workflow progress, Swarm decision outcome, source/test completion, and in-TUI agent verification evidence.`,
     durationMs: Date.now() - startedAt,
     observations,
     interventions,
@@ -6087,6 +6100,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
     phaseTransitionErrorEvidence,
     linkedStageEvidence,
     swarmDecisionEvidence,
+    swarmDecisionOutcomeEvidence,
     agentVerificationEvidence,
     operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
   };
@@ -6178,6 +6192,9 @@ function inspectUltraworkWorkflowSignals(output) {
     /Swarm decision\s+line\s+format[\s\S]{0,120}\bENGAGE\s*(?:[|/]|\bor\b)\s*DEFER\b/i,
     /Write a Swarm decision before implementation[\s\S]{0,240}\bENGAGE\b[\s\S]{0,120}\bDEFER\b/i,
   ]);
+  const swarmDecisionOutcomeVisible = matchesAny(output, [
+    /Swarm decision:\s*(?:ENGAGE|DEFER)(?!\s*(?:[|/]|\bor\b))\s+-[\s\S]{0,400}\bowner\s*:/i,
+  ]);
   const policyConflictPatterns = [
     {
       fingerprint: 'ask-user-disabled-auto-permission',
@@ -6201,6 +6218,7 @@ function inspectUltraworkWorkflowSignals(output) {
     phaseTransitionError,
     linkedStagesVisible,
     swarmDecisionVisible,
+    swarmDecisionOutcomeVisible,
     policyConflict,
     policyFingerprint: policyConflictMatch?.fingerprint,
     activationReason: activated
@@ -6230,6 +6248,9 @@ function inspectUltraworkWorkflowSignals(output) {
     swarmDecisionReason: swarmDecisionVisible
       ? 'screen shows an auditable ENGAGE/DEFER Swarm decision cue'
       : 'screen does not show an auditable ENGAGE/DEFER Swarm decision cue yet',
+    swarmDecisionOutcomeReason: swarmDecisionOutcomeVisible
+      ? 'screen shows a concrete ENGAGE or DEFER Swarm decision outcome with an owner'
+      : 'screen does not show a concrete ENGAGE or DEFER Swarm decision outcome yet',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -6485,6 +6506,20 @@ function validateUltraworkSwarmDecision(waitResult) {
       count > 0
         ? 'Live TUI screen shows an auditable ENGAGE/DEFER Swarm decision cue.'
         : 'Live TUI screen did not show an auditable ENGAGE/DEFER Swarm decision cue.',
+    evidenceCount: count,
+  };
+}
+
+function validateUltraworkSwarmDecisionOutcome(waitResult) {
+  const count = Array.isArray(waitResult.swarmDecisionOutcomeEvidence)
+    ? waitResult.swarmDecisionOutcomeEvidence.length
+    : 0;
+  return {
+    status: count > 0 ? 'PASS' : 'FAIL',
+    reason:
+      count > 0
+        ? 'Live TUI screen shows a concrete ENGAGE or DEFER Swarm decision outcome with an owner.'
+        : 'Live TUI screen did not show a concrete ENGAGE or DEFER Swarm decision outcome.',
     evidenceCount: count,
   };
 }
@@ -6823,6 +6858,8 @@ function buildTuiUltraworkScorecard(summary) {
       weight: 15,
       validations: [
         'ultraworkActivated',
+        'swarmDecisionEvidence',
+        'swarmDecisionOutcome',
         'ultraPlanInterviewReached',
         'questionAnswered',
         'postQuestionProgressObserved',
@@ -7074,6 +7111,11 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       name: 'observe-swarm-decision-cue',
       status: summary.validations?.swarmDecisionEvidence?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.swarmDecisionEvidence',
+    },
+    {
+      name: 'observe-swarm-decision-outcome',
+      status: summary.validations?.swarmDecisionOutcome?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.swarmDecisionOutcomeEvidence',
     },
     {
       name: 'observe-ultra-plan-interview',
