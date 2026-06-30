@@ -61,6 +61,14 @@ const ULTRAWORK_XP_DOD_GUIDANCE = [
   '- Do not claim completion until relevant tests pass, available/applicable typecheck/lint/build gates are accounted for, no unrelated files are changed, and public behavior is covered by tests unless the change is cosmetic or docs-only.',
   '- Summarize changed files, behavior, verification results, and remaining risks before finishing.',
 ].join('\n');
+const ULTRAWORK_HUMAN_WRITING_GUIDANCE = [
+  'Human Writing / Anti-Slop:',
+  '- Treat no-AI-slop writing as a harness-level output quality gate for user-facing prose: final answers, docs, PR text, changelogs, TUI copy, and benchmark reports.',
+  '- Prefer plain specific claims, concrete nouns and verbs, source-backed details, and the user context over generic hype, filler, or polished vagueness.',
+  '- Before publishing prose, self-audit for template openings, hollow intensifiers, forced rule-of-three phrasing, overused bold or emoji structure, vague attribution, filler transitions, generic conclusions, and chatbot artifacts.',
+  '- Do not treat AI-writing detectors as truth or use them to accuse an author; use detector signals, avoid-ai-writing style checks, or deterministic unslop cleanup only as advisory pattern checks.',
+  '- When generated prose matters, run a second-pass rewrite or deterministic cleanup when available, then reread the result for changed meaning before shipping.',
+].join('\n');
 
 export function parseUltraworkCommand(rawArgs: string): ParsedUltraworkCommand {
   if (rawArgs.trim().length === 0) {
@@ -138,6 +146,7 @@ export function buildUltraworkPrompt(
     `- ${ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_XP_DOD_GUIDANCE.replaceAll('\n', '\n  ')}`,
+    `- ${ULTRAWORK_HUMAN_WRITING_GUIDANCE.replaceAll('\n', '\n  ')}`,
     '- Interview the user only when a missing decision blocks correctness; otherwise proceed with best judgment.',
     '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',
     '- When using AskUserQuestion, ask 1-3 focused questions and provide at most 4 options per question.',

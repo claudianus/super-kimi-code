@@ -113,6 +113,13 @@ const REQUIRED_DEFINITION_OF_DONE_CONTRACTS = Object.freeze([
   { name: 'public-behavior-tested', pattern: /\bpublic behavior\b.*\btests\b/i },
   { name: 'real-surface-observed', pattern: /\bTUI\/CLI surface\b.*\bobserved\b/i },
 ]);
+const REQUIRED_HUMAN_WRITING_CONTRACTS = Object.freeze([
+  { name: 'harness-level-output-gate', pattern: /\bharness-level output quality gate\b/i },
+  { name: 'plain-specific-claims', pattern: /\bplain specific claims\b.*\bconcrete nouns and verbs\b/i },
+  { name: 'anti-slop-self-audit', pattern: /\bself-audit\b.*\btemplate openings\b/i },
+  { name: 'detectors-advisory-only', pattern: /\bAI-writing detectors\b.*\btruth\b/i },
+  { name: 'second-pass-cleanup', pattern: /\bsecond-pass rewrite\b.*\bdeterministic cleanup\b/i },
+]);
 const REQUIRED_WORKFLOW_VALIDATIONS = Object.freeze([
   'tmuxPreflight',
   'kimiCodeHomeReady',
@@ -412,7 +419,11 @@ async function buildReport(options, outputDir, runId) {
     secretGate: gates.find((gate) => gate.name === 'no-secret-like-evidence'),
     tuiUxDelta,
   });
-  gates.push(evaluateLoopScoreGate(loopScorecard), evaluateXpDodHarnessGate(loopScorecard));
+  gates.push(
+    evaluateLoopScoreGate(loopScorecard),
+    evaluateXpDodHarnessGate(loopScorecard),
+    await evaluateHumanWritingHarnessGate(loopScorecard),
+  );
   const tuiNextActions = recommendTuiNextActions(tuiGate, tuiUxDelta, workflowGate, ultraworkGate);
   const status = gates.every((gate) => gate.status === 'PASS' || gate.required === false) ? 'PASS' : 'FAIL';
   const passReason =
@@ -685,6 +696,7 @@ function buildLoopScorecard(criteria, evidence) {
     dimensions,
     definitionOfDone: rubric.definitionOfDone,
     xpLite: rubric.xpLite,
+    humanWriting: rubric.humanWriting,
   };
 }
 
@@ -714,6 +726,7 @@ function normalizeLoopScoreRubric(config) {
     }),
     definitionOfDone: Array.isArray(config?.definitionOfDone) ? config.definitionOfDone : [],
     xpLite: Array.isArray(config?.xpLite) ? config.xpLite : [],
+    humanWriting: Array.isArray(config?.humanWriting) ? config.humanWriting : [],
   };
 }
 
@@ -803,6 +816,42 @@ function evaluateXpDodHarnessGate(scorecard) {
       missingXpLite,
       missingDefinitionOfDone,
       missingPrinciple: principleMissing,
+    },
+  };
+}
+
+async function evaluateHumanWritingHarnessGate(scorecard) {
+  const contractPath = path.resolve(ULTRAWORK_CONTRACT_PATH);
+  const contractArtifact = await fileStatus(contractPath);
+  const failures = [];
+  let missingContract = REQUIRED_HUMAN_WRITING_CONTRACTS.map((topic) => topic.name);
+  if (!contractArtifact.exists || contractArtifact.bytes === 0) {
+    failures.push(`missing Ultrawork contract: ${ULTRAWORK_CONTRACT_PATH}`);
+  } else {
+    const contract = await readFile(contractPath, 'utf8');
+    missingContract = missingContractTopics([contract], REQUIRED_HUMAN_WRITING_CONTRACTS);
+    if (missingContract.length > 0) {
+      failures.push(`Ultrawork contract is missing human-writing topics: ${missingContract.join(', ')}`);
+    }
+  }
+  const missingRubric = missingContractTopics(scorecard.humanWriting, REQUIRED_HUMAN_WRITING_CONTRACTS);
+  if (missingRubric.length > 0) {
+    failures.push(`SOTA rubric is missing human-writing topics: ${missingRubric.join(', ')}`);
+  }
+  return {
+    name: 'human-writing-anti-slop-contract',
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    required: true,
+    reason:
+      failures.length === 0
+        ? 'Human-writing anti-slop guidance is enforced as a harness-level output quality contract.'
+        : failures.join('; '),
+    observed: {
+      contractPath,
+      contractBytes: contractArtifact.bytes,
+      rubricCount: Array.isArray(scorecard.humanWriting) ? scorecard.humanWriting.length : 0,
+      missingContract,
+      missingRubric,
     },
   };
 }
@@ -2479,6 +2528,12 @@ function renderMarkdown(report) {
     if (Array.isArray(report.loopScorecard.xpLite) && report.loopScorecard.xpLite.length > 0) {
       lines.push('', '### XP-lite Harness Rules', '');
       for (const item of report.loopScorecard.xpLite) {
+        lines.push(`- ${item}`);
+      }
+    }
+    if (Array.isArray(report.loopScorecard.humanWriting) && report.loopScorecard.humanWriting.length > 0) {
+      lines.push('', '### Human Writing Anti-Slop Rules', '');
+      for (const item of report.loopScorecard.humanWriting) {
         lines.push(`- ${item}`);
       }
     }

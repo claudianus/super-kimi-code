@@ -63,6 +63,13 @@
       "Run the most relevant tests, typecheck, lint, and build commands available.",
       "Fix verification failures or report blockers clearly.",
       "Finish with changed files, behavior changed, tests run, and remaining risks."
+    ],
+    "humanWriting": [
+      "Treat no-AI-slop writing as a harness-level output quality gate for final answers, docs, PR text, changelogs, TUI copy, and benchmark reports.",
+      "Prefer plain specific claims, concrete nouns and verbs, source-backed details, and user context over generic hype or polished vagueness.",
+      "Self-audit for template openings, hollow intensifiers, forced rule-of-three phrasing, overused formatting, vague attribution, filler transitions, generic conclusions, and chatbot artifacts.",
+      "Do not treat AI-writing detectors as truth; use detector signals, avoid-ai-writing checks, and deterministic unslop cleanup only as advisory pattern checks.",
+      "When generated prose matters, run a second-pass rewrite or deterministic cleanup when available, then reread the result for changed meaning before shipping."
     ]
   },
   "requiredTuiScenarios": [

@@ -122,6 +122,13 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('Public behavior changes need focused tests unless they are cosmetic or docs-only');
     expect(prompt).toContain('Run the relevant tests, typecheck, lint, build, and real-surface checks');
     expect(prompt).toContain('Summarize changed files, behavior, verification results, and remaining risks');
+    expect(prompt).toContain('Human Writing / Anti-Slop');
+    expect(prompt).toContain('harness-level output quality gate');
+    expect(prompt).toContain('plain specific claims, concrete nouns and verbs');
+    expect(prompt).toContain('self-audit for template openings');
+    expect(prompt).toContain('Do not treat AI-writing detectors as truth');
+    expect(prompt).toContain('deterministic unslop cleanup only as advisory pattern checks');
+    expect(prompt).toContain('second-pass rewrite or deterministic cleanup');
     expect(prompt).toContain('use only AskUserQuestion or NextPhase');
     expect(prompt).toContain('at most 4 options per question');
     expect(prompt).toContain('Never ask more than 3 total interview questions');
