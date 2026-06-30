@@ -114,6 +114,7 @@ const COMPUTER_USE_STATE_SCHEMA_VERSION = 1;
 const COMPUTER_USE_STATE_MAX_AGE_MS = 10 * 60_000;
 const COMPUTER_USE_STATE_FUTURE_SKEW_MS = 60_000;
 const TUI_OUROBOROS_PASS_THRESHOLD = 0.85;
+const TUI_ULTRAWORK_SCORE_THRESHOLD = 90;
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
 const TUI_INPUT_STEP_DELAY_MS = 150;
 const TUI_READY_TIMEOUT_MS = 45_000;
@@ -5511,6 +5512,10 @@ async function runTuiUltraworkWorkflowPhase(context) {
       targetedTestCommand: workflowPaths.targetedTestCommand,
       targetedTestExitCode: targetedTestRecord.exitCode,
     };
+    summary.evaluation.scorecard = buildTuiUltraworkScorecard(summary);
+    summary.validations.ultraworkScorecard = validateTuiUltraworkScorecard(
+      summary.evaluation.scorecard,
+    );
     summary.operatorTrajectory = buildTuiUltraworkOperatorTrajectory(summary);
     summary.validations.operatorTrajectory = validateTuiUltraworkOperatorTrajectory(summary);
 
@@ -6556,6 +6561,189 @@ function validateUltraworkPhaseTransitions(waitResult) {
   };
 }
 
+function buildTuiUltraworkScorecard(summary) {
+  const dimensions = [
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'real-vibe-coder-ux',
+      label: 'Real vibe-coder UX improvement',
+      weight: 20,
+      validations: ['screenEvidence', 'resultScreenLinkedUltraworkStages', 'kimiModelReady'],
+    }),
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'autonomy-auto-activation',
+      label: 'Autonomy and automatic activation quality',
+      weight: 15,
+      validations: [
+        'ultraworkActivated',
+        'ultraPlanInterviewReached',
+        'questionAnswered',
+        'postQuestionProgressObserved',
+      ],
+    }),
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'verification-eye-hands-realism',
+      label: 'Verification and eyes-and-hands realism',
+      weight: 15,
+      validations: [
+        'tmuxPreflight',
+        'tuiReady',
+        'agentVerificationObserved',
+        'verificationCommand',
+        'repositoryTargetedTest',
+      ],
+    }),
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'tui-status-visibility',
+      label: 'TUI visual status and workflow visibility',
+      weight: 15,
+      validations: ['linkedUltraworkStages', 'resultScreenLinkedUltraworkStages', 'screenEvidence'],
+    }),
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'coding-success-bug-prevention',
+      label: 'Coding success and bug prevention',
+      weight: 15,
+      validations: [
+        'workspaceChanged',
+        'multiFileWorkspaceChanged',
+        'repositorySourceTestChanged',
+        'verifierUnchanged',
+        'diffContainsSentinel',
+        'statusLimitedToWorkflowFiles',
+      ],
+    }),
+    buildTuiUltraworkSpeedScoreDimension(summary),
+    buildTuiUltraworkValidationScoreDimension(summary, {
+      id: 'stuck-prevention-loop-stability',
+      label: 'Stuck prevention and loop stability',
+      weight: 10,
+      validations: [
+        'noQuestionToolContractError',
+        'noAutoQuestionPolicyConflict',
+        'noInvalidPhaseTransition',
+        'adaptiveOperatorLoop',
+      ],
+    }),
+  ];
+  const score = dimensions.reduce((total, dimension) => total + dimension.earned, 0);
+  return {
+    schemaVersion: 1,
+    rubric: 'tui-ultrawork-100-point-goal-rubric',
+    status: score >= TUI_ULTRAWORK_SCORE_THRESHOLD ? 'PASS' : 'FAIL',
+    reason:
+      score >= TUI_ULTRAWORK_SCORE_THRESHOLD
+        ? `TUI Ultrawork score ${score}/100 meets threshold ${TUI_ULTRAWORK_SCORE_THRESHOLD}.`
+        : `TUI Ultrawork score ${score}/100 is below threshold ${TUI_ULTRAWORK_SCORE_THRESHOLD}.`,
+    score,
+    maxScore: 100,
+    threshold: TUI_ULTRAWORK_SCORE_THRESHOLD,
+    dimensions,
+  };
+}
+
+function buildTuiUltraworkValidationScoreDimension(summary, options) {
+  const evidence = options.validations.map((name) => {
+    const validation = summary.validations?.[name];
+    return {
+      name,
+      status: validation?.status ?? 'MISSING',
+      reason: validation?.reason ?? 'validation result is missing',
+    };
+  });
+  const passed = evidence.every((item) => item.status === 'PASS');
+  return {
+    id: options.id,
+    label: options.label,
+    status: passed ? 'PASS' : 'FAIL',
+    earned: passed ? options.weight : 0,
+    weight: options.weight,
+    evidence,
+  };
+}
+
+function buildTuiUltraworkSpeedScoreDimension(summary) {
+  const durationMs = summary.workflow?.wait?.durationMs;
+  const durationBounded =
+    typeof durationMs === 'number' &&
+    durationMs > 0 &&
+    durationMs < TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS;
+  const boundedScope = summary.workspace?.editedFileCount === TUI_REAL_WORKFLOW_EDIT_FILES.length;
+  const earned = durationBounded && boundedScope ? 5 : 0;
+  return {
+    id: 'speed-token-cache-efficiency',
+    label: 'Speed, token, and cache efficiency',
+    status: earned > 0 ? 'PARTIAL' : 'FAIL',
+    earned,
+    weight: 10,
+    evidence: [
+      {
+        name: 'workflowDurationBounded',
+        status: durationBounded ? 'PASS' : 'FAIL',
+        reason: durationBounded
+          ? 'workflow completed inside the Ultrawork timeout budget'
+          : 'workflow duration is missing or exceeded the Ultrawork timeout budget',
+        observed: {
+          durationMs,
+          timeoutMs: TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS,
+        },
+      },
+      {
+        name: 'boundedSourceTestScope',
+        status: boundedScope ? 'PASS' : 'FAIL',
+        reason: boundedScope
+          ? 'workflow stayed inside the bounded source/test edit scope'
+          : 'workflow did not record the expected bounded source/test edit scope',
+        observed: {
+          editedFileCount: summary.workspace?.editedFileCount,
+          expectedEditedFileCount: TUI_REAL_WORKFLOW_EDIT_FILES.length,
+        },
+      },
+    ],
+    limitation:
+      'This gate scores bounded runtime/scope evidence only; token and cache telemetry are not captured by this phase yet.',
+  };
+}
+
+function validateTuiUltraworkScorecard(scorecard) {
+  const dimensions = Array.isArray(scorecard?.dimensions) ? scorecard.dimensions : [];
+  const weightSum = dimensions.reduce((total, dimension) => total + (dimension.weight ?? 0), 0);
+  const earnedSum = dimensions.reduce((total, dimension) => total + (dimension.earned ?? 0), 0);
+  const failures = [];
+  if (scorecard?.status !== 'PASS') failures.push(`scorecard status is ${String(scorecard?.status)}`);
+  if (scorecard?.score !== earnedSum) failures.push('score does not match dimension earned total');
+  if (scorecard?.score < scorecard?.threshold) {
+    failures.push(`score ${String(scorecard?.score)} is below threshold ${String(scorecard?.threshold)}`);
+  }
+  if (scorecard?.maxScore !== 100) failures.push(`maxScore is ${String(scorecard?.maxScore)}`);
+  if (scorecard?.threshold !== TUI_ULTRAWORK_SCORE_THRESHOLD) {
+    failures.push(`threshold is ${String(scorecard?.threshold)}`);
+  }
+  if (dimensions.length !== 7) failures.push(`dimension count is ${String(dimensions.length)}`);
+  if (weightSum !== 100) failures.push(`dimension weights total ${String(weightSum)}`);
+  for (const dimension of dimensions) {
+    if (typeof dimension.earned !== 'number' || typeof dimension.weight !== 'number') {
+      failures.push(`dimension ${String(dimension.id)} has non-numeric score fields`);
+      continue;
+    }
+    if (dimension.earned < 0 || dimension.earned > dimension.weight) {
+      failures.push(`dimension ${String(dimension.id)} earned score is outside its weight`);
+    }
+    if (!Array.isArray(dimension.evidence) || dimension.evidence.length === 0) {
+      failures.push(`dimension ${String(dimension.id)} has no evidence`);
+    }
+  }
+  return {
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failures.length === 0
+        ? `TUI Ultrawork scorecard recorded ${scorecard.score}/${scorecard.maxScore} with ${dimensions.length} rubric dimensions.`
+        : failures.join('; '),
+    score: scorecard?.score,
+    maxScore: scorecard?.maxScore,
+    threshold: scorecard?.threshold,
+    dimensionCount: dimensions.length,
+  };
+}
+
 function validateUltraworkOperatorLoop(waitResult) {
   const operatorLoop = waitResult.operatorLoop;
   const status = operatorLoop?.status === 'PASS' && waitResult.status === 'PASS' ? 'PASS' : 'FAIL';
@@ -6713,6 +6901,11 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
           ? 'PASS'
           : 'FAIL',
       evidence: 'validations.resultScreenLinkedUltraworkStages',
+    },
+    {
+      name: 'score-ultrawork-loop-rubric',
+      status: summary.validations?.ultraworkScorecard?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'evaluation.scorecard',
     },
   ];
   return {

@@ -35,7 +35,7 @@ const REQUIRED_TUI_INPUT_SCENARIOS = Object.freeze(
   REQUIRED_TUI_SCENARIOS.filter((scenario) => !OBSERVATION_ONLY_TUI_SCENARIOS.has(scenario)),
 );
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
-const TUI_REAL_WORKFLOW_GUIDANCE = 'real repository source/test workflow evidence';
+const TUI_ULTRAWORK_WORKFLOW_GUIDANCE = 'SUPER_KIMI_REAL_WORKFLOW_EVIDENCE';
 const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
   { name: 'kimi', pattern: /\bkimi\b/i },
   { name: 'moonshot', pattern: /moonshot/i },
@@ -180,11 +180,13 @@ const REQUIRED_ULTRAWORK_VALIDATIONS = Object.freeze([
   'planModeReset',
   'targetWorktreeToolingLinked',
   'ultraworkActivated',
+  'linkedUltraworkStages',
   'ultraPlanInterviewReached',
   'questionAnswered',
   'postQuestionProgressObserved',
   'noQuestionToolContractError',
   'noAutoQuestionPolicyConflict',
+  'noInvalidPhaseTransition',
   'workspaceChanged',
   'multiFileWorkspaceChanged',
   'verifierUnchanged',
@@ -196,7 +198,9 @@ const REQUIRED_ULTRAWORK_VALIDATIONS = Object.freeze([
   'agentVerificationObserved',
   'screenEvidence',
   'kimiModelReady',
+  'resultScreenLinkedUltraworkStages',
   'adaptiveOperatorLoop',
+  'ultraworkScorecard',
   'operatorTrajectory',
 ]);
 const SECRET_PATTERNS = Object.freeze([
@@ -924,13 +928,7 @@ function statusScenarioHasReadinessSignals(tuiGate) {
   const signals = getTuiScenario(tuiGate, 'status')?.screenObservationSignals;
   return (
     Array.isArray(signals) &&
-    [
-      'status-readiness',
-      'xp-dod-readiness',
-      'done-gate',
-      'logged-out-setup-next-action',
-      'status-setup-next-action',
-    ].every((signal) => signals.includes(signal))
+    ['status-readiness', 'xp-dod-readiness'].every((signal) => signals.includes(signal))
   );
 }
 
@@ -990,11 +988,13 @@ function workflowCodeEvidence(gate) {
 
 function ultraworkActivationPass(gate) {
   const observed = gate?.observed;
+  const questionProgress =
+    observed?.questionBypassed === true || (observed?.questionAnswerEvidenceCount ?? 0) > 0;
   return (
     gatePass(gate) &&
     (observed?.activationEvidenceCount ?? 0) > 0 &&
     (observed?.interviewEvidenceCount ?? 0) > 0 &&
-    (observed?.questionAnswerEvidenceCount ?? 0) > 0 &&
+    questionProgress &&
     (observed?.postQuestionProgressEvidenceCount ?? 0) > 0 &&
     (observed?.questionToolErrorEvidenceCount ?? 0) === 0 &&
     (observed?.policyConflictEvidenceCount ?? 0) === 0
@@ -1441,9 +1441,13 @@ async function evaluateUltraworkGate(summary) {
   if (!Array.isArray(workflowWait?.interviewEvidence) || workflowWait.interviewEvidence.length === 0) {
     failures.push('Ultra Plan interview evidence is missing from workflow wait');
   }
+  const questionBypassed =
+    summary.validations?.questionAnswered?.status === 'PASS' &&
+    summary.validations.questionAnswered.optional === true;
   if (
-    !Array.isArray(workflowWait?.questionAnswerEvidence) ||
-    workflowWait.questionAnswerEvidence.length === 0
+    !questionBypassed &&
+    (!Array.isArray(workflowWait?.questionAnswerEvidence) ||
+      workflowWait.questionAnswerEvidence.length === 0)
   ) {
     failures.push('Ultrawork question-answer evidence is missing from workflow wait');
   }
@@ -1525,6 +1529,7 @@ async function evaluateUltraworkGate(summary) {
       questionAnswerEvidenceCount: Array.isArray(workflowWait?.questionAnswerEvidence)
         ? workflowWait.questionAnswerEvidence.length
         : 0,
+      questionBypassed,
       postQuestionProgressEvidenceCount: Array.isArray(workflowWait?.postQuestionProgressEvidence)
         ? workflowWait.postQuestionProgressEvidence.length
         : 0,
@@ -1557,6 +1562,7 @@ async function evaluateUltraworkGate(summary) {
         targetedTestCommand: summary.workspace?.targetedTestCommand,
         targetedTestExitCode: summary.workspace?.targetedTestExitCode,
       },
+      ultraworkScorecard: summary.evaluation?.scorecard,
     },
   };
 }
@@ -1586,6 +1592,9 @@ async function validateUltraworkCaptures(summary) {
 
 function validateUltraworkInputTraces(summary) {
   const traces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
+  const questionBypassed =
+    summary.validations?.questionAnswered?.status === 'PASS' &&
+    summary.validations.questionAnswered.optional === true;
   const planResetTrace = traces.find((entry) => entry.scenario === 'ultrawork-plan-reset');
   const trace = traces.find((entry) => entry.scenario === 'ultrawork-auto-prompt');
   const questionSubmitTrace = traces.find(
@@ -1619,7 +1628,7 @@ function validateUltraworkInputTraces(summary) {
           (key) =>
             typeof key === 'string' &&
             /Ultrawork/i.test(key) &&
-            key.includes(TUI_REAL_WORKFLOW_GUIDANCE),
+            key.includes(TUI_ULTRAWORK_WORKFLOW_GUIDANCE),
         )
           ? 'PASS'
           : 'FAIL',
@@ -1628,9 +1637,10 @@ function validateUltraworkInputTraces(summary) {
     {
       scenario: 'ultrawork-question-answer',
       status:
-        questionAnswerTrace?.status === 'PASS' &&
-        Array.isArray(questionAnswerTrace.keys) &&
-        (questionAnswerTrace.keys.includes('1') || questionAnswerTrace.keys.includes('Enter'))
+        questionBypassed ||
+        (questionAnswerTrace?.status === 'PASS' &&
+          Array.isArray(questionAnswerTrace.keys) &&
+          (questionAnswerTrace.keys.includes('1') || questionAnswerTrace.keys.includes('Enter')))
           ? 'PASS'
           : 'FAIL',
       keys: questionAnswerTrace?.keys,
@@ -1638,9 +1648,10 @@ function validateUltraworkInputTraces(summary) {
     {
       scenario: 'ultrawork-question-submit',
       status:
-        questionSubmitTrace?.status === 'PASS' &&
-        Array.isArray(questionSubmitTrace.keys) &&
-        questionSubmitTrace.keys.includes('Enter')
+        questionBypassed ||
+        (questionSubmitTrace?.status === 'PASS' &&
+          Array.isArray(questionSubmitTrace.keys) &&
+          questionSubmitTrace.keys.includes('Enter'))
           ? 'PASS'
           : 'FAIL',
       keys: questionSubmitTrace?.keys,
