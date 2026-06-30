@@ -114,15 +114,16 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(strip(off.render(120)[0]!)).not.toContain('thinking');
   });
 
-  it('labels plan mode as plan-first in the footer', () => {
+  it('labels plan mode as ultrawork-ready in the footer', () => {
     const footer = new FooterComponent(baseState({ planMode: true }));
 
     const [line1, line2] = footer.render(120);
     const out = strip(line1 ?? '');
 
-    expect(out).toContain('plan-first');
+    expect(out).toContain('ultrawork-ready');
+    expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
-    expect(strip(line2 ?? '')).toContain('next: describe task; Kimi plans and verifies');
+    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork plans, verifies');
   });
 
   it('renders transient hints on the context line', () => {

@@ -188,7 +188,7 @@ function footerNextAction(state: AppState, git: GitStatus | null): string | null
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
   if (state.streamingPhase !== 'idle') return null;
   if (git?.dirty === true) return 'next: review changes';
-  if (state.planMode) return 'next: describe task; Kimi plans and verifies';
+  if (state.planMode) return 'next: describe task; Ultrawork plans, verifies';
   return 'next: describe task; Kimi verifies';
 }
 
@@ -275,7 +275,7 @@ export class FooterComponent implements Component {
     const modes: string[] = [];
     if (state.permissionMode === 'auto') modes.push(chalk.hex(colors.warning).bold('auto'));
     if (state.permissionMode === 'yolo') modes.push(chalk.hex(colors.warning).bold('yolo'));
-    if (state.planMode) modes.push(chalk.hex(colors.primary).bold('plan-first'));
+    if (state.planMode) modes.push(chalk.hex(colors.primary).bold('ultrawork-ready'));
     if (state.swarmMode) modes.push(chalk.hex(colors.accent).bold('swarm'));
     if (modes.length > 0) left.push(modes.join(' '));
 
