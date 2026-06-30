@@ -173,6 +173,8 @@ describe('status panel report lines', () => {
       },
     }).map(strip);
 
+    const output = lines.join('\n');
+    expect(output).toMatch(/Flow\s+███░ 3\/4 verify queued/);
     const readinessLabels = [
       'Checks',
       'Workflow',

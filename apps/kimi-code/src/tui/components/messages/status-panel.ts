@@ -143,18 +143,18 @@ function formatUltraworkStageStatus(options: StatusReportOptions): string {
 }
 
 function formatUltraworkFlow(options: StatusReportOptions): FieldRow {
+  const planMode = options.status?.planMode ?? options.planMode;
   const blocked = verifyBlockedByReadiness(options);
-  if (options.goalStatus === 'complete') {
-    return { label: 'Flow', value: `${renderProgressBar(1, 4)} 4/4 verified` };
-  }
-  if (blocked) {
+  const verify = formatVerifyStatus(options.goalStatus, planMode, blocked);
+  if (verify === 'passed') return { label: 'Flow', value: `${renderProgressBar(1, 4)} 4/4 verified` };
+  if (verify === 'blocked') {
     return {
       label: 'Flow',
       value: `${renderProgressBar(0.75, 4)} 3/4 verify blocked`,
       severity: 'error',
     };
   }
-  if (options.goalStatus === 'active' || options.goalStatus === 'paused') {
+  if (verify === 'queued') {
     return { label: 'Flow', value: `${renderProgressBar(0.75, 4)} 3/4 verify queued` };
   }
   return { label: 'Flow', value: `${renderProgressBar(1, 4)} 4/4 ready to run` };
