@@ -141,12 +141,14 @@ describe('built-in slash command registry', () => {
   it('describes long-work controls without telling users to start with command names', () => {
     const goal = findBuiltInSlashCommand('goal');
     const swarm = findBuiltInSlashCommand('swarm');
+    const ultrawork = findBuiltInSlashCommand('ultrawork');
 
     expect(goal?.description).toBe('Keep long-running work organized across turns');
     expect(goal?.description).not.toContain('/goal');
     expect(goal?.description).not.toContain('defined outcome');
-    expect(swarm?.description).toBe('Toggle team mode or send one task to the team');
+    expect(swarm?.description).toBe('Toggle specialist team mode or send one task');
     expect(swarm?.description).not.toContain('swarm mode');
+    expect(ultrawork?.description).toBe('Start Ultrawork: plan, goal, verify');
   });
 
   it('offers swarm subcommand argument completions', () => {

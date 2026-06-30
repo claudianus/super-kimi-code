@@ -46,6 +46,8 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
 ];
 const DEFAULT_HELP_INTRO =
   'Describe the task to start; Kimi checks readiness, scope, and verification.\nManual controls live in /help advanced.';
+export const ADVANCED_HELP_INTRO =
+  'Ultrawork is the guided workflow; use these for manual steering.\nMost work starts from a plain request; Kimi plans, sets goals, and verifies.';
 
 export interface HelpPanelOptions {
   readonly commands: readonly HelpPanelCommand[];

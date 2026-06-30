@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import type { KimiSlashCommand } from '#/tui/commands/index';
-import { HelpPanelComponent } from '#/tui/components/dialogs/help-panel';
+import { ADVANCED_HELP_INTRO, HelpPanelComponent } from '#/tui/components/dialogs/help-panel';
 
 function cmd(name: string, description: string, aliases: string[] = []): KimiSlashCommand {
   return {
@@ -56,6 +56,20 @@ describe('HelpPanelComponent', () => {
     expect(alphaIdx).toBeLessThan(mcpConfigIdx);
     expect(zebraIdx).toBeLessThan(skillBravoIdx);
     expect(mcpConfigIdx).toBeLessThan(skillBravoIdx);
+  });
+
+  it('renders the advanced Ultrawork help framing when provided', () => {
+    const panel = new HelpPanelComponent({
+      commands: [cmd('ultrawork', 'Start Ultrawork: plan, goal, verify', ['uw'])],
+      intro: ADVANCED_HELP_INTRO,
+      commandSectionTitle: 'Advanced Ultrawork controls',
+      onClose: () => {},
+    });
+    const out = strip(panel.render(80).join('\n'));
+    expect(out).toMatch(/Ultrawork is the guided workflow/);
+    expect(out).toMatch(/Kimi plans, sets goals, and verifies/);
+    expect(out).toMatch(/Advanced Ultrawork controls/);
+    expect(out).toMatch(/\/ultrawork \(\/uw\)/);
   });
 
   it('Escape fires onClose', () => {

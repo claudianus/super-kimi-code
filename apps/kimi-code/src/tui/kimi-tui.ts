@@ -60,7 +60,7 @@ import {
   type ApprovalPreviewBlock,
 } from './components/dialogs/approval-preview';
 import { CompactionComponent } from './components/dialogs/compaction';
-import { HelpPanelComponent } from './components/dialogs/help-panel';
+import { ADVANCED_HELP_INTRO, HelpPanelComponent } from './components/dialogs/help-panel';
 import { QuestionDialogComponent } from './components/dialogs/question-dialog';
 import { SessionPickerComponent, type SessionRow } from './components/dialogs/session-picker';
 import {
@@ -2548,12 +2548,12 @@ export class KimiTUI {
         intro: mode === 'diagnostics'
           ? 'Advanced QA commands for Super Kimi harness development.'
           : mode === 'advanced'
-            ? 'Optional manual workflow commands. You can usually just describe the task.'
+            ? ADVANCED_HELP_INTRO
           : undefined,
         commandSectionTitle: mode === 'diagnostics'
           ? 'Diagnostic commands'
           : mode === 'advanced'
-            ? 'Advanced commands'
+            ? 'Advanced Ultrawork controls'
             : undefined,
         onClose: () => {
           this.hideHelpPanel();

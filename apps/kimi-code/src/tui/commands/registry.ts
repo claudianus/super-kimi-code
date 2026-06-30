@@ -215,7 +215,7 @@ export const BUILTIN_SLASH_COMMANDS = [
   {
     name: 'swarm',
     aliases: [],
-    description: 'Toggle team mode or send one task to the team',
+    description: 'Toggle specialist team mode or send one task',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[on|off] | <task>',
@@ -235,7 +235,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     name: 'ultrawork',
     aliases: ['uw'],
     hiddenAliases: ['ultragoal', 'ug'],
-    description: 'Start a guided autonomous coding workflow',
+    description: 'Start Ultrawork: plan, goal, verify',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[replace] <objective>',
