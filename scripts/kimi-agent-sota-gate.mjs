@@ -1124,6 +1124,7 @@ function isUsableEvidenceSummary(kind, summary) {
 
 function isUsableTuiSummary(summary) {
   if (summary?.phase !== 'tui-launch' || summary.status !== 'PASS') return false;
+  if (summary.validations?.ultraworkUnifiedSurface?.status !== 'PASS') return false;
   if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
   const captures = new Map(summary.captures.map((capture) => [capture.scenario, capture]));
   const traces = new Map(summary.inputTraces.map((trace) => [trace.scenario, trace]));

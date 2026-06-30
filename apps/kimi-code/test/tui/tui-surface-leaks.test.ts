@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasUltraworkHelpContract,
+  hasUltraworkStatusContract,
+  hasUltraworkTaskEntryCopy,
   hasStatusPanelSetupNextAction,
   hasXpDodReadinessContract,
   shouldRequireModelSetupAction,
@@ -58,6 +61,35 @@ describe('TUI surface leak checks', () => {
     expect(defaultUserSurfaceLeakFailures('autocomplete', '/ultraswarm')).toContain(
       'default autocomplete capture exposes Ultraswarm manual command',
     );
+  });
+
+  it('recognizes the unified Ultrawork task-entry, help, and status surface contract', () => {
+    expect(
+      hasUltraworkTaskEntryCopy('Describe task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.'),
+    ).toBe(true);
+    expect(
+      hasUltraworkHelpContract(
+        [
+          'Describe task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.',
+          'Verify runs before finish; advanced controls are optional.',
+        ].join('\n'),
+      ),
+    ).toBe(true);
+    expect(
+      hasUltraworkStatusContract(
+        [
+          'Ultrawork    auto-link ready',
+          'Workflow      task -> Ultrawork stages -> verify',
+          'Engine        UltraPlan | UltraGoal | UltraSwarm | Verify',
+          'Auto          ask if needed | plan | goal | swarm | verify',
+          'Stages        Plan on | Goal ready | Swarm auto | Verify queued',
+          'Next          Type task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.',
+        ].join('\n'),
+      ),
+    ).toBe(true);
+
+    expect(hasUltraworkHelpContract('Run /ultrawork manually.')).toBe(false);
+    expect(hasUltraworkStatusContract('Ultrawork    ready')).toBe(false);
   });
 
   it('only requires setup actions when the screen is missing a model', () => {

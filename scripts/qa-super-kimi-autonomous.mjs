@@ -14,6 +14,9 @@ import net from 'node:net';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasUltraworkHelpContract,
+  hasUltraworkStatusContract,
+  hasUltraworkTaskEntryCopy,
   hasStatusPanelSetupNextAction,
   hasXpDodReadinessContract,
   shouldRequireModelSetupAction,
@@ -1363,6 +1366,7 @@ function isUltraworkSummaryCandidate(relativePath) {
 
 function isUsableSotaTuiSummary(summary) {
   if (summary?.phase !== 'tui-launch' || summary.status !== 'PASS') return false;
+  if (summary.validations?.ultraworkUnifiedSurface?.status !== 'PASS') return false;
   if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
   const capturesByScenario = new Map(summary.captures.map((capture) => [capture.scenario, capture]));
   const missingCapture = REQUIRED_TUI_CAPTURE_SCENARIOS.some(
@@ -4537,6 +4541,8 @@ async function runTuiLaunchPhase(context) {
     }
 
     summary.validations.tmuxScreenProof = validateTuiScreenProof(summary.captures);
+    summary.validations.ultraworkUnifiedSurface =
+      await validateTuiLaunchUltraworkUnifiedSurface(summary.captures);
     summary.validations.exitSessionClosed = validateTuiExitSession(context, tmuxSession);
     cleanupOverrides.proofCommands.push(summary.validations.exitSessionClosed.commandProof);
     const failedValidation = Object.values(summary.validations).find(
@@ -9474,6 +9480,74 @@ function validateTuiScreenProof(captures) {
             .join(', ')}`,
     requiredScenarios: REQUIRED_TUI_CAPTURE_SCENARIOS,
     scenarioResults,
+  };
+}
+
+async function validateTuiLaunchUltraworkUnifiedSurface(captures) {
+  const capturesByScenario = new Map(captures.map((capture) => [capture.scenario, capture]));
+  const checks = await Promise.all([
+    validateTuiLaunchSurfaceScenario(
+      capturesByScenario,
+      'startup',
+      'startup screen task-entry copy',
+      hasUltraworkTaskEntryCopy,
+    ),
+    validateTuiLaunchSurfaceScenario(
+      capturesByScenario,
+      'help',
+      'help screen Ultrawork entry contract',
+      hasUltraworkHelpContract,
+    ),
+    validateTuiLaunchSurfaceScenario(
+      capturesByScenario,
+      'status',
+      'status screen auto-link readiness contract',
+      hasUltraworkStatusContract,
+    ),
+  ]);
+  const failures = checks.filter((check) => check.status !== 'PASS');
+  return {
+    status: failures.length === 0 ? 'PASS' : 'FAIL',
+    reason:
+      failures.length === 0
+        ? 'Live TUI startup, help, and status screens show Ultrawork as one auto-linked workflow.'
+        : `TUI launch is missing Ultrawork unified workflow surface evidence: ${failures
+            .map((failure) => failure.scenario)
+            .join(', ')}`,
+    checks,
+  };
+}
+
+async function validateTuiLaunchSurfaceScenario(capturesByScenario, scenario, label, predicate) {
+  const capture = capturesByScenario.get(scenario);
+  if (capture === undefined) {
+    return {
+      scenario,
+      label,
+      status: 'FAIL',
+      reason: 'missing tmux capture artifact',
+    };
+  }
+  if (capture.status !== 'PASS') {
+    return {
+      scenario,
+      label,
+      status: 'FAIL',
+      reason: `capture status is ${capture.status}`,
+      path: capture.path,
+    };
+  }
+  const raw = await readFile(capture.path, 'utf8');
+  const normalized = normalizeScreenText(raw);
+  const passed = predicate(normalized);
+  return {
+    scenario,
+    label,
+    status: passed ? 'PASS' : 'FAIL',
+    reason: passed
+      ? `${label} is visible.`
+      : `${label} is not visible in the captured TUI screen.`,
+    path: capture.path,
   };
 }
 

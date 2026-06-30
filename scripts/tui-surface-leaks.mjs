@@ -52,6 +52,28 @@ export function hasXpDodReadinessContract(output) {
   ].every((pattern) => pattern.test(output));
 }
 
+export function hasUltraworkTaskEntryCopy(output) {
+  return /\bDescribe task;\s*Ultrawork runs UltraPlan,\s*UltraGoal,\s*UltraSwarm\.?/i.test(output);
+}
+
+export function hasUltraworkHelpContract(output) {
+  return (
+    hasUltraworkTaskEntryCopy(output) &&
+    /\bVerify runs before finish;\s*advanced controls are optional\.?/i.test(output)
+  );
+}
+
+export function hasUltraworkStatusContract(output) {
+  return [
+    /\bUltrawork\b\s+auto-link ready/i,
+    /\bWorkflow\b\s+task\s*->\s*Ultrawork stages\s*->\s*verify/i,
+    /\bEngine\b\s+UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
+    /\bAuto\b\s+ask if needed\s*\|\s*plan\s*\|\s*goal\s*\|\s*swarm\s*\|\s*verify/i,
+    /\bStages\b\s+Plan on\s*\|\s*Goal ready\s*\|\s*Swarm auto\s*\|\s*Verify queued/i,
+    /\bNext\b\s+Type task;\s*Ultrawork runs UltraPlan,\s*UltraGoal,\s*UltraSwarm\.?/i,
+  ].every((pattern) => pattern.test(output));
+}
+
 export function shouldRequireModelSetupAction(output) {
   return /\bModel:?\s+not set\b/i.test(output) || /\bState\b\s+Model needed\b/i.test(output);
 }
