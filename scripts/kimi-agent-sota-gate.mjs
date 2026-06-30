@@ -17,6 +17,7 @@ import {
   isCompleteUltraworkEvidenceSummary,
   missingUltraworkUsageMetricNames,
   ULTRAWORK_SUMMARY_REQUIRED_VALIDATIONS as REQUIRED_ULTRAWORK_VALIDATIONS,
+  ultraworkQuestionValidation,
 } from './kimi-sota-evidence-contract.mjs';
 
 const DEFAULT_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
@@ -1396,7 +1397,7 @@ async function evaluateUltraworkGate(summary) {
 
   const validationStatuses = {};
   for (const name of REQUIRED_ULTRAWORK_VALIDATIONS) {
-    const status = summary.validations?.[name]?.status;
+    const status = ultraworkGateValidation(summary, name)?.status;
     validationStatuses[name] = status;
     if (status !== 'PASS') failures.push(`${name} validation is ${String(status)}`);
   }
@@ -1418,9 +1419,10 @@ async function evaluateUltraworkGate(summary) {
   if (!Array.isArray(workflowWait?.interviewEvidence) || workflowWait.interviewEvidence.length === 0) {
     failures.push('Ultra Plan interview evidence is missing from workflow wait');
   }
+  const questionValidation = ultraworkQuestionValidation(summary);
   const questionBypassed =
-    summary.validations?.questionAnswered?.status === 'PASS' &&
-    summary.validations.questionAnswered.optional === true;
+    questionValidation?.status === 'PASS' &&
+    questionValidation.optional === true;
   if (
     !questionBypassed &&
     (!Array.isArray(workflowWait?.questionAnswerEvidence) ||
@@ -1629,9 +1631,10 @@ async function validateUltraworkCaptures(summary) {
 
 function validateUltraworkInputTraces(summary) {
   const traces = Array.isArray(summary.inputTraces) ? summary.inputTraces : [];
+  const questionValidation = ultraworkQuestionValidation(summary);
   const questionBypassed =
-    summary.validations?.questionAnswered?.status === 'PASS' &&
-    summary.validations.questionAnswered.optional === true;
+    questionValidation?.status === 'PASS' &&
+    questionValidation.optional === true;
   const planResetTrace = traces.find((entry) => entry.scenario === 'ultrawork-plan-reset');
   const trace = traces.find((entry) => entry.scenario === 'ultrawork-auto-prompt');
   const usageTrace = traces.find((entry) => entry.scenario === 'ultrawork-usage');
@@ -1706,6 +1709,11 @@ function validateUltraworkInputTraces(summary) {
       keys: usageTrace?.keys,
     },
   ];
+}
+
+function ultraworkGateValidation(summary, name) {
+  if (name === 'questionHandled') return ultraworkQuestionValidation(summary);
+  return summary.validations?.[name];
 }
 
 async function validateWorkflowCaptures(summary) {

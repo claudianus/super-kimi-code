@@ -8,7 +8,7 @@ export const ULTRAWORK_SUMMARY_REQUIRED_VALIDATIONS = Object.freeze([
   'ultraworkActivated',
   'linkedUltraworkStages',
   'ultraPlanInterviewReached',
-  'questionAnswered',
+  'questionHandled',
   'postQuestionProgressObserved',
   'noQuestionToolContractError',
   'noAutoQuestionPolicyConflict',
@@ -49,7 +49,7 @@ export function isCompleteUltraworkEvidenceSummary(summary) {
   if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
   if (
     ULTRAWORK_SUMMARY_REQUIRED_VALIDATIONS.some(
-      (name) => summary.validations?.[name]?.status !== 'PASS',
+      (name) => ultraworkValidationStatus(summary, name) !== 'PASS',
     )
   ) {
     return false;
@@ -61,7 +61,8 @@ export function isCompleteUltraworkEvidenceSummary(summary) {
   if (summary.workflow.wait.activationEvidence.length === 0) return false;
   if (!Array.isArray(summary.workflow?.wait?.interviewEvidence)) return false;
   if (summary.workflow.wait.interviewEvidence.length === 0) return false;
-  const questionBypassed = summary.validations?.questionAnswered?.optional === true;
+  const questionValidation = ultraworkQuestionValidation(summary);
+  const questionBypassed = questionValidation?.optional === true;
   if (
     !questionBypassed &&
     (!Array.isArray(summary.workflow?.wait?.questionAnswerEvidence) ||
@@ -85,6 +86,15 @@ export function isCompleteUltraworkEvidenceSummary(summary) {
   if (summary.workspace?.diffExitCode !== 0) return false;
   if (summary.workspace?.verificationExitCode !== 0) return false;
   return summary.workspace?.targetedTestExitCode === 0;
+}
+
+export function ultraworkQuestionValidation(summary) {
+  return summary?.validations?.questionHandled ?? summary?.validations?.questionAnswered;
+}
+
+function ultraworkValidationStatus(summary, name) {
+  if (name === 'questionHandled') return ultraworkQuestionValidation(summary)?.status;
+  return summary?.validations?.[name]?.status;
 }
 
 export function missingUltraworkUsageMetricNames(metrics) {

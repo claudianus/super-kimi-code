@@ -5504,7 +5504,8 @@ async function runTuiUltraworkWorkflowPhase(context) {
     summary.validations.swarmDecisionEvidence = validateUltraworkSwarmDecision(waitResult);
     summary.validations.swarmDecisionOutcome = validateUltraworkSwarmDecisionOutcome(waitResult);
     summary.validations.ultraPlanInterviewReached = validateUltraworkInterview(waitResult);
-    summary.validations.questionAnswered = validateUltraworkQuestionAnswered(waitResult);
+    summary.validations.questionHandled = validateUltraworkQuestionHandled(waitResult);
+    summary.validations.questionAnswered = summary.validations.questionHandled;
     summary.validations.postQuestionProgressObserved = validateUltraworkPostQuestionProgress(waitResult);
     summary.validations.noQuestionToolContractError = validateUltraworkQuestionToolError(waitResult);
     summary.validations.noAutoQuestionPolicyConflict = validateUltraworkPolicyConflict(waitResult);
@@ -6008,6 +6009,38 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
     }
+    const swarmOutcomeAlreadyRequested = interventions.some(
+      (intervention) => intervention.action === 'request-swarm-outcome',
+    );
+    if (
+      signals.doneVisible &&
+      sourceTestComplete &&
+      agentVerificationComplete &&
+      swarmDecisionOutcomeEvidence.length === 0 &&
+      !swarmOutcomeAlreadyRequested
+    ) {
+      const trace = await sendTmuxKeySequence(
+        context,
+        tmuxSession,
+        'ultrawork-operator-request-swarm-outcome',
+        [
+          'Please add one final line exactly in this format: Swarm decision: DEFER - reason: bounded single-agent source/test edit is complete; value: none; owner: harness verification. Then stop.',
+          'Enter',
+        ],
+      );
+      inputTraces.push(trace);
+      interventions.push({
+        atMs: Date.now() - startedAt,
+        action: 'request-swarm-outcome',
+        reason: 'Workflow reached Done with source/test verification, but the required Swarm decision outcome was not visible.',
+        state,
+        status: trace.status,
+        keys: trace.keys,
+        commandNames: trace.commands.map((command) => command.name),
+      });
+      await sleep(2_000);
+      continue;
+    }
     if (decision.action !== 'wait') {
       const trace = await sendTmuxKeySequence(
         context,
@@ -6170,6 +6203,11 @@ function inspectUltraworkWorkflowSignals(output) {
     /Plan file:/i,
     /\b(Read|Edit|Write|Bash|Shell)\b/i,
   ]);
+  const doneVisible = matchesAny(output, [
+    /●\s*(?:✓\s*)?(?:Goal complete|Done\.)/i,
+    /Changes made:[\s\S]{0,600}Validation:/i,
+    /Validation:[\s\S]{0,300}\bpassed:/i,
+  ]);
   const questionToolError = matchesAny(output, [
     /Could not collect your input/i,
     /Invalid args for tool "AskUserQuestion"/i,
@@ -6214,6 +6252,7 @@ function inspectUltraworkWorkflowSignals(output) {
     questionAnswered,
     questionSubmitFingerprint,
     postQuestionProgress,
+    doneVisible,
     questionToolError,
     phaseTransitionError,
     linkedStagesVisible,
@@ -6236,6 +6275,9 @@ function inspectUltraworkWorkflowSignals(output) {
     postQuestionProgressReason: postQuestionProgress
       ? 'screen shows progress after the question interaction'
       : 'screen does not show post-question workflow progress yet',
+    doneReason: doneVisible
+      ? 'screen shows completed Ultrawork result and validation evidence'
+      : 'screen does not show completed Ultrawork result yet',
     questionToolErrorReason: questionToolError
       ? 'screen shows an AskUserQuestion tool contract error'
       : 'screen does not show an AskUserQuestion tool contract error',
@@ -6264,6 +6306,10 @@ function classifyUltraworkWorkflowScreenState(output) {
   if (matchesAny(output, [/press enter[^\n]{0,80}approve/i, /enter to approve/i, /approve plan/i])) {
     return 'plan-approval-awaiting-operator';
   }
+  if (signals.doneVisible && !signals.swarmDecisionOutcomeVisible) {
+    return 'done-missing-swarm-decision-outcome';
+  }
+  if (signals.doneVisible) return 'ultrawork-done';
   if (signals.postQuestionProgress) return 'post-question-progress';
   if (signals.questionAnswered) return 'question-answered';
   if (signals.questionVisible) return 'question-visible';
@@ -6721,7 +6767,7 @@ function validateUltraworkInterview(waitResult) {
   };
 }
 
-function validateUltraworkQuestionAnswered(waitResult) {
+function validateUltraworkQuestionHandled(waitResult) {
   const answerEvidenceCount = Array.isArray(waitResult.questionAnswerEvidence)
     ? waitResult.questionAnswerEvidence.length
     : 0;
@@ -6753,7 +6799,7 @@ function validateUltraworkQuestionAnswered(waitResult) {
     return {
       status: 'PASS',
       reason:
-        'Ultra Plan question evidence was resolved without extra operator keypresses; Ultrawork proceeded automatically with best judgment.',
+        'Ultra Plan question evidence was handled without extra operator keypresses; Ultrawork proceeded automatically with best judgment.',
       evidenceCount: answerEvidenceCount,
       answerInputTraceCount: questionAnswerTraces.length,
       submitInputTraceCount: questionSubmitTraces.length,
@@ -6763,7 +6809,22 @@ function validateUltraworkQuestionAnswered(waitResult) {
   const questionEvidenceCount = Array.isArray(waitResult.questionEvidence)
     ? waitResult.questionEvidence.length
     : 0;
-  if (status !== 'PASS' && waitResult.status === 'PASS' && questionEvidenceCount === 0) {
+  const postQuestionProgressCount = Array.isArray(waitResult.postQuestionProgressEvidence)
+    ? waitResult.postQuestionProgressEvidence.length
+    : 0;
+  const questionToolErrorCount = Array.isArray(waitResult.questionToolErrorEvidence)
+    ? waitResult.questionToolErrorEvidence.length
+    : 0;
+  const policyConflictCount = Array.isArray(waitResult.policyConflictEvidence)
+    ? waitResult.policyConflictEvidence.length
+    : 0;
+  if (
+    status !== 'PASS' &&
+    questionEvidenceCount === 0 &&
+    postQuestionProgressCount > 0 &&
+    questionToolErrorCount === 0 &&
+    policyConflictCount === 0
+  ) {
     return {
       status: 'PASS',
       reason:
@@ -6771,6 +6832,7 @@ function validateUltraworkQuestionAnswered(waitResult) {
       evidenceCount: answerEvidenceCount,
       answerInputTraceCount: questionAnswerTraces.length,
       submitInputTraceCount: questionSubmitTraces.length,
+      postQuestionProgressEvidenceCount: postQuestionProgressCount,
       optional: true,
     };
   }
@@ -6779,7 +6841,7 @@ function validateUltraworkQuestionAnswered(waitResult) {
     reason:
       status === 'PASS'
         ? 'Live TUI operator selected and submitted an Ultrawork interview answer.'
-        : 'Ultrawork gate must either answer a visible blocking question or prove no question was needed before automatic progress.',
+        : 'Ultrawork gate must either handle a visible blocking question or prove no question was needed before automatic progress.',
     evidenceCount: answerEvidenceCount,
     answerInputTraceCount: questionAnswerTraces.length,
     submitInputTraceCount: questionSubmitTraces.length,
@@ -6861,7 +6923,7 @@ function buildTuiUltraworkScorecard(summary) {
         'swarmDecisionEvidence',
         'swarmDecisionOutcome',
         'ultraPlanInterviewReached',
-        'questionAnswered',
+        'questionHandled',
         'postQuestionProgressObserved',
       ],
     }),
@@ -7070,7 +7132,8 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       .filter((trace) => trace.status === 'PASS')
       .map((trace) => trace.scenario),
   );
-  const optionalQuestionBypassed = summary.validations?.questionAnswered?.optional === true;
+  const questionValidation = summary.validations?.questionHandled ?? summary.validations?.questionAnswered;
+  const optionalQuestionBypassed = questionValidation?.optional === true;
   const steps = [
     {
       name: 'observe-startup-screen',
@@ -7125,7 +7188,7 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
     {
       name: 'handle-optional-ultrawork-interview-answer',
       status:
-        summary.validations?.questionAnswered?.status === 'PASS' &&
+        questionValidation?.status === 'PASS' &&
         (optionalQuestionBypassed ||
           Array.from(passedInputTraces).some((scenario) =>
             scenario.startsWith('ultrawork-question-answer-') ||
@@ -7133,19 +7196,19 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
           ))
           ? 'PASS'
           : 'FAIL',
-      evidence: 'inputTraces[ultrawork-question-answer-*|ultrawork-question-submit-*]',
+      evidence: 'validations.questionHandled + inputTraces[ultrawork-question-answer-*|ultrawork-question-submit-*]',
     },
     {
       name: 'submit-optional-ultrawork-interview-answer',
       status:
-        summary.validations?.questionAnswered?.status === 'PASS' &&
+        questionValidation?.status === 'PASS' &&
         (optionalQuestionBypassed ||
           Array.from(passedInputTraces).some((scenario) =>
             scenario.startsWith('ultrawork-question-submit-'),
           ))
           ? 'PASS'
           : 'FAIL',
-      evidence: 'inputTraces[ultrawork-question-submit-*]',
+      evidence: 'validations.questionHandled + inputTraces[ultrawork-question-submit-*]',
     },
     {
       name: 'observe-post-question-progress',
