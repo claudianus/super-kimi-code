@@ -89,7 +89,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests \+ typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(
-      /Next\s+Type task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm\./,
+      /Next\s+Type task; Ultrawork runs the full workflow, then verifies\./,
     );
     expect(output).not.toContain('Ultrawork plans, sets goal, swarms, verifies.');
     expect(output).not.toContain('helpers');
@@ -221,7 +221,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Stages\s+Plan auto \| Goal ready \| Swarm auto \| Verify ready/);
     expect(output).toMatch(/Blockers\s+none detected/);
     expect(output).toMatch(
-      /Next\s+Type task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm\./,
+      /Next\s+Type task; Ultrawork runs the full workflow, then verifies\./,
     );
     expect(output).not.toContain('Ultrawork plans, sets goal, swarms, verifies.');
     expect(output).not.toContain('helpers');

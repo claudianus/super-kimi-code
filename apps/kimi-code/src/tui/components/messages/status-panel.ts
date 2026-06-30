@@ -291,7 +291,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ...gateRows,
     {
       label: 'Next',
-      value: 'Type task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.',
+      value: 'Type task; Ultrawork runs the full workflow, then verifies.',
     },
   ];
 }

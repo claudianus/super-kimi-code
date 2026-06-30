@@ -84,7 +84,7 @@ describe('TUI surface leak checks', () => {
           'Auto          ask if needed | plan | goal | swarm | verify',
           'Flow          ███░ 3/4 verify queued',
           'Stages        Plan on | Goal ready | Swarm auto | Verify queued',
-          'Next          Type task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.',
+          'Next          Type task; Ultrawork runs the full workflow, then verifies.',
         ].join('\n'),
       ),
     ).toBe(true);
