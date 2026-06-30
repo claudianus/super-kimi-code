@@ -23,6 +23,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1220`: open the undo selector when Esc is pressed twice at the idle prompt.
 - Upstream `#1204`: expose installed plugin Markdown commands as namespaced slash commands.
 - Upstream `#1187`, `#1188`, `#1189`: TUI polish fixes for undo debug timing, input redraws, and swarm progress tips.
+- Upstream `#1214` partial: count image/audio/video parts in context token estimates.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -39,7 +40,8 @@ Super Kimi adaptation:
 - Added plugin command manifest parsing, SDK activation APIs, TUI autocomplete/dispatch, replay, and undo support.
 - Preserved Super Kimi dynamic `skill:` fallback behavior while adding `/plugin-id:command` support.
 - Kept debug timing output tied to undoable turns, removed input-time clear-on-shrink full redraws, and kept working tips out of inline swarm progress rows.
+- Pulled the independent media-token estimator fix from the compaction rework so media-heavy vibe-coding sessions no longer look free to usage/readiness and compaction budget logic.
 
 ## Next Candidate Queue
 
-- `#1214` compaction strategy: potential token-efficiency win, but large behavioral surface.
+- `#1214` compaction strategy remainder: potential token-efficiency win, but large behavioral surface.

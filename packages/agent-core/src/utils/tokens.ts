@@ -67,11 +67,27 @@ export function estimateTokensForContentParts(parts: readonly ContentPart[]): nu
   return total;
 }
 
+/**
+ * Transient per-part token floor for media (image/audio/video). The real usage
+ * from the next model response supersedes this estimate; this only prevents
+ * media-heavy pending context from looking free to compaction and usage UI.
+ */
+export const MEDIA_TOKEN_ESTIMATE = 2000;
+
 export function estimateTokensForContentPart(part: ContentPart): number {
-  if (part.type === 'text') {
-    return estimateTokens(part.text);
-  } else if (part.type === 'think') {
-    return estimateTokens(part.think);
+  switch (part.type) {
+    case 'text':
+      return estimateTokens(part.text);
+    case 'think':
+      return estimateTokens(part.think);
+    case 'image_url':
+    case 'audio_url':
+    case 'video_url':
+      return MEDIA_TOKEN_ESTIMATE;
+    default: {
+      const _exhaustive: never = part;
+      void _exhaustive;
+      return 0;
+    }
   }
-  return 0;
 }
