@@ -2718,6 +2718,7 @@ function renderMarkdown(report) {
       `- source age: ${String(report.harnessRadarProof.sourceAgeDays ?? 'unavailable')}d / ${String(report.harnessRadarProof.sourceMaxAgeDays ?? 'unavailable')}d max`,
       `- refresh: ${String(report.harnessRadarProof.refreshScript ?? 'unavailable')}`,
       ...harnessRadarChangeLines(report.harnessRadarProof.changeSummary),
+      ...harnessRadarWatchlistLines(report.harnessRadarProof.watchlist),
       `- autonomy: ${String(report.harnessRadarProof.autonomyMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.autonomyTarget ?? 'unavailable')}`,
       `- recovery: ${String(report.harnessRadarProof.recoveryMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.recoveryTarget ?? 'unavailable')}`,
       `- tool discovery: ${String(report.harnessRadarProof.toolDiscoveryPattern ?? 'unavailable')}`,
@@ -2863,6 +2864,17 @@ function harnessRadarChangeLines(changeSummary) {
         : 'none';
       return `- ${String(pattern.id)}: added ${added}; removed ${removed}`;
     }),
+  ];
+}
+
+function harnessRadarWatchlistLines(watchlist) {
+  const items = Array.isArray(watchlist?.items) ? watchlist.items : [];
+  if (items.length === 0) return [];
+  const categories = [...new Set(items.map((item) => String(item.category)).filter((category) => category.length > 0))];
+  const names = items.slice(0, 6).map((item) => String(item.name)).join(', ');
+  return [
+    `- watchlist: ${String(items.length)} projects across ${categories.join(', ')}`,
+    `- watchlist sample: ${names}`,
   ];
 }
 

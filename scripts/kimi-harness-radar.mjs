@@ -3,6 +3,7 @@ const REQUIRED_RECOVERY_TIERS = Object.freeze(['none', 'retry', 'resumable', 'du
 const REQUIRED_ADOPTION_TIERS = Object.freeze(['super simple', 'mostly simple', 'slightly complex', 'complex']);
 const REQUIRED_MEMORY_LANES = Object.freeze(['application-owned', 'harness-owned', 'agent-owned']);
 const REQUIRED_BENCHMARK_REFERENCES = Object.freeze(['SWE-bench', 'Terminal-Bench', 'inspect_ai']);
+const REQUIRED_WATCHLIST_CATEGORIES = Object.freeze(['coding-agent-products', 'progressive-disclosure', 'evaluation']);
 const DEFAULT_MAX_SOURCE_AGE_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -81,6 +82,15 @@ export function evaluateHarnessRadarGate(radar, options = {}) {
     failures.push('missing curation-refresh-routine pattern');
   }
 
+  const watchlistItems = Array.isArray(radar?.watchlist?.items) ? radar.watchlist.items : [];
+  const watchlistCategories = uniqueStrings(watchlistItems.map((item) => item?.category));
+  const missingWatchlistCategories = REQUIRED_WATCHLIST_CATEGORIES.filter(
+    (category) => !watchlistCategories.includes(category),
+  );
+  if (missingWatchlistCategories.length > 0) {
+    failures.push(`watchlist missing categories: ${missingWatchlistCategories.join(', ')}`);
+  }
+
   return {
     name: 'harness-radar-alignment',
     status: failures.length === 0 ? 'PASS' : 'FAIL',
@@ -107,6 +117,9 @@ export function evaluateHarnessRadarGate(radar, options = {}) {
       memoryLanes: lanes,
       benchmarkReferences: references,
       refreshCadence: refreshPattern?.cadence,
+      watchlistCount: watchlistItems.length,
+      watchlistCategories,
+      watchlist: radar?.watchlist,
       failures,
     },
   };
@@ -146,4 +159,8 @@ function sourceAgeInDays(date, nowMs) {
   const capturedMs = Date.parse(`${date}T00:00:00.000Z`);
   if (!Number.isFinite(capturedMs)) return undefined;
   return Math.floor(Math.max(0, nowMs - capturedMs) / DAY_MS);
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.map(String).filter((value) => value.length > 0))];
 }

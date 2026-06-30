@@ -8,7 +8,13 @@ const DEFAULT_INPUT_URL = 'https://raw.githubusercontent.com/RyanAlberts/best-of
 const DEFAULT_OUTPUT_PATH = '.omo/bench/harness-radar.json';
 const TERMINAL_USE_CASE = 'I want a turnkey coding agent today';
 const TOOL_DISCOVERY_USE_CASE = 'I want to plug hundreds to thousands of tools without context bloat';
+const EVALUATION_USE_CASE = 'I want to evaluate or benchmark agents';
 const REQUIRED_BENCHMARK_REFERENCES = Object.freeze(['SWE-bench', 'Terminal-Bench', 'inspect_ai', 'Agent Lightning']);
+const WATCHLIST_USE_CASES = Object.freeze([
+  { focus: 'terminal coding agent', intent: TERMINAL_USE_CASE, limit: 3 },
+  { focus: 'tool discovery', intent: TOOL_DISCOVERY_USE_CASE, limit: 3 },
+  { focus: 'evaluation harness', intent: EVALUATION_USE_CASE, limit: 3 },
+]);
 
 export function buildHarnessRadarFromBestOf(data, options = {}) {
   const projects = Array.isArray(data?.projects) ? data.projects : [];
@@ -96,6 +102,7 @@ export function buildHarnessRadarFromBestOf(data, options = {}) {
         superKimiAdoption: 'Use a deterministic refresh script before turning external harness trends into Ultrawork product work.',
       },
     ],
+    watchlist: buildWatchlist(data, projectById),
   };
   const changeSummary = buildChangeSummary(
     options.previousRadar,
@@ -132,6 +139,7 @@ async function main(argv) {
   console.log(`stars captured: ${radar.source.starsCapturedAt}`);
   console.log(`terminal projects: ${patternById(radar, 'terminal-agent-shell-vs-harness').projects.join(', ')}`);
   console.log(`tool-discovery projects: ${patternById(radar, 'tool-discovery-context-budget').projects.join(', ')}`);
+  console.log(`watchlist projects: ${radar.watchlist.items.map((item) => item.name).join(', ')}`);
   if (radar.source.changeSummary !== undefined) {
     console.log(`project drift: +${radar.source.changeSummary.totalAdded}/-${radar.source.changeSummary.totalRemoved}`);
   }
@@ -218,6 +226,43 @@ function tags(project) {
 
 function names(projects) {
   return projects.map((project) => String(project.name)).filter((name) => name.length > 0);
+}
+
+function buildWatchlist(data, projectById) {
+  const items = [];
+  const seen = new Set();
+  for (const useCase of WATCHLIST_USE_CASES) {
+    const picks = useCasePicks(data, useCase.intent)
+      .map((githubId) => projectById.get(githubId))
+      .filter(Boolean)
+      .slice(0, useCase.limit);
+    for (const project of picks) {
+      const githubId = String(project.github_id);
+      const key = `${useCase.focus}:${githubId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(watchlistItem(project, useCase));
+    }
+  }
+  return {
+    generatedFrom: 'best-of-Agent-Harnesses use_cases',
+    items,
+  };
+}
+
+function watchlistItem(project, useCase) {
+  return {
+    focus: useCase.focus,
+    intent: useCase.intent,
+    name: String(project.name),
+    githubId: String(project.github_id),
+    category: String(project.category),
+    stars: Number(project.stars ?? 0),
+    tier: String(project.tier ?? 'unknown'),
+    autonomy: String(project.autonomy ?? 'unknown'),
+    recovery: String(project.recovery ?? 'unknown'),
+    tags: tags(project),
+  };
 }
 
 function buildChangeSummary(previousRadar, nextRadar, comparedWith) {

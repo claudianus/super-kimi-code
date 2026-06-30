@@ -62,6 +62,35 @@ function completeRadar() {
         cadence: 'weekly',
       },
     ],
+    watchlist: {
+      generatedFrom: 'best-of-Agent-Harnesses use_cases',
+      items: [
+        {
+          focus: 'terminal coding agent',
+          intent: 'I want a turnkey coding agent today',
+          name: 'opencode',
+          githubId: 'anomalyco/opencode',
+          category: 'coding-agent-products',
+          stars: 180000,
+        },
+        {
+          focus: 'tool discovery',
+          intent: 'I want to plug hundreds to thousands of tools without context bloat',
+          name: 'MCP-Zero',
+          githubId: 'xfey/MCP-Zero',
+          category: 'progressive-disclosure',
+          stars: 489,
+        },
+        {
+          focus: 'evaluation harness',
+          intent: 'I want to evaluate or benchmark agents',
+          name: 'SWE-bench',
+          githubId: 'SWE-bench/SWE-bench',
+          category: 'evaluation',
+          stars: 5275,
+        },
+      ],
+    },
   };
 }
 
@@ -75,6 +104,12 @@ describe('harness radar gate', () => {
     expect(gate.observed?.autonomyTarget).toBe('headless');
     expect(gate.observed?.recoveryMinimum).toBe('resumable');
     expect(gate.observed?.toolDiscoveryPattern).toBe('tool-discovery-context-budget');
+    expect(gate.observed?.watchlistCount).toBe(3);
+    expect(gate.observed?.watchlistCategories).toEqual([
+      'coding-agent-products',
+      'progressive-disclosure',
+      'evaluation',
+    ]);
     expect(gate.observed?.sourceAgeDays).toBe(3);
     expect(gate.observed?.sourceMaxAgeDays).toBe(14);
   });
@@ -129,6 +164,10 @@ describe('harness radar gate', () => {
           intent: 'I want to plug hundreds to thousands of tools without context bloat',
           picks: ['xfey/MCP-Zero', 'antl3x/ToolRAG', 'langchain-ai/langgraph-bigtool'],
         },
+        {
+          intent: 'I want to evaluate or benchmark agents',
+          picks: ['SWE-bench/SWE-bench', 'UKGovernmentBEIS/inspect_ai'],
+        },
       ],
       projects: [
         project('opencode', 'anomalyco/opencode', 'coding-agent-products', ['mcp', 'cli', 'tui'], 180000),
@@ -140,6 +179,8 @@ describe('harness radar gate', () => {
         project('Mem0', 'mem0ai/mem0', 'libraries-sdks', ['memory'], 59600),
         project('claude-mem', 'thedotmack/claude-mem', 'plugins-mcp-cli', ['memory'], 84800),
         project('Letta', 'letta-ai/letta', 'frameworks', ['memory'], 23600),
+        project('SWE-bench', 'SWE-bench/SWE-bench', 'evaluation', ['evals', 'sandbox'], 5275),
+        project('inspect_ai', 'UKGovernmentBEIS/inspect_ai', 'evaluation', ['evals', 'sandbox'], 2269),
       ],
     }, {
       refreshedAt: '2026-07-01',
@@ -156,6 +197,26 @@ describe('harness radar gate', () => {
       .toEqual(['opencode', 'Codex', 'Gemini CLI']);
     expect(radar.patterns.find((pattern) => pattern.id === 'tool-discovery-context-budget')?.projects)
       .toEqual(['MCP-Zero', 'ToolRAG', 'langgraph-bigtool']);
+    expect(radar.watchlist.items.map((item) => item.name)).toEqual([
+      'opencode',
+      'Codex',
+      'Gemini CLI',
+      'MCP-Zero',
+      'ToolRAG',
+      'langgraph-bigtool',
+      'SWE-bench',
+      'inspect_ai',
+    ]);
+    expect(radar.watchlist.items.map((item) => item.focus)).toEqual([
+      'terminal coding agent',
+      'terminal coding agent',
+      'terminal coding agent',
+      'tool discovery',
+      'tool discovery',
+      'tool discovery',
+      'evaluation harness',
+      'evaluation harness',
+    ]);
   });
 
   it('records project drift against the previous internal radar', () => {
@@ -189,6 +250,10 @@ describe('harness radar gate', () => {
           intent: 'I want to plug hundreds to thousands of tools without context bloat',
           picks: ['xfey/MCP-Zero', 'antl3x/ToolRAG'],
         },
+        {
+          intent: 'I want to evaluate or benchmark agents',
+          picks: ['SWE-bench/SWE-bench'],
+        },
       ],
       projects: [
         project('opencode', 'anomalyco/opencode', 'coding-agent-products', ['mcp', 'cli', 'tui'], 180000),
@@ -198,6 +263,7 @@ describe('harness radar gate', () => {
         project('Mem0', 'mem0ai/mem0', 'libraries-sdks', ['memory'], 59600),
         project('claude-mem', 'thedotmack/claude-mem', 'plugins-mcp-cli', ['memory'], 84800),
         project('Letta', 'letta-ai/letta', 'frameworks', ['memory'], 23600),
+        project('SWE-bench', 'SWE-bench/SWE-bench', 'evaluation', ['evals', 'sandbox'], 5275),
       ],
     }, {
       previousRadar,

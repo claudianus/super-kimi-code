@@ -111,5 +111,151 @@
       "cadence": "weekly",
       "superKimiAdoption": "Use a deterministic refresh script before turning external harness trends into Ultrawork product work."
     }
-  ]
+  ],
+  "watchlist": {
+    "generatedFrom": "best-of-Agent-Harnesses use_cases",
+    "items": [
+      {
+        "focus": "terminal coding agent",
+        "intent": "I want a turnkey coding agent today",
+        "name": "opencode",
+        "githubId": "anomalyco/opencode",
+        "category": "coding-agent-products",
+        "stars": 180087,
+        "tier": "slightly complex",
+        "autonomy": "headless",
+        "recovery": "resumable",
+        "tags": [
+          "mcp",
+          "provider-agnostic",
+          "cli",
+          "tui",
+          "typescript"
+        ]
+      },
+      {
+        "focus": "terminal coding agent",
+        "intent": "I want a turnkey coding agent today",
+        "name": "Cline",
+        "githubId": "cline/cline",
+        "category": "coding-agent-products",
+        "stars": 63977,
+        "tier": "slightly complex",
+        "autonomy": "step-gated",
+        "recovery": "resumable",
+        "tags": [
+          "ide",
+          "typescript"
+        ]
+      },
+      {
+        "focus": "terminal coding agent",
+        "intent": "I want a turnkey coding agent today",
+        "name": "Codex",
+        "githubId": "openai/codex",
+        "category": "coding-agent-products",
+        "stars": 94168,
+        "tier": "slightly complex",
+        "autonomy": "bounded",
+        "recovery": "resumable",
+        "tags": [
+          "sandbox",
+          "provider-agnostic",
+          "cli"
+        ]
+      },
+      {
+        "focus": "tool discovery",
+        "intent": "I want to plug hundreds to thousands of tools without context bloat",
+        "name": "MCP-Zero",
+        "githubId": "xfey/MCP-Zero",
+        "category": "progressive-disclosure",
+        "stars": 489,
+        "tier": "complex",
+        "autonomy": "bounded",
+        "recovery": "none",
+        "tags": [
+          "tool-discovery"
+        ]
+      },
+      {
+        "focus": "tool discovery",
+        "intent": "I want to plug hundreds to thousands of tools without context bloat",
+        "name": "ToolGen",
+        "githubId": "Reason-Wang/ToolGen",
+        "category": "progressive-disclosure",
+        "stars": 181,
+        "tier": "complex",
+        "autonomy": "n/a",
+        "recovery": "n/a",
+        "tags": [
+          "tool-discovery",
+          "python"
+        ]
+      },
+      {
+        "focus": "tool discovery",
+        "intent": "I want to plug hundreds to thousands of tools without context bloat",
+        "name": "ToolRAG",
+        "githubId": "antl3x/ToolRAG",
+        "category": "progressive-disclosure",
+        "stars": 28,
+        "tier": "mostly simple",
+        "autonomy": "n/a",
+        "recovery": "n/a",
+        "tags": [
+          "mcp",
+          "tool-discovery"
+        ]
+      },
+      {
+        "focus": "evaluation harness",
+        "intent": "I want to evaluate or benchmark agents",
+        "name": "SWE-bench",
+        "githubId": "SWE-bench/SWE-bench",
+        "category": "evaluation",
+        "stars": 5275,
+        "tier": "slightly complex",
+        "autonomy": "headless",
+        "recovery": "resumable",
+        "tags": [
+          "evals",
+          "sandbox",
+          "python"
+        ]
+      },
+      {
+        "focus": "evaluation harness",
+        "intent": "I want to evaluate or benchmark agents",
+        "name": "AgencyBench",
+        "githubId": "GAIR-NLP/AgencyBench",
+        "category": "evaluation",
+        "stars": 88,
+        "tier": "complex",
+        "autonomy": "headless",
+        "recovery": "none",
+        "tags": [
+          "evals",
+          "sandbox",
+          "python"
+        ]
+      },
+      {
+        "focus": "evaluation harness",
+        "intent": "I want to evaluate or benchmark agents",
+        "name": "inspect_ai",
+        "githubId": "UKGovernmentBEIS/inspect_ai",
+        "category": "evaluation",
+        "stars": 2269,
+        "tier": "complex",
+        "autonomy": "headless",
+        "recovery": "resumable",
+        "tags": [
+          "evals",
+          "sandbox",
+          "python"
+        ]
+      }
+    ]
+  }
 }
