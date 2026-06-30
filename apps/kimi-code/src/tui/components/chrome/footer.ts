@@ -184,6 +184,7 @@ function formatContextStatus(usage: number, tokens?: number, maxTokens?: number)
 function footerNextAction(state: AppState, git: GitStatus | null): string | null {
   if (state.isCompacting) return 'compacting context';
   if (state.isReplaying) return 'replaying session';
+  if (state.model.trim().length === 0) return 'next: run /login or /provider';
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
   if (state.streamingPhase !== 'idle') return null;
   if (git?.dirty === true) return 'next: review changes';

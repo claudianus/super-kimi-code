@@ -144,6 +144,15 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(strip(line2 ?? '')).toContain('context: 0.0%');
   });
 
+  it('points logged-out users at setup before describing a task', () => {
+    const footer = new FooterComponent(baseState({ model: '' }));
+
+    const [, line2] = footer.render(120);
+
+    expect(strip(line2 ?? '')).toContain('next: run /login or /provider');
+    expect(strip(line2 ?? '')).not.toContain('next: describe task');
+  });
+
   it('points idle dirty worktrees at review instead of new tasks', () => {
     const workDir = dirtyGitWorktree();
     try {
