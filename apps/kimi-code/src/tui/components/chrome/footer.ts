@@ -188,7 +188,7 @@ function footerNextAction(state: AppState, git: GitStatus | null): string | null
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
   if (state.streamingPhase !== 'idle') return null;
   if (git?.dirty === true) return 'next: review changes';
-  if (state.planMode) return 'next: describe task; Ultrawork links plan/goal/swarm';
+  if (state.planMode) return 'next: describe task; Ultrawork links plan/goal/swarm/verify';
   return 'next: describe task; Kimi verifies';
 }
 

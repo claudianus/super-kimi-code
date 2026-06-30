@@ -211,7 +211,7 @@ describe('handleUltraworkCommand', () => {
     expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({ swarmMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({
-      activityTip: 'Ultrawork: UltraPlan, UltraGoal, UltraSwarm, verify',
+      activityTip: 'Ultrawork: UltraPlan, UltraGoal, UltraSwarm, Verify',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
     expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');

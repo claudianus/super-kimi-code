@@ -100,7 +100,7 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
-const WORKFLOW_GATE = 'Ultrawork routes UltraPlan -> UltraGoal -> UltraSwarm';
+const WORKFLOW_GATE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const WRITING_GATE = 'human voice lanes; detectors advisory-only';
@@ -175,7 +175,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     {
       label: 'Next',
       value: planMode
-        ? 'Describe the task; Ultrawork will run UltraPlan, UltraGoal, and UltraSwarm as needed.'
+        ? 'Describe the task; Ultrawork will run UltraPlan, UltraGoal, UltraSwarm, and Verify as needed.'
         : 'Describe the task to start.',
     },
   ];
