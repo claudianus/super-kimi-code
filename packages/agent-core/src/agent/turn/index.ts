@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { createControlledPromise, type ControlledPromise } from '@antfu/utils';
 import {
   APIConnectionError,
-  APIContextOverflowError,
   APIEmptyResponseError,
   APIStatusError,
   APITimeoutError,
@@ -775,7 +774,7 @@ export class TurnFlow {
         return result.stopReason;
       } catch (error) {
         if (
-          error instanceof APIContextOverflowError ||
+          this.agent.fullCompaction.shouldRecoverFromContextOverflow(error) ||
           (isKimiError(error) && error.code === ErrorCodes.CONTEXT_OVERFLOW)
         ) {
           await this.agent.fullCompaction.handleOverflowError(signal, error);

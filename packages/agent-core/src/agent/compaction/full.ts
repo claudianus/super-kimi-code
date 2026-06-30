@@ -12,6 +12,7 @@ import {
   type Message,
   type TokenUsage,
   APIContextOverflowError,
+  APIStatusError,
   createUserMessage,
 } from '@moonshot-ai/kosong';
 
@@ -25,6 +26,7 @@ import { renderPrompt } from '../../utils/render-prompt';
 import {
   estimateTokens,
   estimateTokensForMessages,
+  estimateTokensForTools,
 } from '../../utils/tokens';
 import {
   applyCompletionBudget,
@@ -66,6 +68,7 @@ import {
 export const MAX_COMPACTION_RETRY_ATTEMPTS = 5;
 const DEFAULT_PARALLEL_BLOCK_THRESHOLD = 30_000;
 const DEFAULT_PARALLEL_BLOCK_TARGET = 15_000;
+const OVERFLOW_STATUS_RECOVERY_RATIO = 0.5;
 
 class CompactionTruncatedError extends Error {
   constructor() {
@@ -186,6 +189,27 @@ export class FullCompaction {
 
   private get tokenCountWithPending(): number {
     return this.agent.context.tokenCountWithPending;
+  }
+
+  estimateCurrentRequestTokens(): number {
+    return (
+      estimateTokens(this.agent.config.systemPrompt) +
+      estimateTokensForTools(this.agent.tools.loopTools) +
+      estimateTokensForMessages(this.agent.context.messages)
+    );
+  }
+
+  shouldRecoverFromContextOverflow(
+    error: unknown,
+    estimatedRequestTokens = this.estimateCurrentRequestTokens(),
+  ): boolean {
+    if (error instanceof APIContextOverflowError) return true;
+    if (!(error instanceof APIStatusError) || error.statusCode !== 413) return false;
+    const maxContextTokens = this.agent.config.modelCapabilities.max_context_tokens;
+    return (
+      maxContextTokens > 0 &&
+      estimatedRequestTokens >= maxContextTokens * OVERFLOW_STATUS_RECOVERY_RATIO
+    );
   }
 
   resetForTurn(): void {
