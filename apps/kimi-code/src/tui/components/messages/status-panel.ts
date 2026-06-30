@@ -25,6 +25,8 @@ interface FieldRow {
   readonly severity?: 'error';
 }
 
+type StatusGoalStatus = 'active' | 'paused' | 'blocked' | 'complete';
+
 export interface StatusHumanWritingReadiness {
   readonly ready: boolean;
   readonly advisoryOnly: boolean;
@@ -40,6 +42,8 @@ export interface StatusReportOptions {
   readonly thinking: boolean;
   readonly permissionMode: PermissionMode;
   readonly planMode: boolean;
+  readonly swarmMode?: boolean;
+  readonly goalStatus?: StatusGoalStatus;
   readonly contextUsage: number;
   readonly contextTokens: number;
   readonly maxContextTokens: number;
@@ -113,6 +117,44 @@ function humanWritingBlocked(options: StatusReportOptions): boolean {
   return humanWriting !== undefined && (!humanWriting.ready || !humanWriting.advisoryOnly);
 }
 
+function formatUltraworkStageStatus(options: StatusReportOptions): string {
+  const planMode = options.status?.planMode ?? options.planMode;
+  const plan = planMode ? 'Plan on' : 'Plan off';
+  const goal = `Goal ${formatGoalStatus(options.goalStatus)}`;
+  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : 'standby'}`;
+  const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode)}`;
+  return `${plan} | ${goal} | ${swarm} | ${verify}`;
+}
+
+function formatGoalStatus(status: StatusGoalStatus | undefined): string {
+  switch (status) {
+    case 'active':
+      return 'active';
+    case 'paused':
+      return 'paused';
+    case 'blocked':
+      return 'blocked';
+    case 'complete':
+      return 'complete';
+    case undefined:
+      return 'ready';
+  }
+}
+
+function formatVerifyStatus(status: StatusGoalStatus | undefined, planMode: boolean): string {
+  switch (status) {
+    case 'blocked':
+      return 'blocked';
+    case 'complete':
+      return 'passed';
+    case 'active':
+    case 'paused':
+      return 'queued';
+    case undefined:
+      return planMode ? 'queued' : 'ready';
+  }
+}
+
 function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   const writingBlocked = humanWritingBlocked(options);
   const writingRow: FieldRow = writingBlocked
@@ -121,6 +163,7 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   return [
     { label: 'Checks', value: READINESS_CHECKS },
     { label: 'Workflow', value: WORKFLOW_GATE },
+    { label: 'Stages', value: formatUltraworkStageStatus(options) },
     { label: 'Scope', value: SCOPE_GATE },
     { label: 'Coverage', value: COVERAGE_GATE },
     writingRow,

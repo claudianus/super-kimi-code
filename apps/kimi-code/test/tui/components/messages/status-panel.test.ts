@@ -17,6 +17,8 @@ describe('status panel report lines', () => {
       thinking: true,
       permissionMode: 'manual',
       planMode: false,
+      swarmMode: true,
+      goalStatus: 'active',
       contextUsage: 0.25,
       contextTokens: 2500,
       maxContextTokens: 10000,
@@ -75,6 +77,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
     expect(output).toMatch(/Workflow\s+UltraPlan -> UltraGoal -> UltraSwarm -> Verify/);
+    expect(output).toMatch(/Stages\s+Plan on \| Goal active \| Swarm armed \| Verify queued/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
     expect(output).toMatch(/Writing\s+human voice lanes; detectors advisory-only/);
@@ -154,7 +157,7 @@ describe('status panel report lines', () => {
       },
     }).map(strip);
 
-    const readinessLabels = ['Checks', 'Workflow', 'Scope', 'Coverage', 'Writing', 'Screen check', 'Done gate'];
+    const readinessLabels = ['Checks', 'Workflow', 'Stages', 'Scope', 'Coverage', 'Writing', 'Screen check', 'Done gate'];
     for (const label of readinessLabels) {
       const line = lines.find((candidate) => candidate.includes(label));
       expect(line, `${label} row`).toBeDefined();
@@ -247,5 +250,27 @@ describe('status panel report lines', () => {
     expect(output).not.toContain('/ultraswarm');
     expect(output).not.toContain('harness QA');
     expect(output).not.toContain('internal QA');
+  });
+
+  it('surfaces blocked goal state in Ultrawork stages', () => {
+    const lines = buildStatusReportLines({
+      version: '1.2.3',
+      model: 'k2',
+      workDir: '/tmp/project',
+      sessionId: 'ses-1',
+      sessionTitle: null,
+      thinking: true,
+      permissionMode: 'manual',
+      planMode: true,
+      swarmMode: false,
+      goalStatus: 'blocked',
+      contextUsage: 0.1,
+      contextTokens: 1000,
+      maxContextTokens: 10000,
+      availableModels: {},
+    }).map(strip);
+
+    const output = lines.join('\n');
+    expect(output).toMatch(/Stages\s+Plan on \| Goal blocked \| Swarm standby \| Verify blocked/);
   });
 });
