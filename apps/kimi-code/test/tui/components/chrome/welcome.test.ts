@@ -73,7 +73,7 @@ describe('WelcomeComponent', () => {
   it('leads logged-in users to describe the task first', () => {
     const output = strip(new WelcomeComponent(appState).render(80).join('\n'));
 
-    expect(output).toContain('Describe task; Ultrawork links plan, goal, swarm, verify.');
+    expect(output).toContain('Describe task; Ultrawork plans, sets goal, swarms, verifies.');
     expect(output).not.toContain('Kimi checks readiness and verification.');
     expect(output).not.toContain('Send /help for help information.');
   });

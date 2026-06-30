@@ -230,7 +230,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ...gateRows,
     {
       label: 'Next',
-      value: 'Describe task; Ultrawork links plan, goal, swarm, verify.',
+      value: 'Describe task; Ultrawork plans, sets goal, swarms, verifies.',
     },
   ];
 }

@@ -62,7 +62,7 @@ describe('HelpPanelComponent', () => {
   it('renders the advanced Ultrawork help framing when provided', () => {
     const panel = new HelpPanelComponent({
       commands: [
-        cmd('ultrawork', 'Force Ultrawork; task links plan, goal, swarm, verify', ['uw']),
+        cmd('ultrawork', 'Force Ultrawork; plans, sets goal, swarms, verifies', ['uw']),
       ],
       intro: ADVANCED_HELP_INTRO,
       commandSectionTitle: 'Advanced Ultrawork controls',
@@ -74,7 +74,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Steering controls are for overrides/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
-    expect(out).toMatch(/task links plan, goal, swarm, verify/);
+    expect(out).toMatch(/plans, sets goal, swarms, verifies/);
   });
 
   it('Escape fires onClose', () => {

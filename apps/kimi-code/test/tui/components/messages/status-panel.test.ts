@@ -84,7 +84,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Writing\s+human voice lanes; detectors advisory-only/);
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests \+ typecheck\/lint\/build \+ clean diff \+ TUI/);
-    expect(output).toMatch(/Next\s+Describe task; Ultrawork links plan, goal, swarm, verify\./);
+    expect(output).toMatch(/Next\s+Describe task; Ultrawork plans, sets goal, swarms, verifies\./);
     expect(output).not.toContain('Advanced');
     expect(output).not.toContain('manual workflow commands');
     expect(output).not.toContain('Diagnostics');
@@ -200,7 +200,7 @@ describe('status panel report lines', () => {
     const output = lines.join('\n');
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Stages\s+Plan auto \| Goal ready \| Swarm auto \| Verify ready/);
-    expect(output).toMatch(/Next\s+Describe task; Ultrawork links plan, goal, swarm, verify\./);
+    expect(output).toMatch(/Next\s+Describe task; Ultrawork plans, sets goal, swarms, verifies\./);
     expect(output).not.toContain('/ultrawork');
   });
 

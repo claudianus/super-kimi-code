@@ -124,7 +124,7 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork links plan, goal, swarm, verify',
+      'next: describe task; Ultrawork plans, sets goal, swarms, verifies',
     );
   });
 
@@ -144,7 +144,7 @@ describe('FooterComponent — context NaN resilience', () => {
     const [, line2] = footer.render(120);
 
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork links plan, goal, swarm, verify',
+      'next: describe task; Ultrawork plans, sets goal, swarms, verifies',
     );
     expect(strip(line2 ?? '')).toContain('context: 0.0%');
   });

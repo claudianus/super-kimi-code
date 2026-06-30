@@ -151,7 +151,7 @@ describe('built-in slash command registry', () => {
     expect(swarm?.description).toBe('Manually steer UltraSwarm; Ultrawork auto-arms it');
     expect(swarm?.description).not.toContain('/swarm');
     expect(ultrawork?.description).toBe(
-      'Force Ultrawork; task links plan, goal, swarm, verify',
+      'Force Ultrawork; plans, sets goal, swarms, verifies',
     );
     expect(ultrawork?.description).not.toContain('/ultrawork');
   });
