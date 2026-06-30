@@ -20,6 +20,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1233`: bound completed headless prompt cleanup and arm a force-exit backstop after stdio drains.
 - Upstream `#1241`: recover strict-provider request-structure failures caused by malformed tool exchange history.
 - Upstream `#1068`: use ripgrep-backed Glob for faster file discovery.
+- Upstream `#1220`: open the undo selector when Esc is pressed twice at the idle prompt.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -32,9 +33,9 @@ Super Kimi adaptation:
 - Verified `skimi` still points at the freshly built local `apps/kimi-code/dist/main.mjs`.
 - Preserved Super Kimi builtin smoke coverage while moving Glob from `kaos.glob` traversal to `rg --files`.
 - Kept the product surface TUI-first: updated Glob help/profile wording and TUI tool-call summaries; no web UI work.
+- Added double-Esc undo as a TUI ergonomics shortcut and exposed it in `/help` plus keyboard reference docs.
 
 ## Next Candidate Queue
 
 - `#1214` compaction strategy: potential token-efficiency win, but large behavioral surface.
 - `#1204` plugin slash commands: likely useful, but must fit Super Kimi skill/plugin UX.
-- `#1220` double-Esc undo selector: small TUI ergonomics win after current input fixes settle.

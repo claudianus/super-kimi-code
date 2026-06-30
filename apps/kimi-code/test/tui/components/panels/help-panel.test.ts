@@ -39,6 +39,8 @@ describe('HelpPanelComponent', () => {
     expect(out).not.toMatch(/Steer UltraPlan/);
     expect(out).toMatch(/Ctrl-O/);
     expect(out).toMatch(/Shift-Enter \/ Ctrl-J/);
+    expect(out).toMatch(/Esc Esc/);
+    expect(out).toMatch(/Open undo selector/);
     expect(out).toMatch(/Slash commands/);
     expect(out).toMatch(/\/exit \(\/quit, \/q\)/);
     expect(out).toMatch(/Exit/);
@@ -82,6 +84,8 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Controls below are optional steering/);
     expect(out).toMatch(/Ctrl-Shift-Tab/);
     expect(out).toMatch(/Steer UltraPlan/);
+    expect(out).toMatch(/Esc Esc/);
+    expect(out).toMatch(/Open undo selector/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
     expect(out).toMatch(/auto-link UltraPlan, UltraGoal, UltraSwarm, Verify/);

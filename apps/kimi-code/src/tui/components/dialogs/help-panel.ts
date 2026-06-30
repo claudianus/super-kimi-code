@@ -45,6 +45,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   { keys: 'Ctrl-C', description: 'Interrupt stream / clear input' },
   { keys: 'Ctrl-D', description: 'Exit (on empty input)' },
   { keys: 'Esc', description: 'Close dialogs / interrupt streaming' },
+  { keys: 'Esc Esc', description: 'Open undo selector (idle prompt)' },
   { keys: '↑ / ↓', description: 'Browse input history' },
   { keys: 'Enter', description: 'Submit' },
 ];

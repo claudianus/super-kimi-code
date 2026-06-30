@@ -132,6 +132,7 @@ export class CustomEditor extends Editor {
   /** Return `true` to consume Ctrl+T (the todo list had overflow to toggle); return `false`/`undefined` to fall through to the editor default. */
   public onToggleTodoExpand?: () => boolean;
   public onUndo?: () => void;
+  public onNonEscapeInput?: () => void;
   public onInsertNewline?: () => void;
   public onTextPaste?: () => void;
   /**
@@ -305,6 +306,9 @@ export class CustomEditor extends Editor {
     const normalized = normalizeCapsLockedCtrl(data);
     if (isKeyRelease(normalized)) {
       return;
+    }
+    if (!matchesKey(normalized, Key.escape)) {
+      this.onNonEscapeInput?.();
     }
 
     // When a paste marker was just expanded, discard the trailing bracketed
