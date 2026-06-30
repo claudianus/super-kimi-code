@@ -68,7 +68,7 @@ describe('HelpPanelComponent', () => {
   it('renders the advanced Ultrawork help framing when provided', () => {
     const panel = new HelpPanelComponent({
       commands: [
-        cmd('ultrawork', 'Start Ultrawork; auto-links UltraPlan, UltraGoal, UltraSwarm', ['uw']),
+        cmd('ultrawork', 'Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify', ['uw']),
       ],
       intro: ADVANCED_HELP_INTRO,
       shortcuts: ADVANCED_KEYBOARD_SHORTCUTS,
@@ -77,13 +77,13 @@ describe('HelpPanelComponent', () => {
     });
     const out = strip(panel.render(120).join('\n'));
     expect(out).toMatch(/Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify\./);
-    expect(out).toMatch(/Most work starts from a plain request/);
+    expect(out).toMatch(/Plain tasks start it automatically/);
     expect(out).toMatch(/Controls below are optional steering/);
     expect(out).toMatch(/Ctrl-Shift-Tab/);
     expect(out).toMatch(/Steer UltraPlan/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
-    expect(out).toMatch(/auto-links UltraPlan, UltraGoal, UltraSwarm/);
+    expect(out).toMatch(/auto-link UltraPlan, UltraGoal, UltraSwarm, Verify/);
   });
 
   it('Escape fires onClose', () => {

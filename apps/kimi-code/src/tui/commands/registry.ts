@@ -27,9 +27,9 @@ const SWARM_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
 ];
 
 const PLAN_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
-  { value: 'on', description: 'Start Ultrawork plan steering' },
-  { value: 'off', description: 'Stop Ultrawork plan steering' },
-  { value: 'ultra', description: 'Start UltraPlan steering' },
+  { value: 'on', description: 'Enable Ultrawork planning override' },
+  { value: 'off', description: 'Disable Ultrawork planning override' },
+  { value: 'ultra', description: 'Steer the UltraPlan stage' },
   { value: 'clear', description: 'Clear current plan' },
 ];
 
@@ -206,7 +206,7 @@ export const BUILTIN_SLASH_COMMANDS = [
   {
     name: 'plan',
     aliases: [],
-    description: 'Steer UltraPlan stage; Ultrawork enables it automatically',
+    description: 'Advanced steering for UltraPlan; Ultrawork auto-enables it',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[on|off|ultra|clear]',
@@ -216,7 +216,7 @@ export const BUILTIN_SLASH_COMMANDS = [
   {
     name: 'swarm',
     aliases: [],
-    description: 'Steer UltraSwarm stage; Ultrawork auto-arms it when useful',
+    description: 'Advanced steering for UltraSwarm; Ultrawork auto-arms it',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[on|off] | <task>',
@@ -227,7 +227,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     name: 'ultrawork',
     aliases: ['uw'],
     hiddenAliases: ['ultraplan', 'up', 'ultragoal', 'ug', 'ultraswarm', 'us'],
-    description: 'Start Ultrawork; auto-links UltraPlan, UltraGoal, UltraSwarm',
+    description: 'Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[replace] <objective>',

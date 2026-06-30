@@ -66,7 +66,7 @@ describe('built-in slash command registry', () => {
     expect(resolveSlashCommandAvailability(plan!, 'clear')).toBe('idle-only');
   });
 
-  it('offers plan mode argument completions including UltraPlan', () => {
+  it('offers advanced Ultrawork plan steering completions', () => {
     const values = (prefix: string): string[] | null => {
       const items = planArgumentCompletions(prefix);
       return items === null ? null : items.map((item) => item.value);
@@ -75,12 +75,12 @@ describe('built-in slash command registry', () => {
     expect(values('')).toEqual(['on', 'off', 'ultra', 'clear']);
     expect(values('u')).toEqual(['ultra']);
     expect(planArgumentCompletions('u')).toEqual([
-      { value: 'ultra', label: 'ultra', description: 'Start UltraPlan steering' },
+      { value: 'ultra', label: 'ultra', description: 'Steer the UltraPlan stage' },
     ]);
     expect(planArgumentCompletions('')).toEqual([
-      { value: 'on', label: 'on', description: 'Start Ultrawork plan steering' },
-      { value: 'off', label: 'off', description: 'Stop Ultrawork plan steering' },
-      { value: 'ultra', label: 'ultra', description: 'Start UltraPlan steering' },
+      { value: 'on', label: 'on', description: 'Enable Ultrawork planning override' },
+      { value: 'off', label: 'off', description: 'Disable Ultrawork planning override' },
+      { value: 'ultra', label: 'ultra', description: 'Steer the UltraPlan stage' },
       { value: 'clear', label: 'clear', description: 'Clear current plan' },
     ]);
     expect(values('ultra')).toBeNull();
@@ -155,13 +155,13 @@ describe('built-in slash command registry', () => {
     const swarm = findBuiltInSlashCommand('swarm');
     const ultrawork = findBuiltInSlashCommand('ultrawork');
 
-    expect(plan?.description).toBe('Steer UltraPlan stage; Ultrawork enables it automatically');
+    expect(plan?.description).toBe('Advanced steering for UltraPlan; Ultrawork auto-enables it');
     expect(goal?.description).toBe('Manage the active Ultrawork goal');
     expect(goal?.description).not.toContain('/goal');
-    expect(swarm?.description).toBe('Steer UltraSwarm stage; Ultrawork auto-arms it when useful');
+    expect(swarm?.description).toBe('Advanced steering for UltraSwarm; Ultrawork auto-arms it');
     expect(swarm?.description).not.toContain('/swarm');
     expect(ultrawork?.description).toBe(
-      'Start Ultrawork; auto-links UltraPlan, UltraGoal, UltraSwarm',
+      'Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify',
     );
     expect(ultrawork?.description).not.toContain('/ultrawork');
     expect((ultrawork as KimiSlashCommand | undefined)?.hiddenAliases).toEqual([
