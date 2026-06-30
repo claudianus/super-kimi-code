@@ -5501,6 +5501,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     );
     summary.validations.ultraworkActivated = validateUltraworkActivation(waitResult);
     summary.validations.linkedUltraworkStages = validateUltraworkLinkedStages(waitResult);
+    summary.validations.swarmDecisionEvidence = validateUltraworkSwarmDecision(waitResult);
     summary.validations.ultraPlanInterviewReached = validateUltraworkInterview(waitResult);
     summary.validations.questionAnswered = validateUltraworkQuestionAnswered(waitResult);
     summary.validations.postQuestionProgressObserved = validateUltraworkPostQuestionProgress(waitResult);
@@ -5835,6 +5836,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
   const policyConflictFingerprints = new Set();
   const phaseTransitionErrorEvidence = [];
   const linkedStageEvidence = [];
+  const swarmDecisionEvidence = [];
   const agentVerificationEvidence = [];
   const submittedQuestionPanels = new Set();
   let questionAnswerCount = 0;
@@ -5907,6 +5909,12 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         reason: signals.linkedStageReason,
       });
     }
+    if (signals.swarmDecisionVisible && swarmDecisionEvidence.length === 0) {
+      swarmDecisionEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: signals.swarmDecisionReason,
+      });
+    }
     const state = classifyUltraworkWorkflowScreenState(normalized);
     const decision = decideUltraworkOperatorAction(state);
     observations.push({
@@ -5923,6 +5931,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
       policyConflict: signals.policyConflict,
       phaseTransitionError: signals.phaseTransitionError,
       linkedStagesVisible: signals.linkedStagesVisible,
+      swarmDecisionVisible: signals.swarmDecisionVisible,
       workspaceComplete,
       completedFiles: {
         source: fileState?.source.complete ?? false,
@@ -5948,6 +5957,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         policyConflictEvidence,
         phaseTransitionErrorEvidence,
         linkedStageEvidence,
+        swarmDecisionEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -5980,6 +5990,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         policyConflictEvidence,
         phaseTransitionErrorEvidence,
         linkedStageEvidence,
+        swarmDecisionEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -6075,6 +6086,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
     policyConflictEvidence,
     phaseTransitionErrorEvidence,
     linkedStageEvidence,
+    swarmDecisionEvidence,
     agentVerificationEvidence,
     operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
   };
@@ -6157,8 +6169,14 @@ function inspectUltraworkWorkflowSignals(output) {
     /Tip:\s*Ultrawork\s+links\s+UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*and\s*Verify\s+automatically/i,
     /UltraPlan\s*->\s*UltraGoal\s*->\s*UltraSwarm\s*->\s*Verify/i,
     /Auto-orchestrated:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
-    /One workflow:\s*stages are chosen and linked automatically/i,
+    /One workflow:\s*(?:stages are chosen and linked automatically|stages and Swarm decision are linked automatically)/i,
     /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
+  ]);
+  const swarmDecisionVisible = matchesAny(output, [
+    /Swarm decision/i,
+    /record Swarm decision/i,
+    /Write a Swarm decision before implementation/i,
+    /\b(?:ENGAGE|DEFER)\b[\s\S]{0,120}\bSwarm\b/i,
   ]);
   const policyConflictPatterns = [
     {
@@ -6182,6 +6200,7 @@ function inspectUltraworkWorkflowSignals(output) {
     questionToolError,
     phaseTransitionError,
     linkedStagesVisible,
+    swarmDecisionVisible,
     policyConflict,
     policyFingerprint: policyConflictMatch?.fingerprint,
     activationReason: activated
@@ -6208,6 +6227,9 @@ function inspectUltraworkWorkflowSignals(output) {
     linkedStageReason: linkedStagesVisible
       ? 'screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow'
       : 'screen does not show the linked Ultrawork stage pipeline yet',
+    swarmDecisionReason: swarmDecisionVisible
+      ? 'screen shows an auditable Swarm decision cue'
+      : 'screen does not show an auditable Swarm decision cue yet',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -6449,6 +6471,20 @@ function validateUltraworkLinkedStages(waitResult) {
       count > 0
         ? 'Live TUI screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow.'
         : 'Live TUI screen did not show UltraPlan, UltraGoal, UltraSwarm, and Verify as one linked Ultrawork workflow.',
+    evidenceCount: count,
+  };
+}
+
+function validateUltraworkSwarmDecision(waitResult) {
+  const count = Array.isArray(waitResult.swarmDecisionEvidence)
+    ? waitResult.swarmDecisionEvidence.length
+    : 0;
+  return {
+    status: count > 0 ? 'PASS' : 'FAIL',
+    reason:
+      count > 0
+        ? 'Live TUI screen shows an auditable Swarm decision cue.'
+        : 'Live TUI screen did not show an auditable Swarm decision cue.',
     evidenceCount: count,
   };
 }
@@ -7033,6 +7069,11 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       name: 'observe-linked-ultrawork-stages',
       status: summary.validations?.linkedUltraworkStages?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.linkedStageEvidence',
+    },
+    {
+      name: 'observe-swarm-decision-cue',
+      status: summary.validations?.swarmDecisionEvidence?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.swarmDecisionEvidence',
     },
     {
       name: 'observe-ultra-plan-interview',

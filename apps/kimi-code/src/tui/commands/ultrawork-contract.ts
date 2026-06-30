@@ -57,6 +57,8 @@ const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   '- UltraGoal: keep the active goal as the durable execution contract; update or replace it only when the clarified objective materially changes.',
   '- UltraSwarm: auto-engage specialist agents only when parallel PM, architecture, TUI, QA, security, or performance review materially improves outcome or speed.',
   '- UltraSwarm is armed by Ultrawork setup; proactively invoke specialist agents for cross-domain, risky, UI/UX, QA, security, performance, or long-horizon tasks, and otherwise note why single-agent execution is enough.',
+  '- Write a Swarm decision before implementation: ENGAGE when parallel PM, architecture, TUI, QA, security, performance, or long-horizon review materially improves the outcome; DEFER when single-agent execution is faster and lower-risk.',
+  '- For every Swarm decision, include the reason, expected specialist value, and verification owner so the harness can audit the orchestration choice.',
   '- Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
   '- When the task is already actionable, do not stall in UltraPlan; advance into UltraGoal, UltraSwarm when useful, and verification with best judgment.',
   '- Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',

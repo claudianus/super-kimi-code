@@ -133,6 +133,10 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
     expect(prompt).toContain('UltraSwarm is armed by Ultrawork setup');
     expect(prompt).toContain('proactively invoke specialist agents');
+    expect(prompt).toContain('Write a Swarm decision before implementation');
+    expect(prompt).toContain('ENGAGE when parallel PM, architecture, TUI, QA, security, performance, or long-horizon review materially improves the outcome');
+    expect(prompt).toContain('DEFER when single-agent execution is faster and lower-risk');
+    expect(prompt).toContain('include the reason, expected specialist value, and verification owner');
     expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm');
     expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
     expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages');
@@ -248,10 +252,10 @@ describe('handleUltraworkCommand', () => {
     expect(renderedMarker(host)).toContain('Ultrawork activated');
     expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');
     expect(renderedMarker(host)).toContain(
-      'One workflow: stages are chosen and linked automatically',
+      'One workflow: stages and Swarm decision are linked automatically',
     );
     expect(renderedMarker(host)).toContain(
-      'Next: clarify only if needed, then implement and verify',
+      'Next: clarify if needed, record Swarm decision, then verify',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(
