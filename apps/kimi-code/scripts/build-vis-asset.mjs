@@ -25,15 +25,17 @@ try {
   // PATHEXT without a shell). The win32 native binary IS built on Windows
   // runners (.github/workflows/_native-build.yml), which run this generator.
   // A single command string (not an args array) avoids the args+shell
-  // deprecation; the command is static (no injection surface).
-  execSync('pnpm --filter @moonshot-ai/vis-web exec vite build', {
+  // deprecation; the command is static (no injection surface). `corepack pnpm`
+  // keeps this nested build on the repository packageManager version even when
+  // the parent command was started through a different pnpm shim.
+  execSync('corepack pnpm --filter @moonshot-ai/vis-web exec vite build', {
     stdio: 'inherit',
     cwd: repoRoot,
     env: { ...process.env, VIS_SINGLEFILE: '1' },
   });
 } catch (err) {
   throw new Error(
-    `[build-vis-asset] failed to run the vis-web single-file build via pnpm (is pnpm on PATH?): ${err instanceof Error ? err.message : String(err)}`,
+    `[build-vis-asset] failed to run the vis-web single-file build via corepack pnpm (is corepack available?): ${err instanceof Error ? err.message : String(err)}`,
   );
 }
 
