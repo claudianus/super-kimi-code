@@ -45,9 +45,9 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   { keys: 'Enter', description: 'Submit' },
 ];
 const DEFAULT_HELP_INTRO =
-  'Describe task; Ultrawork links UltraPlan, Goal, Swarm, Verify.\nManual controls live in /help advanced.';
+  'Describe task; Ultrawork links UltraPlan, UltraGoal, UltraSwarm, Verify.\nManual controls live in /help advanced.';
 export const ADVANCED_HELP_INTRO =
-  'Ultrawork links UltraPlan, Goal, Swarm, and Verify automatically.\nMost work starts from a plain request; manual controls are only for steering.';
+  'Ultrawork links UltraPlan, UltraGoal, UltraSwarm, and Verify automatically.\nMost work starts from a plain request; manual controls are only for steering.';
 
 export interface HelpPanelOptions {
   readonly commands: readonly HelpPanelCommand[];

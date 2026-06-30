@@ -123,7 +123,7 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(out).toContain('ultrawork-ready');
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
-    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork links plan/goal/swarm/verify');
+    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork links the ultra workflow');
   });
 
   it('renders transient hints on the context line', () => {

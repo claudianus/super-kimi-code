@@ -23,7 +23,7 @@ describe('HelpPanelComponent', () => {
     });
     const out = strip(panel.render(80).join('\n'));
     expect(out).toMatch(/help/);
-    expect(out).toMatch(/Describe task; Ultrawork links UltraPlan, Goal, Swarm, Verify\./);
+    expect(out).toMatch(/Describe task; Ultrawork links UltraPlan, UltraGoal, UltraSwarm, Verify\./);
     expect(out).toMatch(/Manual controls live in \/help advanced\./);
     expect(out).toMatch(/Keyboard shortcuts/);
     expect(out).toMatch(/Shift-Tab/);
@@ -66,7 +66,7 @@ describe('HelpPanelComponent', () => {
       onClose: () => {},
     });
     const out = strip(panel.render(80).join('\n'));
-    expect(out).toMatch(/Ultrawork links UltraPlan, Goal, Swarm, and Verify automatically/);
+    expect(out).toMatch(/Ultrawork links UltraPlan, UltraGoal, UltraSwarm, and Verify automatically/);
     expect(out).toMatch(/Most work starts from a plain request/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);

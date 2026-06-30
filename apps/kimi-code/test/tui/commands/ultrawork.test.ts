@@ -76,6 +76,12 @@ describe('shouldAutoActivateUltrawork', () => {
     ).toBe(true);
     expect(
       shouldAutoActivateUltrawork(
+        '울트라플랜, 울트라 골, 울트라 스웜이 자동으로 연동되어 하나의 워크플로우로 작업을 완수하게 해줘',
+      ),
+    ).toBe(true);
+    expect(shouldAutoActivateUltrawork('울트라워크로 이 기능 구현하고 검증까지 끝내줘')).toBe(true);
+    expect(
+      shouldAutoActivateUltrawork(
         'Research latest best practices, design the architecture, implement it, run tests, and finish the goal automatically',
       ),
     ).toBe(true);
@@ -87,6 +93,7 @@ describe('shouldAutoActivateUltrawork', () => {
     expect(shouldAutoActivateUltrawork('what is ultrawork?')).toBe(false);
     expect(shouldAutoActivateUltrawork('ultrawork 뭐야?')).toBe(false);
     expect(shouldAutoActivateUltrawork('what is ultraswarm?')).toBe(false);
+    expect(shouldAutoActivateUltrawork('울트라 스웜이 뭐야?')).toBe(false);
     expect(shouldAutoActivateUltrawork('explain ultrawork')).toBe(false);
     expect(shouldAutoActivateUltrawork('do not use ultrawork, just answer normally')).toBe(false);
   });
@@ -105,6 +112,8 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('UltraGoal: keep the active goal as the durable execution contract');
     expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
     expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm');
+    expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
+    expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages');
     expect(prompt).toContain('ultra-plan');
     expect(prompt).toContain('kanban');
     expect(prompt).toContain('Kimi Lean Context');

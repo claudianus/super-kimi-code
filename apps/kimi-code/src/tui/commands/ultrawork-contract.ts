@@ -12,24 +12,26 @@ export type ParsedUltraworkCommand =
   | { readonly kind: 'error'; readonly message: string; readonly severity?: 'error' | 'hint' };
 
 const ULTRA_WORKFLOW_TERM_PATTERN =
-  String.raw`(?:ultrawork|ultra[-\s]?work|ultragoal|ultra[-\s]?goal|ultraplan|ultra[-\s]?plan|ultraswarm|ultra[-\s]?swarm)`;
+  String.raw`(?:ultrawork|ultra[-\s]?work|ultragoal|ultra[-\s]?goal|ultraplan|ultra[-\s]?plan|ultraswarm|ultra[-\s]?swarm|울트라\s?워크|울트라\s?골|울트라\s?플랜|울트라\s?스웜)`;
 const EXPLICIT_ULTRAWORK_PATTERN = new RegExp(
-  String.raw`\b${ULTRA_WORKFLOW_TERM_PATTERN}\b`,
+  ULTRA_WORKFLOW_TERM_PATTERN,
   'i',
 );
 
 const RESEARCH_PATTERN =
   /\b(?:research|latest|paper|papers|best practice|best practices|survey|benchmark|논문|최신|조사|리서치|베스트프랙티스)\b/i;
 const BUILD_PATTERN =
-  /\b(?:build|ship|implement|design|develop|refactor|integrate|구현|개발|설계|통합|만들|고도화)\b/i;
+  /\b(?:build|ship|implement|design|develop|refactor|integrate|구현|개발|설계|통합|작업|진행|완수|완성|만들|고도화)\b/i;
 const AUTONOMY_PATTERN =
-  /\b(?:end[-\s]?to[-\s]?end|autonomous|automatically|auto|finish|verify|test|plan|swarm|goal|자동|완료|검증|테스트|계획|스웜|골)\b/i;
+  /\b(?:end[-\s]?to[-\s]?end|autonomous|automatically|auto|finish|verify|test|plan|swarm|goal|자동|자율|연동|발동|완료|검증|테스트|계획|스웜|골)\b/i;
 const QUESTION_ONLY_ULTRAWORK_PATTERN =
   new RegExp(
-    String.raw`^(?:what|how|why|explain|describe|tell me|뭐|무엇|설명|알려)\b.*\b${ULTRA_WORKFLOW_TERM_PATTERN}\b`,
+    String.raw`^(?:what|how|why|explain|describe|tell me|뭐|무엇|설명|알려)\b.*${ULTRA_WORKFLOW_TERM_PATTERN}`,
     'i',
   );
 const QUESTION_MARK_PATTERN = /[?？]/;
+const QUESTION_WORD_PATTERN =
+  /\b(?:what|how|why|explain|describe|tell me)\b|(?:뭐|무엇|설명|알려)/i;
 const ULTRAWORK_OPT_OUT_PATTERN =
   new RegExp(
     String.raw`\b(?:do\s+not|don't|dont|without|no)\s+(?:use|activate|start|run)?\s*${ULTRA_WORKFLOW_TERM_PATTERN}\b`,
@@ -42,6 +44,8 @@ const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   '- UltraGoal: keep the active goal as the durable execution contract; update or replace it only when the clarified objective materially changes.',
   '- UltraSwarm: auto-engage specialist agents only when parallel PM, architecture, TUI, QA, security, or performance review materially improves outcome or speed.',
   '- Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
+  '- When the task is already actionable, do not stall in UltraPlan; advance into UltraGoal, UltraSwarm when useful, and verification with best judgment.',
+  '- Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',
 ].join('\n');
 const ULTRAWORK_LEAN_CONTEXT_GUIDANCE = [
   'Kimi Lean Context:',
@@ -136,6 +140,9 @@ export function shouldAutoActivateUltrawork(prompt: string): boolean {
   if (ULTRAWORK_OPT_OUT_PATTERN.test(text)) return false;
   if (QUESTION_ONLY_ULTRAWORK_PATTERN.test(text)) return false;
   if (EXPLICIT_ULTRAWORK_PATTERN.test(text)) {
+    if (QUESTION_MARK_PATTERN.test(text) && QUESTION_WORD_PATTERN.test(text) && !BUILD_PATTERN.test(text)) {
+      return false;
+    }
     if (QUESTION_MARK_PATTERN.test(text) && !BUILD_PATTERN.test(text) && !AUTONOMY_PATTERN.test(text)) {
       return false;
     }
