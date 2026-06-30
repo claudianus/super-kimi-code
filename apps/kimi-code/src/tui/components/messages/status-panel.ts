@@ -104,8 +104,9 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
-const WORKFLOW_GATE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
-const AUTO_GATE = 'Unclear -> Plan | Clear -> Goal | Risk -> Swarm | Verify';
+const WORKFLOW_GATE = 'plan -> track goal -> get help -> verify';
+const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
+const AUTO_GATE = 'vague->ask | clear->run | risky->help | done->verify';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const WRITING_GATE = 'human voice lanes; detectors advisory-only';
@@ -125,6 +126,7 @@ function verifyBlockedByReadiness(options: StatusReportOptions): boolean {
     model.length === 0 ||
     (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) ||
     options.gitStatus?.dirty === true ||
+    options.goalStatus === 'blocked' ||
     humanWritingBlocked(options)
   );
 }
@@ -133,11 +135,11 @@ function formatUltraworkStageStatus(options: StatusReportOptions): string {
   const planMode = options.status?.planMode ?? options.planMode;
   const blocked = verifyBlockedByReadiness(options);
   const canAutoOrchestrate = options.goalStatus === undefined && !blocked;
-  const plan = planMode ? 'Plan on' : canAutoOrchestrate ? 'Plan auto' : 'Plan off';
+  const plan = planMode ? 'Planning on' : canAutoOrchestrate ? 'Planning auto' : 'Planning off';
   const goal = `Goal ${formatGoalStatus(options.goalStatus)}`;
-  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'auto' : 'standby'}`;
+  const help = `Help ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'auto' : 'ready'}`;
   const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, blocked)}`;
-  return `${plan} | ${goal} | ${swarm} | ${verify}`;
+  return `${plan} | ${goal} | ${help} | ${verify}`;
 }
 
 function formatGoalStatus(status: StatusGoalStatus | undefined): string {
@@ -168,6 +170,18 @@ function formatVerifyStatus(status: StatusGoalStatus | undefined, planMode: bool
   }
 }
 
+function formatReadinessBlockers(options: StatusReportOptions): string {
+  const blockers: string[] = [];
+  const model = (options.status?.model ?? options.model).trim();
+  if (model.length === 0) blockers.push('model setup');
+  const { ratio, maxTokens } = contextValues(options);
+  if (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) blockers.push('context high');
+  if (options.gitStatus?.dirty === true) blockers.push('worktree dirty');
+  if (options.goalStatus === 'blocked') blockers.push('goal blocked');
+  if (humanWritingBlocked(options)) blockers.push('writing guidance');
+  return blockers.length === 0 ? 'none detected' : blockers.join(', ');
+}
+
 function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   const writingBlocked = humanWritingBlocked(options);
   const writingRow: FieldRow = writingBlocked
@@ -176,8 +190,10 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   return [
     { label: 'Checks', value: READINESS_CHECKS },
     { label: 'Workflow', value: WORKFLOW_GATE },
+    { label: 'Engine', value: ENGINE_GATE },
     { label: 'Auto', value: AUTO_GATE },
     { label: 'Stages', value: formatUltraworkStageStatus(options) },
+    { label: 'Blockers', value: formatReadinessBlockers(options) },
     { label: 'Scope', value: SCOPE_GATE },
     { label: 'Coverage', value: COVERAGE_GATE },
     writingRow,
@@ -222,6 +238,14 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
         label: 'Next',
         value: options.humanWriting?.nextAction ?? 'Restore writing-quality guidance before long autonomous work.',
       },
+    ];
+  }
+
+  if (options.goalStatus === 'blocked') {
+    return [
+      { label: 'State', value: 'Goal blocked', severity: 'error' },
+      ...gateRows,
+      { label: 'Next', value: 'Resolve or replace the blocked goal before continuing.' },
     ];
   }
 
