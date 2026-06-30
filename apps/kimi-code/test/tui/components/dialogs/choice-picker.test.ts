@@ -1,3 +1,7 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { ChoicePickerComponent, type ChoiceOption } from '#/tui/components/dialogs/choice-picker';
@@ -13,6 +17,23 @@ const ANSI_SGR = /\[[0-9;]*m/g;
 
 function strip(text: string): string {
   return text.replaceAll(ANSI_SGR, '');
+}
+
+function withThemeHome(run: () => void): void {
+  const originalHome = process.env['KIMI_CODE_HOME'];
+  const home = join(tmpdir(), `kimi-choice-theme-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(home, 'themes'), { recursive: true });
+  process.env['KIMI_CODE_HOME'] = home;
+  try {
+    run();
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+    if (originalHome === undefined) {
+      delete process.env['KIMI_CODE_HOME'];
+    } else {
+      process.env['KIMI_CODE_HOME'] = originalHome;
+    }
+  }
 }
 
 describe('ChoicePickerComponent', () => {
@@ -114,6 +135,27 @@ describe('ChoicePickerComponent', () => {
     const upgradePreferenceOutput = upgradePreference.render(120).map(strip);
     expect(upgradePreferenceOutput).toContain('  ❯ On ← current');
     expect(upgradePreferenceOutput).toContain('    Install new versions in the background.');
+  });
+
+  it('renders bundled and user custom themes in the theme selector', () => {
+    withThemeHome(() => {
+      writeFileSync(
+        join(process.env['KIMI_CODE_HOME']!, 'themes', 'studio.json'),
+        JSON.stringify({ name: 'studio', colors: { primary: '#268bd2' } }),
+        'utf-8',
+      );
+      const theme = new ThemeSelectorComponent({
+        currentValue: 'super-kimi-neon-noir',
+        onSelect: vi.fn(),
+        onCancel: vi.fn(),
+      });
+      const out = theme.render(120).map(strip);
+
+      expect(out).toContain('  ❯ Super Kimi Neon Noir ← current');
+      expect(out).toContain('    Bundled Super Kimi preset.');
+      expect(out).toContain('    Loaded from ~/.kimi-code/themes.');
+      expect(out).toContain('    Custom: studio');
+    });
   });
 
   it('routes Space into the query for searchable lists instead of selecting', () => {

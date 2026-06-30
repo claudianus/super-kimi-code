@@ -1,6 +1,9 @@
 import { ChoicePickerComponent, type ChoiceOption } from './choice-picker';
 
-import { listCustomThemesSync } from '#/tui/theme/custom-theme-loader';
+import {
+  listAvailableThemeEntriesSync,
+  type ThemeListEntry,
+} from '#/tui/theme/custom-theme-loader';
 import type { ThemeName } from '#/tui/theme/index';
 
 const THEME_OPTIONS: readonly ChoiceOption[] = [
@@ -17,10 +20,9 @@ export interface ThemeSelectorOptions {
 
 export class ThemeSelectorComponent extends ChoicePickerComponent {
   constructor(opts: ThemeSelectorOptions) {
-    const customThemes = listCustomThemesSync();
     const options: ChoiceOption[] = [
       ...THEME_OPTIONS,
-      ...customThemes.map((name) => ({ value: name, label: `Custom: ${name}` })),
+      ...listAvailableThemeEntriesSync().map(themeEntryToOption),
     ];
     super({
       title: 'Select theme',
@@ -32,4 +34,21 @@ export class ThemeSelectorComponent extends ChoicePickerComponent {
       onCancel: opts.onCancel,
     });
   }
+}
+
+function themeEntryToOption(entry: ThemeListEntry): ChoiceOption {
+  if (entry.source === 'bundled') {
+    return {
+      value: entry.name,
+      label: entry.displayName ?? `Super Kimi: ${entry.name}`,
+      description: 'Bundled Super Kimi preset.',
+    };
+  }
+  return {
+    value: entry.name,
+    label: entry.overridesBundled === true
+      ? `Custom: ${entry.name} (overrides bundled)`
+      : `Custom: ${entry.name}`,
+    description: 'Loaded from ~/.kimi-code/themes.',
+  };
 }

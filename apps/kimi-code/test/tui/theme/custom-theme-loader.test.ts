@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getCustomThemesDir,
+  listAvailableThemeEntries,
+  listAvailableThemeEntriesSync,
   listCustomThemes,
   listCustomThemesSync,
   loadCustomTheme,
@@ -64,6 +66,7 @@ describe('custom theme loader', () => {
 
   it('returns null for a missing theme file', async () => {
     expect(await loadCustomTheme('does-not-exist')).toBeNull();
+    expect(await loadCustomThemeMerged('does-not-exist')).toBeNull();
   });
 
   it('falls back to the dark palette for unspecified tokens by default', async () => {
@@ -82,5 +85,52 @@ describe('custom theme loader', () => {
     const merged = await loadCustomThemeMerged('solar-light');
     expect(merged?.primary).toBe('#268bd2');
     expect(merged?.text).toBe(lightColors.text);
+  });
+
+  it('exposes bundled Super Kimi themes without a user themes directory', async () => {
+    rmSync(join(home, 'themes'), { recursive: true, force: true });
+
+    expect(await listAvailableThemeEntries()).toContainEqual(
+      expect.objectContaining({
+        name: 'super-kimi-neon-noir',
+        displayName: 'Super Kimi Neon Noir',
+        source: 'bundled',
+      }),
+    );
+    expect(listAvailableThemeEntriesSync()).toContainEqual(
+      expect.objectContaining({
+        name: 'super-kimi-neon-noir',
+        displayName: 'Super Kimi Neon Noir',
+        source: 'bundled',
+      }),
+    );
+    const bundled = await loadCustomThemeMerged('super-kimi-neon-noir');
+    expect(bundled?.primary).toBe('#00D5FF');
+  });
+
+  it('lists user themes alongside bundled themes and lets user themes win name collisions', async () => {
+    writeTheme('studio', { name: 'studio', colors: { primary: '#268bd2' } });
+    writeTheme('super-kimi-neon-noir', {
+      name: 'super-kimi-neon-noir',
+      colors: { primary: '#123456' },
+    });
+
+    const entries = listAvailableThemeEntriesSync();
+    expect(entries).toContainEqual(
+      expect.objectContaining({ name: 'studio', source: 'custom' }),
+    );
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        name: 'super-kimi-neon-noir',
+        source: 'custom',
+        overridesBundled: true,
+      }),
+    );
+    expect(entries).not.toContainEqual(
+      expect.objectContaining({ name: 'super-kimi-neon-noir', source: 'bundled' }),
+    );
+
+    const merged = await loadCustomThemeMerged('super-kimi-neon-noir');
+    expect(merged?.primary).toBe('#123456');
   });
 });
