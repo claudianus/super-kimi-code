@@ -187,7 +187,7 @@ describe('status panel report lines', () => {
 
     const output = lines.join('\n');
     expect(output).toMatch(/State\s+Ready/);
-    expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm standby \| Verify ready/);
+    expect(output).toMatch(/Stages\s+Plan auto \| Goal ready \| Swarm auto \| Verify ready/);
     expect(output).toMatch(/Next\s+Describe the task; Ultrawork will auto-orchestrate UltraPlan, UltraGoal, UltraSwarm, and Verify\./);
     expect(output).not.toContain('/ultrawork');
   });

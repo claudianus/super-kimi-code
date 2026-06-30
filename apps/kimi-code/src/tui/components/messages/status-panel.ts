@@ -130,10 +130,12 @@ function verifyBlockedByReadiness(options: StatusReportOptions): boolean {
 
 function formatUltraworkStageStatus(options: StatusReportOptions): string {
   const planMode = options.status?.planMode ?? options.planMode;
-  const plan = planMode ? 'Plan on' : 'Plan off';
+  const blocked = verifyBlockedByReadiness(options);
+  const canAutoOrchestrate = options.goalStatus === undefined && !blocked;
+  const plan = planMode ? 'Plan on' : canAutoOrchestrate ? 'Plan auto' : 'Plan off';
   const goal = `Goal ${formatGoalStatus(options.goalStatus)}`;
-  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : 'standby'}`;
-  const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, verifyBlockedByReadiness(options))}`;
+  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'auto' : 'standby'}`;
+  const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, blocked)}`;
   return `${plan} | ${goal} | ${swarm} | ${verify}`;
 }
 
