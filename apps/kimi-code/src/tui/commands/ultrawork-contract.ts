@@ -25,13 +25,13 @@ const BUILD_PATTERN =
 const AUTONOMY_PATTERN =
   /\b(?:end[-\s]?to[-\s]?end|autonomous|automatically|auto|finish|verify|tests?|plan|swarm|goal)\b|(?:자동|자율|연동|발동|완료|검증|테스트|계획|스웜|골)/i;
 const ENGLISH_CODING_ACTION_PATTERN =
-  /\b(?:implement|build|add|update|refactor|integrate|ship|fix|debug|improve)\b/i;
+  /\b(?:implement|build|create|make|add|update|refactor|integrate|ship|fix|debug|improve)\b/i;
 const ENGLISH_CODING_TARGET_PATTERN =
-  /\b(?:feature|bug|workflow|screen|command|panel|tui|cli|harness|test|error|ux)\b/i;
+  /\b(?:feature|bug|workflow|screen|page|view|component|button|form|modal|dialog|command|panel|api|endpoint|tui|ui|cli|harness|test|error|ux)\b/i;
 const KOREAN_CODING_ACTION_PATTERN =
   /(?:만들|구현|고치|수정|개선|추가|연동|검증|테스트|돌려|끝내)/i;
 const KOREAN_CODING_TARGET_PATTERN =
-  /(?:기능|버그|화면|명령어|패널|워크플로우|하네스|테스트|오류|에러|자동완성|검수)/i;
+  /(?:기능|버그|화면|페이지|뷰|컴포넌트|버튼|폼|모달|다이얼로그|명령어|패널|API|엔드포인트|UI|워크플로우|하네스|테스트|오류|에러|자동완성|검수)/i;
 const SIMPLE_COPY_EDIT_PATTERN =
   /\b(?:typo|spelling|sentence|wording|copy)\b|(?:오타|맞춤법|문장|문구만|표현만)/i;
 const QUESTION_ONLY_ULTRAWORK_PATTERN =
@@ -154,6 +154,10 @@ export function shouldAutoActivateUltrawork(prompt: string): boolean {
   if (ULTRAWORK_OPT_OUT_PATTERN.test(text)) return false;
   if (QUESTION_ONLY_ULTRAWORK_PATTERN.test(text)) return false;
   if (SIMPLE_COPY_EDIT_PATTERN.test(text) && !EXPLICIT_ULTRAWORK_PATTERN.test(text)) return false;
+  const actionableCodingTask = isActionableCodingTask(text);
+  if (QUESTION_MARK_PATTERN.test(text) && QUESTION_WORD_PATTERN.test(text) && !EXPLICIT_ULTRAWORK_PATTERN.test(text)) {
+    return false;
+  }
   if (EXPLICIT_ULTRAWORK_PATTERN.test(text)) {
     if (QUESTION_MARK_PATTERN.test(text) && QUESTION_WORD_PATTERN.test(text) && !BUILD_PATTERN.test(text)) {
       return false;
@@ -163,7 +167,7 @@ export function shouldAutoActivateUltrawork(prompt: string): boolean {
     }
     return true;
   }
-  if (isActionableCodingTask(text) && AUTONOMY_PATTERN.test(text)) return true;
+  if (actionableCodingTask) return true;
   if (text.split(/\s+/).length < 10 && text.length < 80) return false;
   return RESEARCH_PATTERN.test(text) && BUILD_PATTERN.test(text) && AUTONOMY_PATTERN.test(text);
 }
