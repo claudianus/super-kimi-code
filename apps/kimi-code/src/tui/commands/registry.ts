@@ -27,10 +27,10 @@ const SWARM_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
 ];
 
 const PLAN_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
-  { value: 'on', description: 'Turn plan mode on' },
-  { value: 'off', description: 'Turn plan mode off' },
-  { value: 'ultra', description: 'Turn UltraPlan mode on' },
-  { value: 'clear', description: 'Clear plan mode' },
+  { value: 'on', description: 'Start Ultrawork plan steering' },
+  { value: 'off', description: 'Stop Ultrawork plan steering' },
+  { value: 'ultra', description: 'Start UltraPlan steering' },
+  { value: 'clear', description: 'Clear current plan' },
 ];
 
 const ULTRAWORK_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [

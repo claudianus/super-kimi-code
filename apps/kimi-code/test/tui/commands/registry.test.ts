@@ -73,7 +73,13 @@ describe('built-in slash command registry', () => {
     expect(values('')).toEqual(['on', 'off', 'ultra', 'clear']);
     expect(values('u')).toEqual(['ultra']);
     expect(planArgumentCompletions('u')).toEqual([
-      { value: 'ultra', label: 'ultra', description: 'Turn UltraPlan mode on' },
+      { value: 'ultra', label: 'ultra', description: 'Start UltraPlan steering' },
+    ]);
+    expect(planArgumentCompletions('')).toEqual([
+      { value: 'on', label: 'on', description: 'Start Ultrawork plan steering' },
+      { value: 'off', label: 'off', description: 'Stop Ultrawork plan steering' },
+      { value: 'ultra', label: 'ultra', description: 'Start UltraPlan steering' },
+      { value: 'clear', label: 'clear', description: 'Clear current plan' },
     ]);
     expect(values('ultra')).toBeNull();
     expect(values('Ship feature X')).toBeNull();

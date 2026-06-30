@@ -26,25 +26,25 @@ function makeHost(options: { planMode?: boolean; planPath?: string | undefined }
 }
 
 describe('handlePlanCommand', () => {
-  it('uses Ultrawork wording when enabling planning', async () => {
+  it('uses Ultrawork steering wording when enabling planning', async () => {
     const { host, session } = makeHost({ planPath: '/tmp/plans/test-plan.md' });
 
     await handlePlanCommand(host, 'on');
 
     expect(session.setPlanMode).toHaveBeenCalledWith(true, false);
     expect(host.showNotice).toHaveBeenCalledWith(
-      'Ultrawork planning: ON',
+      'Ultrawork plan steering: ON',
       'Plan will be created here: /tmp/plans/test-plan.md',
     );
   });
 
-  it('uses Ultrawork wording when disabling planning', async () => {
+  it('uses Ultrawork steering wording when disabling planning', async () => {
     const { host, session } = makeHost({ planMode: true });
 
     await handlePlanCommand(host, 'off');
 
     expect(session.setPlanMode).toHaveBeenCalledWith(false, false);
-    expect(host.showNotice).toHaveBeenCalledWith('Ultrawork planning: OFF');
+    expect(host.showNotice).toHaveBeenCalledWith('Ultrawork plan steering: OFF');
   });
 
   it('uses UltraPlan wording for the explicit ultra steering option', async () => {

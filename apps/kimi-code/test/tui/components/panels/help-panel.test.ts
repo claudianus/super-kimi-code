@@ -35,7 +35,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Steer Ultrawork plan/);
     expect(out).not.toMatch(/Toggle Ultrawork planning/);
     expect(out).not.toMatch(/Ctrl-Shift-Tab/);
-    expect(out).not.toMatch(/Toggle UltraPlan steering/);
+    expect(out).not.toMatch(/Steer UltraPlan/);
     expect(out).toMatch(/Ctrl-O/);
     expect(out).toMatch(/Shift-Enter \/ Ctrl-J/);
     expect(out).toMatch(/Slash commands/);
@@ -80,7 +80,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Most work starts from a plain request/);
     expect(out).toMatch(/Steering controls are for overrides/);
     expect(out).toMatch(/Ctrl-Shift-Tab/);
-    expect(out).toMatch(/Toggle UltraPlan steering/);
+    expect(out).toMatch(/Steer UltraPlan/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
     expect(out).toMatch(/auto-links plan, goal, helpers, verify/);

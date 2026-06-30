@@ -15,7 +15,9 @@ describe('TUI surface leak checks', () => {
     expect(defaultUserSurfaceLeakFailures('help', brandCopy)).toEqual([]);
     expect(defaultUserSurfaceLeakFailures('status', brandCopy)).toEqual([]);
     expect(defaultUserSurfaceLeakFailures('status', 'auto ultrawork-ready')).toEqual([]);
-    expect(defaultUserSurfaceLeakFailures('help', 'Turn UltraPlan mode on')).toEqual([]);
+    expect(defaultUserSurfaceLeakFailures('help', 'Turn UltraPlan mode on')).toContain(
+      'default help capture exposes mode-like UltraPlan wording',
+    );
     expect(
       defaultUserSurfaceLeakFailures(
         'help',
@@ -45,6 +47,9 @@ describe('TUI surface leak checks', () => {
     );
     expect(defaultUserSurfaceLeakFailures('help', 'Shift-Tab Toggle Ultrawork planning')).toContain(
       'default help capture exposes mode-like Ultrawork shortcut',
+    );
+    expect(defaultUserSurfaceLeakFailures('startup', 'Ultrawork planning: OFF')).toContain(
+      'default startup capture exposes mode-like Ultrawork notice',
     );
 
     expect(defaultUserSurfaceLeakFailures('help', 'Run /ultrawork to start.')).toContain(

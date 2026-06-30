@@ -50,7 +50,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
 ];
 export const ADVANCED_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   ULTRAWORK_PLANNING_SHORTCUT,
-  { keys: 'Ctrl-Shift-Tab', description: 'Toggle UltraPlan steering' },
+  { keys: 'Ctrl-Shift-Tab', description: 'Steer UltraPlan' },
   ...DEFAULT_KEYBOARD_SHORTCUTS.slice(1),
 ];
 const DEFAULT_HELP_INTRO =
