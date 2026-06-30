@@ -208,6 +208,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: [],
     description: 'Steer UltraPlan; Ultrawork enables it automatically',
     priority: 100,
+    visibility: 'advanced',
     argumentHint: '[on|off|ultra|clear]',
     completeArgs: planArgumentCompletions,
     availability: (args) => (args.trim().toLowerCase() === 'clear' ? 'idle-only' : 'always'),

@@ -95,6 +95,7 @@ describe('built-in slash command registry', () => {
 
     expect(primaryNames).not.toContain('bench');
     expect(primaryNames).not.toContain('preflight');
+    expect(primaryNames).not.toContain('plan');
     expect(primaryNames).not.toContain('ultrawork');
     expect(primaryNames).not.toContain('ultraswarm');
     expect(primaryNames).not.toContain('btw');
@@ -109,6 +110,7 @@ describe('built-in slash command registry', () => {
       expect.arrayContaining([
         'btw',
         'experiments',
+        'plan',
         'permission',
         'reload',
         'reload-tui',
@@ -136,7 +138,7 @@ describe('built-in slash command registry', () => {
       (command) => command.name,
     );
 
-    expect(primaryNames.slice(0, 6)).toEqual(['auto', 'model', 'plan', 'status', 'usage', 'yolo']);
+    expect(primaryNames.slice(0, 6)).toEqual(['auto', 'model', 'status', 'usage', 'yolo', 'provider']);
   });
 
   it('describes long-work controls as Ultrawork steering surfaces', () => {
