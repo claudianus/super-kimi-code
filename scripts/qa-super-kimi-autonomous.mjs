@@ -5487,6 +5487,8 @@ async function runTuiUltraworkWorkflowPhase(context) {
       'startup, submitted, and after-wait captures must show recognizable Ultrawork TUI evidence.',
     );
     summary.validations.kimiModelReady = await validateTuiRealWorkflowModelEvidence(summary.captures);
+    summary.validations.resultScreenLinkedUltraworkStages =
+      await validateUltraworkResultScreenLinkedStages(summary.captures);
     summary.validations.adaptiveOperatorLoop = validateUltraworkOperatorLoop(waitResult);
     summary.workspace = {
       fixturePath: workflowPaths.sourcePath,
@@ -6382,6 +6384,32 @@ function validateUltraworkLinkedStages(waitResult) {
   };
 }
 
+async function validateUltraworkResultScreenLinkedStages(captures) {
+  const resultCapture = captures.find((capture) => capture.scenario === 'ultrawork-after-wait');
+  if (resultCapture === undefined || typeof resultCapture.path !== 'string') {
+    return {
+      status: 'FAIL',
+      reason: 'Ultrawork result screen capture is missing.',
+    };
+  }
+  const raw = await readFileIfExists(resultCapture.path);
+  if (typeof raw !== 'string') {
+    return {
+      status: 'FAIL',
+      reason: 'Ultrawork result screen capture could not be read.',
+      path: resultCapture.path,
+    };
+  }
+  const signals = inspectUltraworkWorkflowSignals(normalizeScreenText(raw));
+  return {
+    status: signals.linkedStagesVisible ? 'PASS' : 'FAIL',
+    reason: signals.linkedStagesVisible
+      ? 'Final Ultrawork result screen keeps the linked UltraPlan, UltraGoal, UltraSwarm, and Verify workflow visible.'
+      : 'Final Ultrawork result screen does not keep the linked UltraPlan, UltraGoal, UltraSwarm, and Verify workflow visible.',
+    path: resultCapture.path,
+  };
+}
+
 function validateUltraworkInterview(waitResult) {
   const count = Array.isArray(waitResult.interviewEvidence)
     ? waitResult.interviewEvidence.length
@@ -6677,6 +6705,14 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       name: 'observe-workflow-result-screen',
       status: passedCaptures.has('ultrawork-after-wait') ? 'PASS' : 'FAIL',
       evidence: 'tui/ultrawork-after-wait.txt',
+    },
+    {
+      name: 'observe-result-screen-linked-stages',
+      status:
+        summary.validations?.resultScreenLinkedUltraworkStages?.status === 'PASS'
+          ? 'PASS'
+          : 'FAIL',
+      evidence: 'validations.resultScreenLinkedUltraworkStages',
     },
   ];
   return {
