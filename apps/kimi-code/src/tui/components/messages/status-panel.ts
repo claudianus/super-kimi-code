@@ -116,6 +116,7 @@ const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
 const AUTO_GATE = 'ask if needed | plan | goal | swarm | verify';
 const AUTONOMY_GATE = 'bounded now -> headless target';
 const TOOLS_GATE = 'search first; load tools on demand';
+const RESEARCH_GATE = 'built-in WebSearch + FetchURL; MCP optional';
 const MEMORY_GATE = 'prefs | session recall | long-run notes';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
@@ -247,6 +248,7 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
     { label: 'Autonomy', value: AUTONOMY_GATE },
     { label: 'Recovery', value: formatRecoveryGate(options) },
     { label: 'Tools', value: TOOLS_GATE },
+    { label: 'Research', value: RESEARCH_GATE },
     { label: 'Memory', value: MEMORY_GATE },
     formatUltraworkFlow(options),
     { label: 'Stages', value: formatUltraworkStageStatus(options) },

@@ -8,7 +8,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { LocalFetchURLProvider } from '../../../src/tools/providers/local-fetch-url';
+import {
+  extractLocalMainContent,
+  LocalFetchURLProvider,
+} from '../../../src/tools/providers/local-fetch-url';
 
 function htmlResponse(body: string, contentType: string): Response {
   return new Response(body, {
@@ -54,5 +57,28 @@ describe('LocalFetchURLProvider content kind', () => {
 
     expect(result.kind).toBe('extracted');
     expect(result.content).toContain('quick brown fox');
+  });
+
+  it('uses internal selector extraction for common documentation containers', () => {
+    const html = [
+      '<html><head><title>SDK Guide</title></head><body>',
+      '<nav>',
+      'Navigation noise '.repeat(20),
+      '</nav>',
+      '<div class="markdown-body">',
+      '<h1>Install</h1>',
+      '<p>Use the built-in fetch path for source-backed research.</p>',
+      '</div>',
+      '<footer>Footer noise</footer>',
+      '</body></html>',
+    ].join('');
+
+    const result = extractLocalMainContent(html);
+
+    expect(result.source).toBe('selector');
+    expect(result.selector).toBe('.markdown-body');
+    expect(result.content).toContain('# SDK Guide');
+    expect(result.content).toContain('Use the built-in fetch path');
+    expect(result.content).not.toContain('Navigation noise');
   });
 });

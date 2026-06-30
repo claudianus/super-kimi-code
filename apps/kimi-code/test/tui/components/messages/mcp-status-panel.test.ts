@@ -7,15 +7,19 @@ function strip(text: string): string {
 }
 
 describe('buildMcpStatusReportLines', () => {
-  it('suggests Scrapling when no MCP web research backend is configured', () => {
+  it('keeps MCP scoped to optional tool backends when no servers are configured', () => {
     const lines = buildMcpStatusReportLines({ servers: [] }).map(strip);
 
-    expect(lines.join('\n')).toContain('No MCP servers configured. Run /mcp-config to add one.');
-    expect(lines.join('\n')).toContain('Web research: run /mcp-config and add Scrapling');
-    expect(lines.join('\n')).toContain('scrapling mcp');
+    const output = lines.join('\n');
+    expect(output).toContain(
+      'No MCP servers configured. Run /mcp-config to add optional tool backends.',
+    );
+    expect(output).toContain('Built-in web research uses WebSearch and FetchURL outside MCP.');
+    expect(output).not.toContain('Scrapling');
+    expect(output).not.toContain('scrapling mcp');
   });
 
-  it('does not repeat the Scrapling suggestion when a Scrapling server exists', () => {
+  it('does not present MCP as the built-in web research path', () => {
     const lines = buildMcpStatusReportLines({
       servers: [
         {
@@ -28,7 +32,8 @@ describe('buildMcpStatusReportLines', () => {
     }).map(strip);
 
     expect(lines.join('\n')).toContain('scrapling');
-    expect(lines.join('\n')).not.toContain('add Scrapling via /mcp-config');
+    expect(lines.join('\n')).toContain('Configure optional tool backends with /mcp-config');
+    expect(lines.join('\n')).not.toContain('Web research backend');
   });
 
   it('folds a multi-line server error onto one row so the panel box stays intact', () => {

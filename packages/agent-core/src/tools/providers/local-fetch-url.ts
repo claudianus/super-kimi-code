@@ -7,11 +7,9 @@
  *   3. Reject responses larger than `maxBytes` (content-length first,
  *      then measured body length as a defensive second check).
  *   4. `text/plain` / `text/markdown` → passthrough verbatim.
- *   5. Otherwise (assumed HTML) → run Readability over a linkedom
- *      document. Return `# ${title}\n\n${text}` (title omitted when
- *      absent). If extraction yields no meaningful text, fall back to
- *      common content containers (`<article>` / `<main>` / `<body>`)
- *      before throwing a "meaningful content" error.
+ *   5. Otherwise (assumed HTML) → extract the main text through the
+ *      built-in research extractor: common documentation/content selectors,
+ *      then Readability, then `<body>` as the last fallback.
  */
 
 import { Readability } from '@mozilla/readability';
@@ -31,6 +29,7 @@ type ReadabilityDocument = ConstructorParameters<typeof Readability>[0];
 interface DomElementLike {
   textContent: string | null;
   querySelector(selector: string): DomElementLike | null;
+  querySelectorAll(selector: string): Iterable<DomElementLike>;
 }
 interface DomParseResult {
   document: DomElementLike;
@@ -42,6 +41,26 @@ const DEFAULT_USER_AGENT =
   '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
+const MIN_SELECTOR_TEXT_LENGTH = 20;
+
+export const LOCAL_WEB_RESEARCH_CONTENT_SELECTORS = Object.freeze([
+  'article',
+  'main',
+  '[role="main"]',
+  '.markdown-body',
+  '.docs-content',
+  '.doc-content',
+  '.documentation',
+  '.post-content',
+  '.entry-content',
+  '#content',
+] as const);
+
+export interface LocalMainContentExtraction {
+  readonly content: string;
+  readonly source: 'selector' | 'readability' | 'body';
+  readonly selector?: string;
+}
 
 export interface LocalFetchURLProviderOptions {
   userAgent?: string;
@@ -187,43 +206,83 @@ export class LocalFetchURLProvider implements UrlFetcher {
       return { content: body, kind: 'passthrough' };
     }
 
-    return { content: this.extractMainContent(body), kind: 'extracted' };
+    return { content: extractLocalMainContent(body).content, kind: 'extracted' };
+  }
+}
+
+export function extractLocalMainContent(html: string): LocalMainContentExtraction {
+  const selector = extractByContentSelector(html);
+  if (selector !== undefined) return selector;
+
+  const readability = extractByReadability(html);
+  if (readability !== undefined) return readability;
+
+  const { document } = parseHTML(html);
+  const titleText = normalizeText(document.querySelector('title')?.textContent ?? '');
+  const fallbackText = normalizeText(document.querySelector('body')?.textContent ?? '');
+
+  if (fallbackText.length === 0) {
+    throw new Error(
+      'Failed to extract meaningful content from the page. The page may require JavaScript to render.',
+    );
   }
 
-  private extractMainContent(html: string): string {
-    // Readability mutates the DOM it parses, so parse twice — once for
-    // the primary extractor and once for the fallback path.
-    const primary = parseHTML(html);
-    try {
-      const reader = new Readability(primary.document as unknown as ReadabilityDocument, {
-        charThreshold: 0,
-      });
-      const article = reader.parse();
-      if (article !== null) {
-        const text = (article.textContent ?? '').trim();
-        if (text.length > 0) {
-          const title = (article.title ?? '').trim();
-          return title.length > 0 ? `# ${title}\n\n${text}` : text;
-        }
+  return {
+    content: withTitle(titleText, fallbackText),
+    source: 'body',
+  };
+}
+
+function extractByContentSelector(html: string): LocalMainContentExtraction | undefined {
+  const { document } = parseHTML(html);
+  const titleText = normalizeText(document.querySelector('title')?.textContent ?? '');
+  let best: { selector: string; text: string } | undefined;
+
+  for (const selector of LOCAL_WEB_RESEARCH_CONTENT_SELECTORS) {
+    for (const element of document.querySelectorAll(selector)) {
+      const text = normalizeText(element.textContent ?? '');
+      if (text.length < MIN_SELECTOR_TEXT_LENGTH) continue;
+      if (best === undefined || text.length > best.text.length) {
+        best = { selector, text };
       }
-    } catch {
-      // Fall through to the container-based fallback.
     }
-
-    const { document } = parseHTML(html);
-    const titleText = (document.querySelector('title')?.textContent ?? '').trim();
-    const container =
-      document.querySelector('article') ??
-      document.querySelector('main') ??
-      document.querySelector('body');
-    const fallbackText = (container?.textContent ?? '').trim();
-
-    if (fallbackText.length === 0) {
-      throw new Error(
-        'Failed to extract meaningful content from the page. The page may require JavaScript to render.',
-      );
-    }
-
-    return titleText.length > 0 ? `# ${titleText}\n\n${fallbackText}` : fallbackText;
   }
+
+  if (best === undefined) return undefined;
+  return {
+    content: withTitle(titleText, best.text),
+    source: 'selector',
+    selector: best.selector,
+  };
+}
+
+function extractByReadability(html: string): LocalMainContentExtraction | undefined {
+  const primary = parseHTML(html);
+  try {
+    const reader = new Readability(primary.document as unknown as ReadabilityDocument, {
+      charThreshold: 0,
+    });
+    const article = reader.parse();
+    if (article !== null) {
+      const text = normalizeText(article.textContent ?? '');
+      if (text.length > 0) {
+        const title = normalizeText(article.title ?? '');
+        return {
+          content: withTitle(title, text),
+          source: 'readability',
+        };
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function normalizeText(text: string): string {
+  return text.replaceAll(/\s+/g, ' ').trim();
+}
+
+function withTitle(title: string, text: string): string {
+  return title.length > 0 ? `# ${title}\n\n${text}` : text;
 }

@@ -96,8 +96,8 @@
       "Use precise 3-12 keyword queries for current libraries, APIs, model releases, benchmarks, security, architecture, and debugging work.",
       "Prioritize official docs, release notes, GitHub issues and PRs, papers, benchmark pages, and dated primary sources.",
       "Persist durable findings into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.",
-      "Do not reinvent advanced scraping primitives: evaluate Scrapling MCP, CLI, or fetchers as an optional local backend for dynamic public-page rendering, CSS selector targeting, main-content extraction, screenshots, session reuse, and adaptive element relocation.",
-      "Expose Scrapling readiness through the TUI MCP/status surface and the mcp-config recipe so users can add the local backend without knowing internal harness terms.",
+      "Keep the primary research path internal: built-in WebSearch and FetchURL own search, fetch, extraction, source evidence, and readiness while absorbing Scrapling-class ideas such as CSS selector targeting, main-content extraction, screenshots, session reuse, dynamic public-page rendering hooks, and adaptive element relocation behind internal providers.",
+      "Expose web research readiness through the TUI status surface so users see built-in WebSearch/FetchURL capability without configuring MCP first.",
       "Use browser automation for public rendered pages, DOM observation, screenshots, downloads, and PDF extraction when plain fetch is insufficient."
     ],
     "safetyBoundaries": [

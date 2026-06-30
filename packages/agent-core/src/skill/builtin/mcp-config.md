@@ -85,12 +85,10 @@ omit it. For less common fields (`enabled`, `startupTimeoutMs`,
 truth is `McpServerStdioConfigSchema` / `McpServerHttpConfigSchema` in
 `packages/agent-core/src/config/schema.ts`.
 
-When the user asks to add the Scrapling web research backend, use a stdio
-entry named `scrapling` with `command: "scrapling"` and `args: ["mcp"]`.
-If `scrapling --help` does not show the `mcp` command, tell them the
-installed package is missing AI/MCP extras and needs `pip install
-"scrapling[ai]"` followed by `scrapling install` before the server can
-start.
+Web research is not MCP-first. The built-in WebSearch and FetchURL tools
+are the primary internal path. Only add an external web-research MCP when
+the user explicitly asks to connect that MCP server; otherwise keep
+research readiness surfaced through `/status`.
 
 If the user only wants to **see** what's configured, read all three files,
 show a merged view with enough source-path context to inspect or remove a

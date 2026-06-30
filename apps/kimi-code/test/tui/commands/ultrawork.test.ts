@@ -160,7 +160,7 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('fetch primary sources before relying on snippets');
     expect(prompt).toContain('official docs, release notes, GitHub issues and PRs, papers, benchmark pages');
     expect(prompt).toContain('Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
-    expect(prompt).toContain('Scrapling MCP, CLI, or fetchers as an optional local backend');
+    expect(prompt).toContain('Absorb Scrapling-class ideas');
     expect(prompt).toContain('CSS selector targeting, main-content extraction, screenshots, session reuse');
     expect(prompt).toContain('rendered DOM observation, screenshots, downloads, PDF extraction');
     expect(prompt).toContain(
