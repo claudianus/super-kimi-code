@@ -67,6 +67,17 @@ export function hasUltraworkHelpContract(output) {
   );
 }
 
+export function hasUltraworkAdvancedHelpContract(output) {
+  return [
+    /\bUltrawork is one workflow:\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify\.?/i,
+    /\bPlain tasks start it automatically\.?/i,
+    /\bControls below are optional steering\.?/i,
+    /\bAdvanced Ultrawork controls\b/i,
+    /\bAdvanced steering for UltraPlan;\s*Ultrawork auto-enables it\b/i,
+    /\bAdvanced steering for UltraSwarm;\s*Ultrawork auto-arms it\b/i,
+  ].every((pattern) => pattern.test(output));
+}
+
 export function hasUltraworkStatusContract(output) {
   return [
     /\bUltrawork\b\s+auto-link ready/i,

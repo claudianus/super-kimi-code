@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasUltraworkAdvancedHelpContract,
   hasUltraworkFooterNextAction,
   hasUltraworkHelpContract,
   hasUltraworkStatusContract,
@@ -102,6 +103,32 @@ describe('TUI surface leak checks', () => {
 
     expect(hasUltraworkHelpContract('Run /ultrawork manually.')).toBe(false);
     expect(hasUltraworkStatusContract('Ultrawork    ready')).toBe(false);
+  });
+
+  it('recognizes the advanced Ultrawork steering help contract', () => {
+    expect(
+      hasUltraworkAdvancedHelpContract(
+        [
+          'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify.',
+          'Plain tasks start it automatically. Controls below are optional steering.',
+          'Advanced Ultrawork controls',
+          '/plan Advanced steering for UltraPlan; Ultrawork auto-enables it',
+          '/swarm Advanced steering for UltraSwarm; Ultrawork auto-arms it',
+        ].join('\n'),
+      ),
+    ).toBe(true);
+
+    expect(
+      hasUltraworkAdvancedHelpContract(
+        [
+          'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify.',
+          'Plain tasks start it automatically. Controls below are optional steering.',
+          'Advanced Ultrawork controls',
+          '/plan Steer UltraPlan stage; Ultrawork enables it automatically',
+          '/swarm Advanced steering for UltraSwarm; Ultrawork auto-arms it',
+        ].join('\n'),
+      ),
+    ).toBe(false);
   });
 
   it('only requires setup actions when the screen is missing a model', () => {

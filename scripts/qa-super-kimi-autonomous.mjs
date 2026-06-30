@@ -14,6 +14,7 @@ import net from 'node:net';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasUltraworkAdvancedHelpContract,
   hasUltraworkFooterNextAction,
   hasUltraworkHelpContract,
   hasUltraworkStatusContract,
@@ -95,6 +96,11 @@ const EVIDENCE_SUBDIRS = Object.freeze([
 const TUI_CAPTURE_SCENARIOS = Object.freeze([
   { name: 'startup', description: 'Initial visible Kimi TUI chrome/editor state.' },
   { name: 'help', keys: ['/help', 'Enter'], description: 'Open /help dialog.' },
+  {
+    name: 'help-advanced',
+    keys: ['Escape', '/help advanced', 'Enter'],
+    description: 'Open advanced Ultrawork steering help.',
+  },
   {
     name: 'status',
     keys: ['Escape', '/status', 'Enter'],
@@ -9344,6 +9350,11 @@ function inspectTuiCapture(scenario, output) {
         failures.push('help capture does not show help or slash-command content');
       }
       break;
+    case 'help-advanced':
+      if (!hasUltraworkAdvancedHelpContract(normalized)) {
+        failures.push('advanced help capture does not show optional Ultrawork steering contract');
+      }
+      break;
     case 'status':
       for (const pattern of [/\bstatus\b/i, /\breadiness\b/i, /\bstate\b/i, /\bchecks\b/i, /\bnext\b/i]) {
         if (!pattern.test(normalized)) {
@@ -9504,6 +9515,12 @@ async function validateTuiLaunchUltraworkUnifiedSurface(captures) {
       'help',
       'help screen Ultrawork entry contract',
       hasUltraworkHelpContract,
+    ),
+    validateTuiLaunchSurfaceScenario(
+      capturesByScenario,
+      'help-advanced',
+      'advanced help optional Ultrawork steering contract',
+      hasUltraworkAdvancedHelpContract,
     ),
     validateTuiLaunchSurfaceScenario(
       capturesByScenario,
