@@ -8693,7 +8693,7 @@ function hasXpDodReadinessContract(output) {
     /\bScope\b\s+small focused diff;\s*no broad refactor/i,
     /\bCoverage\b\s+test public behavior changes/i,
     /\bScreen check\b\s+open changed screen before finishing/i,
-    /\bDone gate\b\s+tests\/typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
+    /\bDone gate\b\s+relevant tests\s+\+\s+available typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
   ].every((pattern) => pattern.test(output));
 }
 

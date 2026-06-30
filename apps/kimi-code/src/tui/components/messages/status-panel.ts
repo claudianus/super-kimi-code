@@ -97,7 +97,7 @@ const WORKFLOW_GATE = 'Kimi chooses planning, goal tracking, or team mode as nee
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const SCREEN_CHECK_GATE = 'open changed screen before finishing';
-const DONE_GATE = 'tests/typecheck/lint/build + clean diff + TUI';
+const DONE_GATE = 'relevant tests + available typecheck/lint/build + clean diff + TUI';
 const READINESS_GATE_ROWS: readonly FieldRow[] = [
   { label: 'Checks', value: READINESS_CHECKS },
   { label: 'Workflow', value: WORKFLOW_GATE },

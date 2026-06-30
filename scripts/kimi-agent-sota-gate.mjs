@@ -39,7 +39,10 @@ const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
   { name: 'prompt-entry', pattern: /visible qa prompt entry only/i },
   { name: 'status-readiness', pattern: /\breadiness\b.*\bstate\b.*\bchecks\b.*\bnext\b/i },
   { name: 'xp-dod-readiness', pattern: /\bScope\b.*\bCoverage\b.*\bScreen check\b.*\bDone gate\b/i },
-  { name: 'done-gate', pattern: /\bDone gate\b\s+tests\/typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i },
+  {
+    name: 'done-gate',
+    pattern: /\bDone gate\b\s+relevant tests\s+\+\s+available typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
+  },
   { name: 'logged-out-setup-next-action', pattern: /\bmodel:?\s+not set\b.*\bnext:\s*run \/login or \/provider\b/i },
   { name: 'status-setup-next-action', pattern: /\bState\b\s+Model needed\b.*\bNext\b\s+Run \/login or \/provider first;\s*use \/model after sign-in\./i },
 ]);
@@ -2026,7 +2029,7 @@ function hasXpDodReadinessContract(output) {
     /\bScope\b\s+small focused diff;\s*no broad refactor/i,
     /\bCoverage\b\s+test public behavior changes/i,
     /\bScreen check\b\s+open changed screen before finishing/i,
-    /\bDone gate\b\s+tests\/typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
+    /\bDone gate\b\s+relevant tests\s+\+\s+available typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
   ].every((pattern) => pattern.test(output));
 }
 
