@@ -12,8 +12,20 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
   { label: 'LLM jargon in model setup error', pattern: /\bLLM not set\b/i },
 ]);
 
+const DEFAULT_USER_SURFACE_SCENARIOS = new Set([
+  'startup',
+  'help',
+  'status',
+  'clear',
+  'autocomplete',
+  'prompt-entry',
+  'escape-cancel',
+  'permission-mode',
+  'exit',
+]);
+
 export function defaultUserSurfaceLeakFailures(scenario, output) {
-  if (scenario !== 'help' && scenario !== 'autocomplete' && scenario !== 'status') return [];
+  if (!DEFAULT_USER_SURFACE_SCENARIOS.has(scenario)) return [];
   return DEFAULT_USER_SURFACE_LEAK_PATTERNS
     .filter((entry) => entry.pattern.test(output))
     .map((entry) => `default ${scenario} capture exposes ${entry.label}`);

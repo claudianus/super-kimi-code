@@ -59,4 +59,11 @@ describe('tips constants', () => {
     expect(text).not.toContain('/dance');
     expect(text).not.toContain('easter');
   });
+
+  it('keeps default toolbar tips on Ultrawork wording instead of legacy plan mode wording', () => {
+    const text = ALL_TIPS.map((tip) => tip.text).join('\n');
+
+    expect(text).toContain('Ultrawork');
+    expect(text).not.toMatch(/\bPlan mode\b/i);
+  });
 });
