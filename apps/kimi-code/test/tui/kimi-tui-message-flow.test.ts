@@ -3476,7 +3476,8 @@ command = "vim"
       expect(output).toContain('Model');
       expect(output).toContain('thinking on');
       expect(output).toContain('Permissions  auto');
-      expect(output).toMatch(/Planning\s+Ultrawork on/);
+      expect(output).toMatch(/Ultrawork\s+on/);
+      expect(output).not.toMatch(/Planning\s+Ultrawork/);
       expect(output).toContain('Context window');
       expect(output).toContain('25.0%');
     });

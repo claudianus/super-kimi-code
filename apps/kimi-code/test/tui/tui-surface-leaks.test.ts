@@ -19,6 +19,9 @@ describe('TUI surface leak checks', () => {
     expect(defaultUserSurfaceLeakFailures('status', 'Plan mode    on')).toContain(
       'default status capture exposes legacy plan mode label',
     );
+    expect(defaultUserSurfaceLeakFailures('status', 'Planning     Ultrawork on')).toContain(
+      'default status capture exposes legacy planning status row',
+    );
 
     expect(defaultUserSurfaceLeakFailures('help', 'Run /ultrawork to start.')).toContain(
       'default help capture exposes Ultrawork manual command',
