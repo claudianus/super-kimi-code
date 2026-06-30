@@ -214,6 +214,8 @@ describe('handleUltraworkCommand', () => {
       activityTip: 'Ultrawork: UltraPlan, UltraGoal, UltraSwarm, verify',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
+    expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');
+    expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('Ship feature X'));
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('<ultrawork_flow>'));
   });

@@ -5,6 +5,8 @@ import { currentTheme } from '#/tui/theme/theme';
 
 export type UltraworkModeMarkerState = 'active' | 'ended';
 
+const ULTRAWORK_PIPELINE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
+
 export class UltraworkModeMarkerComponent implements Component {
   constructor(
     private readonly state: UltraworkModeMarkerState,
@@ -20,8 +22,13 @@ export class UltraworkModeMarkerComponent implements Component {
     const token = this.state === 'ended' ? 'textDim' : 'success';
     const marker = currentTheme.boldFg(token, STATUS_BULLET);
     const label = currentTheme.boldFg(token, ultraworkMarkerLabel(this.state));
-    const taskLine = currentTheme.fg('textDim', truncateToWidth(`  ${this.taskDescription}`, safeWidth - 2, '…'));
-    return ['', truncateToWidth(marker + label, safeWidth, '…'), taskLine];
+    const pipelineToken = this.state === 'ended' ? 'textDim' : 'primary';
+    const pipelineLine = currentTheme.fg(
+      pipelineToken,
+      truncateToWidth(`  ${ULTRAWORK_PIPELINE}`, safeWidth, '…'),
+    );
+    const taskLine = currentTheme.fg('textDim', truncateToWidth(`  ${this.taskDescription}`, safeWidth, '…'));
+    return ['', truncateToWidth(marker + label, safeWidth, '…'), pipelineLine, taskLine];
   }
 }
 
