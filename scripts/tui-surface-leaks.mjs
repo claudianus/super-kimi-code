@@ -7,7 +7,7 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
   { label: 'advanced-tagged primary help command', pattern: /\bhelp\s+\[advanced\]\s+—\s+Show available commands/i },
   { label: 'Ultrawork manual command', pattern: /\/?ultrawork\b/i },
   { label: 'Ultraswarm manual command', pattern: /\/?ultraswarm\b/i },
-  { label: 'login-only model setup error', pattern: /\bLLM not set,\s*send "\/login" to login\b/i },
+  { label: 'LLM jargon in model setup error', pattern: /\bLLM not set\b/i },
 ]);
 
 export function defaultUserSurfaceLeakFailures(scenario, output) {

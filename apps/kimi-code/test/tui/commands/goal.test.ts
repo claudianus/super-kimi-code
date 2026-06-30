@@ -49,7 +49,7 @@ const ENTER = '\r';
 const ESCAPE = '\u001B';
 const UP = '\u001B[A';
 const DOWN = '\u001B[B';
-const MODEL_SETUP_MESSAGE = 'LLM not set, run /login or /provider to connect a model';
+const MODEL_SETUP_MESSAGE = 'Model not set. Run /login or /provider first; use /model after sign-in.';
 
 function fakeSnapshot() {
   return {
@@ -672,7 +672,7 @@ describe('handleGoalCommand', () => {
     expect(noModelHost.sendNormalUserInput).not.toHaveBeenCalled();
   });
 
-  it('creation without a configured model shows LLM_NOT_SET_MESSAGE', async () => {
+  it('creation without a configured model shows the model setup action', async () => {
     const { host: noModelHost, session: s } = makeHost({ model: '' });
     await handleGoalCommand(noModelHost, 'Ship feature X');
     expect(noModelHost.showError).toHaveBeenCalledWith(MODEL_SETUP_MESSAGE);

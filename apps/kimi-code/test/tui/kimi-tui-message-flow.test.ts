@@ -1987,8 +1987,9 @@ command = "vim"
 
     expect(session.prompt).not.toHaveBeenCalled();
     expect(driver.state.transcriptContainer.render(120).join('\n')).toContain(
-      'LLM not set, run /login or /provider to connect a model',
+      'Model not set. Run /login or /provider first; use /model after sign-in.',
     );
+    expect(driver.state.transcriptContainer.render(120).join('\n')).not.toContain('LLM not set');
   });
 
   it('dispatches /init to the active session and clears busy state after completion', async () => {
@@ -2641,12 +2642,18 @@ command = "vim"
     driver.handleUserInput('/btw');
     expect(session.startBtw).not.toHaveBeenCalled();
     expect(driver.state.btwPanelContainer.children).toHaveLength(0);
-    expect(stripSgr(renderTranscript(driver))).toContain('LLM not set');
+    expect(stripSgr(renderTranscript(driver))).toContain(
+      'Model not set. Run /login or /provider first; use /model after sign-in.',
+    );
+    expect(stripSgr(renderTranscript(driver))).not.toContain('LLM not set');
 
     driver.handleUserInput('/btw What are you doing now?');
 
     expect(session.startBtw).not.toHaveBeenCalled();
-    expect(stripSgr(renderTranscript(driver))).toContain('LLM not set');
+    expect(stripSgr(renderTranscript(driver))).toContain(
+      'Model not set. Run /login or /provider first; use /model after sign-in.',
+    );
+    expect(stripSgr(renderTranscript(driver))).not.toContain('LLM not set');
   });
 
   it('renders swarm mode markers from /swarm commands, not tool-triggered status updates', async () => {
@@ -2788,7 +2795,10 @@ command = "vim"
     driver.handleUserInput('/init');
 
     expect(session.init).not.toHaveBeenCalled();
-    expect(driver.state.transcriptContainer.render(120).join('\n')).toContain('LLM not set');
+    expect(driver.state.transcriptContainer.render(120).join('\n')).toContain(
+      'Model not set. Run /login or /provider first; use /model after sign-in.',
+    );
+    expect(driver.state.transcriptContainer.render(120).join('\n')).not.toContain('LLM not set');
   });
 
   it('shows the login prompt for auth.login_required session errors', async () => {
