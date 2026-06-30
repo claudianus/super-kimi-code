@@ -39,11 +39,13 @@ const ULTRAWORK_OPT_OUT_PATTERN =
   );
 const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   'Ultrawork orchestration:',
-  '- Treat Ultrawork as one workflow, not separate user-facing modes: UltraPlan -> UltraGoal -> UltraSwarm when useful -> verified finish.',
+  '- Treat Ultrawork as one workflow, not separate user-facing modes: it automatically orchestrates UltraPlan, UltraGoal, UltraSwarm when useful, and verified finish.',
+  '- Workflow spine: UltraPlan -> UltraGoal -> UltraSwarm -> Verify.',
   '- Normal task text is the preferred entry point; /ultrawork is an advanced manual override for operators who want to force the full workflow.',
   '- UltraPlan: clarify ambiguous or large requests, ask only blocking questions, and turn the request into a concrete verified goal.',
   '- UltraGoal: keep the active goal as the durable execution contract; update or replace it only when the clarified objective materially changes.',
   '- UltraSwarm: auto-engage specialist agents only when parallel PM, architecture, TUI, QA, security, or performance review materially improves outcome or speed.',
+  '- Swarm mode is armed by setup; proactively invoke UltraSwarm for cross-domain, risky, UI/UX, QA, security, performance, or long-horizon tasks, and otherwise note why single-agent execution is enough.',
   '- Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
   '- When the task is already actionable, do not stall in UltraPlan; advance into UltraGoal, UltraSwarm when useful, and verification with best judgment.',
   '- Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',

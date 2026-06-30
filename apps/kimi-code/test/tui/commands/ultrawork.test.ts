@@ -108,11 +108,14 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('Ultrawork orchestration');
     expect(prompt).toContain('UltraPlan -> UltraGoal -> UltraSwarm');
     expect(prompt).toContain('one workflow, not separate user-facing modes');
+    expect(prompt).toContain('automatically orchestrates UltraPlan, UltraGoal, UltraSwarm');
     expect(prompt).toContain('Normal task text is the preferred entry point');
     expect(prompt).toContain('/ultrawork is an advanced manual override');
     expect(prompt).toContain('UltraPlan: clarify ambiguous or large requests');
     expect(prompt).toContain('UltraGoal: keep the active goal as the durable execution contract');
     expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
+    expect(prompt).toContain('Swarm mode is armed by setup');
+    expect(prompt).toContain('proactively invoke UltraSwarm');
     expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm');
     expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
     expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages');
@@ -223,12 +226,12 @@ describe('handleUltraworkCommand', () => {
     expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({ swarmMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({
-      activityTip: 'Ultrawork: auto-links UltraPlan, UltraGoal, UltraSwarm, Verify',
+      activityTip: 'Ultrawork auto-orchestrates UltraPlan, UltraGoal, UltraSwarm, Verify',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
     expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');
     expect(renderedMarker(host)).toContain(
-      'Auto-linked: UltraPlan | UltraGoal | UltraSwarm | Verify',
+      'Auto-orchestrated: UltraPlan | UltraGoal | UltraSwarm | Verify',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('Ship feature X'));

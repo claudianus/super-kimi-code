@@ -6106,8 +6106,8 @@ function inspectUltraworkWorkflowSignals(output) {
     /Invalid phase transition:\s*cannot go from/i,
   ]);
   const linkedStagesVisible = matchesAny(output, [
-    /Tip:\s*Ultrawork:\s*auto-links\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify/i,
-    /Auto-linked:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
+    /Tip:\s*Ultrawork\s+auto-orchestrates\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify/i,
+    /Auto-orchestrated:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
     /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
   ]);
   const policyConflictPatterns = [
