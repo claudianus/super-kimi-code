@@ -157,6 +157,80 @@ describe('harness radar gate', () => {
     expect(radar.patterns.find((pattern) => pattern.id === 'tool-discovery-context-budget')?.projects)
       .toEqual(['MCP-Zero', 'ToolRAG', 'langgraph-bigtool']);
   });
+
+  it('records project drift against the previous internal radar', () => {
+    const previousRadar = completeRadar();
+    previousRadar.patterns.find((pattern) => pattern.id === 'terminal-agent-shell-vs-harness')!.projects = [
+      'opencode',
+      'goose',
+    ];
+    previousRadar.patterns.find((pattern) => pattern.id === 'tool-discovery-context-budget')!.projects = [
+      'ToolRAG',
+      'OldTool',
+    ];
+    previousRadar.patterns.find((pattern) => pattern.id === 'memory-ownership-lanes')!.projects = [
+      'Mem0',
+      'claude-mem',
+      'Letta',
+    ];
+
+    const radar = buildHarnessRadarFromBestOf({
+      meta: {
+        name: 'best-of-Agent-Harnesses',
+        url: 'https://github.com/RyanAlberts/best-of-Agent-Harnesses',
+        stars_captured: '2026-07-01',
+      },
+      use_cases: [
+        {
+          intent: 'I want a turnkey coding agent today',
+          picks: ['anomalyco/opencode', 'openai/codex'],
+        },
+        {
+          intent: 'I want to plug hundreds to thousands of tools without context bloat',
+          picks: ['xfey/MCP-Zero', 'antl3x/ToolRAG'],
+        },
+      ],
+      projects: [
+        project('opencode', 'anomalyco/opencode', 'coding-agent-products', ['mcp', 'cli', 'tui'], 180000),
+        project('Codex', 'openai/codex', 'coding-agent-products', ['sandbox', 'cli'], 94000),
+        project('ToolRAG', 'antl3x/ToolRAG', 'progressive-disclosure', ['mcp', 'tool-discovery'], 28),
+        project('MCP-Zero', 'xfey/MCP-Zero', 'progressive-disclosure', ['tool-discovery'], 489),
+        project('Mem0', 'mem0ai/mem0', 'libraries-sdks', ['memory'], 59600),
+        project('claude-mem', 'thedotmack/claude-mem', 'plugins-mcp-cli', ['memory'], 84800),
+        project('Letta', 'letta-ai/letta', 'frameworks', ['memory'], 23600),
+      ],
+    }, {
+      previousRadar,
+      previousLabel: '.omo/bench/harness-radar.json',
+      refreshedAt: '2026-07-01',
+    });
+
+    expect(radar.source.changeSummary).toEqual({
+      comparedWith: '.omo/bench/harness-radar.json',
+      totalAdded: 2,
+      totalRemoved: 2,
+      patterns: [
+        {
+          id: 'terminal-agent-shell-vs-harness',
+          added: ['Codex'],
+          removed: ['goose'],
+        },
+        {
+          id: 'tool-discovery-context-budget',
+          added: ['MCP-Zero'],
+          removed: ['OldTool'],
+        },
+      ],
+    });
+
+    const gate = evaluateHarnessRadarGate(radar, {
+      nowMs: Date.parse('2026-07-01T12:00:00.000Z'),
+    });
+
+    expect(gate.status).toBe('PASS');
+    expect(gate.observed?.changeSummary?.totalAdded).toBe(2);
+    expect(gate.observed?.changeSummary?.totalRemoved).toBe(2);
+  });
 });
 
 function project(

@@ -27,7 +27,7 @@ export function buildHarnessRadarFromBestOf(data, options = {}) {
     .map((githubId) => projectById.get(githubId))
     .filter(Boolean);
 
-  return {
+  const radar = {
     schemaVersion: 1,
     name: 'super-kimi-harness-radar',
     source: {
@@ -36,6 +36,7 @@ export function buildHarnessRadarFromBestOf(data, options = {}) {
       starsCapturedAt: String(data?.meta?.stars_captured ?? data?.meta?.starsCapturedAt ?? ''),
       refreshedAt: options.refreshedAt ?? isoDate(new Date()),
       refreshScript: 'node scripts/kimi-harness-radar-refresh.mjs',
+      changeSummary: undefined,
     },
     axes: [
       {
@@ -96,6 +97,15 @@ export function buildHarnessRadarFromBestOf(data, options = {}) {
       },
     ],
   };
+  const changeSummary = buildChangeSummary(
+    options.previousRadar,
+    radar,
+    options.previousLabel ?? 'previous radar',
+  );
+  if (changeSummary !== undefined) {
+    radar.source.changeSummary = changeSummary;
+  }
+  return radar;
 }
 
 async function main(argv) {
@@ -105,7 +115,13 @@ async function main(argv) {
     return;
   }
   const data = await readJsonInput(options.input);
-  const radar = buildHarnessRadarFromBestOf(data, { refreshedAt: options.refreshedAt });
+  const previousLabel = options.previous ?? options.output;
+  const previousRadar = await readOptionalJson(previousLabel);
+  const radar = buildHarnessRadarFromBestOf(data, {
+    previousLabel,
+    previousRadar,
+    refreshedAt: options.refreshedAt,
+  });
   const text = `${JSON.stringify(radar, null, 2)}\n`;
   if (options.dryRun) {
     console.log(text);
@@ -116,6 +132,9 @@ async function main(argv) {
   console.log(`stars captured: ${radar.source.starsCapturedAt}`);
   console.log(`terminal projects: ${patternById(radar, 'terminal-agent-shell-vs-harness').projects.join(', ')}`);
   console.log(`tool-discovery projects: ${patternById(radar, 'tool-discovery-context-budget').projects.join(', ')}`);
+  if (radar.source.changeSummary !== undefined) {
+    console.log(`project drift: +${radar.source.changeSummary.totalAdded}/-${radar.source.changeSummary.totalRemoved}`);
+  }
 }
 
 function parseArgs(argv) {
@@ -124,6 +143,7 @@ function parseArgs(argv) {
     output: DEFAULT_OUTPUT_PATH,
     dryRun: false,
     help: false,
+    previous: undefined,
     refreshedAt: undefined,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -136,6 +156,9 @@ function parseArgs(argv) {
     } else if (arg === '--output') {
       index += 1;
       options.output = argv[index];
+    } else if (arg === '--previous') {
+      index += 1;
+      options.previous = argv[index];
     } else if (arg === '--refreshed-at') {
       index += 1;
       options.refreshedAt = argv[index];
@@ -152,6 +175,7 @@ function usage() {
 Options:
   --input <path|url>       best-of-Agent-Harnesses harnesses.json source.
   --output <path>          Output radar path. Default: ${DEFAULT_OUTPUT_PATH}
+  --previous <path>        Previous radar for drift summary. Default: output path.
   --refreshed-at <date>    Override refreshedAt date for reproducible tests.
   --dry-run                Print generated radar instead of writing it.
   --help                   Show this help.
@@ -165,6 +189,15 @@ async function readJsonInput(input) {
     return response.json();
   }
   return JSON.parse(await readFile(path.resolve(input), 'utf8'));
+}
+
+async function readOptionalJson(file) {
+  try {
+    return JSON.parse(await readFile(path.resolve(file), 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return undefined;
+    throw error;
+  }
 }
 
 function useCasePicks(data, intent) {
@@ -185,6 +218,38 @@ function tags(project) {
 
 function names(projects) {
   return projects.map((project) => String(project.name)).filter((name) => name.length > 0);
+}
+
+function buildChangeSummary(previousRadar, nextRadar, comparedWith) {
+  if (!Array.isArray(previousRadar?.patterns)) return undefined;
+  const previousPatterns = new Map(previousRadar.patterns.map((pattern) => [String(pattern?.id), pattern]));
+  const patterns = [];
+  let totalAdded = 0;
+  let totalRemoved = 0;
+
+  for (const nextPattern of nextRadar.patterns) {
+    const id = String(nextPattern.id);
+    const previousPattern = previousPatterns.get(id);
+    const previousProjects = patternProjects(previousPattern);
+    const nextProjects = patternProjects(nextPattern);
+    const added = nextProjects.filter((project) => !previousProjects.includes(project));
+    const removed = previousProjects.filter((project) => !nextProjects.includes(project));
+    if (added.length === 0 && removed.length === 0) continue;
+    totalAdded += added.length;
+    totalRemoved += removed.length;
+    patterns.push({ id, added, removed });
+  }
+
+  return {
+    comparedWith,
+    totalAdded,
+    totalRemoved,
+    patterns,
+  };
+}
+
+function patternProjects(pattern) {
+  return Array.isArray(pattern?.projects) ? pattern.projects.map(String) : [];
 }
 
 function patternById(radar, id) {

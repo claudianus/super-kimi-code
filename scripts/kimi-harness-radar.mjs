@@ -94,6 +94,7 @@ export function evaluateHarnessRadarGate(radar, options = {}) {
       starsCapturedAt: radar?.source?.starsCapturedAt,
       refreshedAt: radar?.source?.refreshedAt,
       refreshScript: radar?.source?.refreshScript,
+      changeSummary: radar?.source?.changeSummary,
       sourceAgeDays,
       sourceMaxAgeDays: maxSourceAgeDays,
       autonomyMinimum: autonomy?.minimum,

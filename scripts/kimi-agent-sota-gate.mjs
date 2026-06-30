@@ -2717,6 +2717,7 @@ function renderMarkdown(report) {
       `- stars captured: ${String(report.harnessRadarProof.starsCapturedAt ?? 'unavailable')}`,
       `- source age: ${String(report.harnessRadarProof.sourceAgeDays ?? 'unavailable')}d / ${String(report.harnessRadarProof.sourceMaxAgeDays ?? 'unavailable')}d max`,
       `- refresh: ${String(report.harnessRadarProof.refreshScript ?? 'unavailable')}`,
+      ...harnessRadarChangeLines(report.harnessRadarProof.changeSummary),
       `- autonomy: ${String(report.harnessRadarProof.autonomyMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.autonomyTarget ?? 'unavailable')}`,
       `- recovery: ${String(report.harnessRadarProof.recoveryMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.recoveryTarget ?? 'unavailable')}`,
       `- tool discovery: ${String(report.harnessRadarProof.toolDiscoveryPattern ?? 'unavailable')}`,
@@ -2846,6 +2847,23 @@ function renderMarkdown(report) {
   }
   lines.push('');
   return `${lines.join('\n')}\n`;
+}
+
+function harnessRadarChangeLines(changeSummary) {
+  if (changeSummary === undefined) return [];
+  const patternChanges = Array.isArray(changeSummary.patterns) ? changeSummary.patterns : [];
+  return [
+    `- radar changes: +${String(changeSummary.totalAdded ?? 0)}/-${String(changeSummary.totalRemoved ?? 0)} across ${String(patternChanges.length)} patterns`,
+    ...patternChanges.map((pattern) => {
+      const added = Array.isArray(pattern.added) && pattern.added.length > 0
+        ? pattern.added.join(', ')
+        : 'none';
+      const removed = Array.isArray(pattern.removed) && pattern.removed.length > 0
+        ? pattern.removed.join(', ')
+        : 'none';
+      return `- ${String(pattern.id)}: added ${added}; removed ${removed}`;
+    }),
+  ];
 }
 
 function ultraworkQuestionHandlingLabel(proof) {
