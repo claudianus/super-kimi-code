@@ -2715,6 +2715,8 @@ function renderMarkdown(report) {
       '',
       `- source: ${String(report.harnessRadarProof.source ?? 'unavailable')}`,
       `- stars captured: ${String(report.harnessRadarProof.starsCapturedAt ?? 'unavailable')}`,
+      `- source age: ${String(report.harnessRadarProof.sourceAgeDays ?? 'unavailable')}d / ${String(report.harnessRadarProof.sourceMaxAgeDays ?? 'unavailable')}d max`,
+      `- refresh: ${String(report.harnessRadarProof.refreshScript ?? 'unavailable')}`,
       `- autonomy: ${String(report.harnessRadarProof.autonomyMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.autonomyTarget ?? 'unavailable')}`,
       `- recovery: ${String(report.harnessRadarProof.recoveryMinimum ?? 'unavailable')} -> ${String(report.harnessRadarProof.recoveryTarget ?? 'unavailable')}`,
       `- tool discovery: ${String(report.harnessRadarProof.toolDiscoveryPattern ?? 'unavailable')}`,

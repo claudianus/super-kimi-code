@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { evaluateHarnessRadarGate } from '../../../../scripts/kimi-harness-radar.mjs';
+import { buildHarnessRadarFromBestOf } from '../../../../scripts/kimi-harness-radar-refresh.mjs';
 
 function completeRadar() {
   return {
@@ -66,12 +67,16 @@ function completeRadar() {
 
 describe('harness radar gate', () => {
   it('accepts the internalized best-of-Agent-Harnesses radar contract', () => {
-    const gate = evaluateHarnessRadarGate(completeRadar());
+    const gate = evaluateHarnessRadarGate(completeRadar(), {
+      nowMs: Date.parse('2026-07-01T00:00:00.000Z'),
+    });
 
     expect(gate.status).toBe('PASS');
     expect(gate.observed?.autonomyTarget).toBe('headless');
     expect(gate.observed?.recoveryMinimum).toBe('resumable');
     expect(gate.observed?.toolDiscoveryPattern).toBe('tool-discovery-context-budget');
+    expect(gate.observed?.sourceAgeDays).toBe(3);
+    expect(gate.observed?.sourceMaxAgeDays).toBe(14);
   });
 
   it('fails when long-running autonomy has no resumable recovery floor', () => {
@@ -97,4 +102,75 @@ describe('harness radar gate', () => {
     expect(gate.status).toBe('FAIL');
     expect(gate.reason).toContain('missing tool-discovery-context-budget pattern');
   });
+
+  it('fails when the external harness radar source is stale', () => {
+    const gate = evaluateHarnessRadarGate(completeRadar(), {
+      nowMs: Date.parse('2026-07-20T00:00:00.000Z'),
+    });
+
+    expect(gate.status).toBe('FAIL');
+    expect(gate.reason).toContain('source.starsCapturedAt is stale');
+    expect(gate.observed?.sourceAgeDays).toBe(22);
+  });
+
+  it('builds the internal radar from structured best-of-Agent-Harnesses data', () => {
+    const radar = buildHarnessRadarFromBestOf({
+      meta: {
+        name: 'best-of-Agent-Harnesses',
+        url: 'https://github.com/RyanAlberts/best-of-Agent-Harnesses',
+        stars_captured: '2026-07-01',
+      },
+      use_cases: [
+        {
+          intent: 'I want a turnkey coding agent today',
+          picks: ['anomalyco/opencode', 'openai/codex', 'google-gemini/gemini-cli'],
+        },
+        {
+          intent: 'I want to plug hundreds to thousands of tools without context bloat',
+          picks: ['xfey/MCP-Zero', 'antl3x/ToolRAG', 'langchain-ai/langgraph-bigtool'],
+        },
+      ],
+      projects: [
+        project('opencode', 'anomalyco/opencode', 'coding-agent-products', ['mcp', 'cli', 'tui'], 180000),
+        project('Codex', 'openai/codex', 'coding-agent-products', ['sandbox', 'cli'], 94000),
+        project('Gemini CLI', 'google-gemini/gemini-cli', 'coding-agent-products', ['mcp', 'cli'], 106000),
+        project('ToolRAG', 'antl3x/ToolRAG', 'progressive-disclosure', ['mcp', 'tool-discovery'], 28),
+        project('MCP-Zero', 'xfey/MCP-Zero', 'progressive-disclosure', ['tool-discovery'], 489),
+        project('langgraph-bigtool', 'langchain-ai/langgraph-bigtool', 'progressive-disclosure', ['tool-discovery'], 545),
+        project('Mem0', 'mem0ai/mem0', 'libraries-sdks', ['memory'], 59600),
+        project('claude-mem', 'thedotmack/claude-mem', 'plugins-mcp-cli', ['memory'], 84800),
+        project('Letta', 'letta-ai/letta', 'frameworks', ['memory'], 23600),
+      ],
+    }, {
+      refreshedAt: '2026-07-01',
+    });
+
+    const gate = evaluateHarnessRadarGate(radar, {
+      nowMs: Date.parse('2026-07-01T12:00:00.000Z'),
+    });
+
+    expect(gate.status).toBe('PASS');
+    expect(radar.source.starsCapturedAt).toBe('2026-07-01');
+    expect(radar.source.refreshedAt).toBe('2026-07-01');
+    expect(radar.patterns.find((pattern) => pattern.id === 'terminal-agent-shell-vs-harness')?.projects)
+      .toEqual(['opencode', 'Codex', 'Gemini CLI']);
+    expect(radar.patterns.find((pattern) => pattern.id === 'tool-discovery-context-budget')?.projects)
+      .toEqual(['MCP-Zero', 'ToolRAG', 'langgraph-bigtool']);
+  });
 });
+
+function project(
+  name: string,
+  githubId: string,
+  category: string,
+  tags: string[],
+  stars: number,
+) {
+  return {
+    name,
+    github_id: githubId,
+    category,
+    tags,
+    stars,
+  };
+}

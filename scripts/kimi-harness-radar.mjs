@@ -3,8 +3,10 @@ const REQUIRED_RECOVERY_TIERS = Object.freeze(['none', 'retry', 'resumable', 'du
 const REQUIRED_ADOPTION_TIERS = Object.freeze(['super simple', 'mostly simple', 'slightly complex', 'complex']);
 const REQUIRED_MEMORY_LANES = Object.freeze(['application-owned', 'harness-owned', 'agent-owned']);
 const REQUIRED_BENCHMARK_REFERENCES = Object.freeze(['SWE-bench', 'Terminal-Bench', 'inspect_ai']);
+const DEFAULT_MAX_SOURCE_AGE_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-export function evaluateHarnessRadarGate(radar) {
+export function evaluateHarnessRadarGate(radar, options = {}) {
   const failures = [];
   if (radar?.schemaVersion !== 1) failures.push('schemaVersion must be 1');
   if (!/best-of-Agent-Harnesses/i.test(String(radar?.source?.url ?? radar?.source?.name ?? ''))) {
@@ -12,6 +14,13 @@ export function evaluateHarnessRadarGate(radar) {
   }
   if (!isDateLike(radar?.source?.starsCapturedAt)) {
     failures.push('source.starsCapturedAt must be recorded');
+  }
+  const maxSourceAgeDays = options.maxSourceAgeDays ?? DEFAULT_MAX_SOURCE_AGE_DAYS;
+  const sourceAgeDays = sourceAgeInDays(radar?.source?.starsCapturedAt, options.nowMs ?? Date.now());
+  if (sourceAgeDays !== undefined && sourceAgeDays > maxSourceAgeDays) {
+    failures.push(
+      `source.starsCapturedAt is stale (${sourceAgeDays}d old; max ${maxSourceAgeDays}d); run node scripts/kimi-harness-radar-refresh.mjs`,
+    );
   }
 
   const autonomy = axisById(radar, 'autonomy');
@@ -83,6 +92,10 @@ export function evaluateHarnessRadarGate(radar) {
     observed: {
       source: radar?.source?.name,
       starsCapturedAt: radar?.source?.starsCapturedAt,
+      refreshedAt: radar?.source?.refreshedAt,
+      refreshScript: radar?.source?.refreshScript,
+      sourceAgeDays,
+      sourceMaxAgeDays: maxSourceAgeDays,
       autonomyMinimum: autonomy?.minimum,
       autonomyTarget: autonomy?.target,
       recoveryMinimum: recovery?.minimum,
@@ -125,4 +138,11 @@ function textMatches(value, pattern) {
 
 function isDateLike(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function sourceAgeInDays(date, nowMs) {
+  if (!isDateLike(date)) return undefined;
+  const capturedMs = Date.parse(`${date}T00:00:00.000Z`);
+  if (!Number.isFinite(capturedMs)) return undefined;
+  return Math.floor(Math.max(0, nowMs - capturedMs) / DAY_MS);
 }
