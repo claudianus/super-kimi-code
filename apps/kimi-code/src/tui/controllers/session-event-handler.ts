@@ -14,6 +14,7 @@ import type {
   GoalChange,
   GoalUpdatedEvent,
   HookResultEvent,
+  PluginCommandActivatedEvent,
   Session,
   SessionMetaUpdatedEvent,
   SkillActivatedEvent,
@@ -134,6 +135,7 @@ export class SessionEventHandler {
   backgroundTaskTranscriptedTerminal: Set<string> = new Set();
 
   renderedSkillActivationIds: Set<string> = new Set();
+  renderedPluginCommandActivationIds: Set<string> = new Set();
   renderedMcpServerStatusKeys: Map<string, string> = new Map();
   mcpServerStatusSpinners: Map<string, MoonLoader> = new Map();
   mcpServers: Map<string, McpServerStatusSnapshot> = new Map();
@@ -150,6 +152,7 @@ export class SessionEventHandler {
     this.backgroundTaskTranscriptedTerminal.clear();
     this.subAgentEventHandler.resetRuntimeState();
     this.renderedSkillActivationIds.clear();
+    this.renderedPluginCommandActivationIds.clear();
     this.renderedMcpServerStatusKeys.clear();
     this.mcpServers.clear();
     this.goalCompletionAwaitingClear = false;
@@ -256,6 +259,7 @@ export class SessionEventHandler {
       case 'session.meta.updated': this.handleSessionMetaChanged(event); break;
       case 'goal.updated': this.handleGoalUpdated(event); break;
       case 'skill.activated': this.handleSkillActivated(event); break;
+      case 'plugin_command.activated': this.handlePluginCommandActivated(event); break;
       case 'error': this.handleSessionError(event); break;
       case 'warning': this.handleSessionWarning(event); break;
       case 'compaction.started': this.handleCompactionBegin(event); break;
@@ -928,6 +932,23 @@ export class SessionEventHandler {
       skillName: event.skillName,
       skillArgs: event.skillArgs,
       skillTrigger: event.trigger,
+    });
+  }
+
+  private handlePluginCommandActivated(event: PluginCommandActivatedEvent): void {
+    if (this.renderedPluginCommandActivationIds.has(event.activationId)) return;
+    this.renderedPluginCommandActivationIds.add(event.activationId);
+    this.host.appendTranscriptEntry({
+      id: nextTranscriptId(),
+      kind: 'plugin_command',
+      turnId: undefined,
+      renderMode: 'plain',
+      content: `Ran command: ${event.pluginId}:${event.commandName}`,
+      pluginCommandActivationId: event.activationId,
+      pluginId: event.pluginId,
+      pluginCommandName: event.commandName,
+      pluginCommandArgs: event.commandArgs,
+      pluginCommandTrigger: event.trigger,
     });
   }
 

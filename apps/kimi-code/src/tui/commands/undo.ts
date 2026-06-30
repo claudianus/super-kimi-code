@@ -13,6 +13,7 @@ import { AgentSwarmProgressComponent } from '../components/messages/agent-swarm-
 import { AssistantMessageComponent } from '../components/messages/assistant-message';
 import { BackgroundAgentStatusComponent } from '../components/messages/background-agent-status';
 import { CronMessageComponent } from '../components/messages/cron-message';
+import { PluginCommandComponent } from '../components/messages/plugin-command';
 import { ReadGroupComponent } from '../components/messages/read-group';
 import { SkillActivationComponent } from '../components/messages/skill-activation';
 import { ThinkingComponent } from '../components/messages/thinking';
@@ -237,6 +238,9 @@ function isContextUndoAnchor(message: ContextMessage): boolean {
   if (origin.kind === 'skill_activation') {
     return origin.trigger === 'user-slash';
   }
+  if (origin.kind === 'plugin_command') {
+    return origin.trigger === 'user-slash';
+  }
   return false;
 }
 
@@ -295,6 +299,12 @@ function formatUndoChoiceLabel(
     if (name.length === 0) return 'Skill: unknown';
     return args.length > 0 ? `/${name} ${args}` : `/${name}`;
   }
+  if (entry.kind === 'plugin_command') {
+    const label = pluginCommandLabel(entry);
+    if (label.length === 0) return 'Command: unknown';
+    const args = singleLine(entry.pluginCommandArgs ?? '');
+    return args.length > 0 ? `/${label} ${args}` : `/${label}`;
+  }
 
   const content = singleLine(entry.content);
   const imageCount = entry.imageAttachmentIds?.length ?? 0;
@@ -313,6 +323,12 @@ function formatUndoChoiceInput(entry: TranscriptEntry): string {
     const args = singleLine(entry.skillArgs ?? '');
     if (name.length === 0) return '';
     return args.length > 0 ? `/${name} ${args}` : `/${name}`;
+  }
+  if (entry.kind === 'plugin_command') {
+    const label = pluginCommandLabel(entry);
+    const args = singleLine(entry.pluginCommandArgs ?? '');
+    if (label.length === 0) return '';
+    return args.length > 0 ? `/${label} ${args}` : `/${label}`;
   }
   return entry.content;
 }
@@ -374,7 +390,8 @@ function undoLimitFromError(
 function isUndoAnchorEntry(entry: TranscriptEntry): boolean {
   return (
     entry.kind === 'user' ||
-    (entry.kind === 'skill_activation' && entry.skillTrigger === 'user-slash')
+    (entry.kind === 'skill_activation' && entry.skillTrigger === 'user-slash') ||
+    (entry.kind === 'plugin_command' && entry.pluginCommandTrigger === 'user-slash')
   );
 }
 
@@ -400,6 +417,7 @@ function isUndoContextEntry(entry: TranscriptEntry): boolean {
     case 'tool_call':
     case 'thinking':
     case 'skill_activation':
+    case 'plugin_command':
     case 'cron':
       return true;
     case 'status':
@@ -440,7 +458,8 @@ function removeUndoContextComponents(
 function isUndoAnchorComponent(child: Component): boolean {
   return (
     child instanceof UserMessageComponent ||
-    (child instanceof SkillActivationComponent && child.trigger === 'user-slash')
+    (child instanceof SkillActivationComponent && child.trigger === 'user-slash') ||
+    (child instanceof PluginCommandComponent && child.trigger === 'user-slash')
   );
 }
 
@@ -459,9 +478,18 @@ function isUndoContextComponent(child: Component): boolean {
     child instanceof AgentSwarmProgressComponent ||
     child instanceof ReadGroupComponent ||
     child instanceof SkillActivationComponent ||
+    child instanceof PluginCommandComponent ||
     child instanceof BackgroundAgentStatusComponent ||
     child instanceof CronMessageComponent
   );
+}
+
+function pluginCommandLabel(entry: TranscriptEntry): string {
+  const pluginId = singleLine(entry.pluginId ?? '');
+  const commandName = singleLine(entry.pluginCommandName ?? '');
+  if (pluginId.length === 0) return commandName;
+  if (commandName.length === 0) return pluginId;
+  return `${pluginId}:${commandName}`;
 }
 
 function renderWelcome(host: SlashCommandHost): void {

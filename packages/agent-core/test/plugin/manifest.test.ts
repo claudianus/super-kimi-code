@@ -218,7 +218,6 @@ describe('parseManifest', () => {
       'kimi.plugin.json': JSON.stringify({
         name: 'demo',
         tools: { foo: { description: 'x' } },
-        commands: ['x'],
         configFile: 'cfg.json',
         config_file: 'legacy-cfg.json',
         inject: { foo: 'bar' },
@@ -230,7 +229,6 @@ describe('parseManifest', () => {
     expect(result.manifest).toEqual(expect.objectContaining({ name: 'demo' }));
     for (const field of [
       'tools',
-      'commands',
       'configFile',
       'config_file',
       'inject',
@@ -244,6 +242,60 @@ describe('parseManifest', () => {
         }),
       );
     }
+  });
+
+  it('parses plugin command markdown files from directories and single files', async () => {
+    const root = await makePlugin({
+      'kimi.plugin.json': JSON.stringify({
+        name: 'demo',
+        commands: ['./commands', './ship.md'],
+      }),
+      'commands/deploy.md': 'Deploy',
+      'commands/frontend/component.md': 'Component',
+      'commands/ignore.txt': 'Nope',
+      'ship.md': 'Ship',
+    });
+
+    const result = await parseManifest(root);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.manifest?.commands).toEqual([
+      { path: path.join(root, 'commands', 'deploy.md'), name: 'deploy' },
+      { path: path.join(root, 'commands', 'frontend', 'component.md'), name: 'frontend/component' },
+      { path: path.join(root, 'ship.md'), name: 'ship' },
+    ]);
+  });
+
+  it('warns and skips invalid command entries', async () => {
+    const root = await makePlugin({
+      'kimi.plugin.json': JSON.stringify({
+        name: 'demo',
+        commands: ['commands', './../outside', './notes.txt'],
+      }),
+      'notes.txt': 'not markdown',
+    });
+
+    const result = await parseManifest(root);
+
+    expect(result.manifest?.commands).toBeUndefined();
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: 'warn',
+        message: expect.stringContaining('"commands" path must start with "./"'),
+      }),
+    );
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: 'warn',
+        message: expect.stringContaining('resolves outside the plugin'),
+      }),
+    );
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: 'warn',
+        message: expect.stringContaining('must be a directory or .md file'),
+      }),
+    );
   });
 
   it('parses skillInstructions', async () => {

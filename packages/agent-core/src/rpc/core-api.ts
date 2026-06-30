@@ -34,7 +34,7 @@ import type {
 import type { ContentPart } from '@moonshot-ai/kosong';
 import type { SessionWarning } from '@moonshot-ai/protocol';
 
-import type { PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
+import type { PluginCommandDef, PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
 import type { UsageStatus } from './events';
 import type { WithAgentId, WithSessionId } from './types';
 
@@ -295,6 +295,12 @@ export interface ActivateSkillPayload {
   readonly args?: string | undefined;
 }
 
+export interface ActivatePluginCommandPayload {
+  readonly pluginId: string;
+  readonly commandName: string;
+  readonly args?: string | undefined;
+}
+
 export interface McpServerInfo {
   readonly name: string;
   readonly transport: 'stdio' | 'http' | 'sse';
@@ -335,7 +341,7 @@ export interface GetPluginInfoPayload {
 }
 
 export type ReloadPluginsResult = ReloadSummary;
-export type { PluginSummary, PluginInfo };
+export type { PluginCommandDef, PluginSummary, PluginInfo };
 
 export interface AddAdditionalDirPayload {
   readonly path: string;
@@ -451,6 +457,7 @@ export interface AgentAPI {
   detachBackground: (payload: DetachBackgroundPayload) => BackgroundTaskInfo | undefined;
   clearContext: (payload: EmptyPayload) => void;
   activateSkill: (payload: ActivateSkillPayload) => Promise<void>;
+  activatePluginCommand: (payload: ActivatePluginCommandPayload) => Promise<void>;
   startBtw: (payload: EmptyPayload) => string;
   createGoal: (payload: CreateGoalPayload) => GoalSnapshot;
   getGoal: (payload: EmptyPayload) => GoalToolResult;
@@ -475,6 +482,7 @@ export interface SessionAPI extends AgentAPIWithId {
   getSessionMetadata: (payload: EmptyPayload) => SessionMeta;
   listSkills: (payload: EmptyPayload) => readonly SkillSummary[];
   searchSkills: (payload: SearchSkillsPayload) => readonly SkillSearchResult[];
+  listPluginCommands: (payload: EmptyPayload) => readonly PluginCommandDef[];
   listMcpServers: (payload: EmptyPayload) => readonly McpServerInfo[];
   getMcpStartupMetrics: (payload: EmptyPayload) => McpStartupMetrics;
   reconnectMcpServer: (payload: ReconnectMcpServerPayload) => void;

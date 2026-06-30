@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { join } from 'pathe';
 
 import { normalizeAdditionalDirs } from '../config';
@@ -7,8 +8,10 @@ import type { Logger } from '#/logging/types';
 import type { AgentAPI, AgentEvent, KimiConfig, SDKAgentRPC, UsageStatus } from '#/rpc';
 import { generate } from '@moonshot-ai/kosong';
 
-import type { EnabledPluginSessionStart } from '#/plugin';
+import { expandCommandArguments } from '../plugin/commands';
+import type { EnabledPluginSessionStart, PluginCommandDef } from '#/plugin';
 import type { AgentMemoryRuntime } from '#/memory';
+import type { PluginCommandOrigin } from './context';
 
 import type { McpConnectionManager } from '../mcp';
 import { FlagResolver, type ExperimentalFlagResolver } from '../flags';
@@ -80,6 +83,7 @@ export interface AgentOptions {
   readonly log?: Logger;
   readonly telemetry?: TelemetryClient | undefined;
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
+  readonly pluginCommands?: readonly PluginCommandDef[];
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly replay?: ReplayBuilderOptions;
   readonly additionalDirs?: readonly string[];
@@ -99,6 +103,7 @@ export class Agent {
   readonly rpc?: Partial<SDKAgentRPC>;
   readonly toolServices?: ToolServices;
   readonly pluginSessionStarts: readonly EnabledPluginSessionStart[];
+  readonly pluginCommands: readonly PluginCommandDef[];
   readonly rawGenerate: typeof generate;
   readonly modelProvider?: ModelProvider;
   readonly subagentHost?: SessionSubagentHost;
@@ -139,6 +144,7 @@ export class Agent {
     this.rpc = options.rpc;
     this.toolServices = options.toolServices;
     this.pluginSessionStarts = options.pluginSessionStarts ?? [];
+    this.pluginCommands = options.pluginCommands ?? [];
     this.rawGenerate = options.generate ?? generate;
     this.modelProvider = options.modelProvider;
     this.subagentHost = options.subagentHost;
@@ -386,6 +392,39 @@ export class Agent {
           throw new KimiError(ErrorCodes.SKILL_NOT_FOUND, `Skill "${payload.name}" was not found`);
         }
         await this.skills.activate(payload);
+      },
+      activatePluginCommand: (payload) => {
+        const def = this.pluginCommands.find(
+          (command) =>
+            command.pluginId === payload.pluginId && command.name === payload.commandName,
+        );
+        if (def === undefined) {
+          throw new KimiError(
+            ErrorCodes.REQUEST_INVALID,
+            `Plugin command "${payload.pluginId}:${payload.commandName}" was not found`,
+          );
+        }
+        const commandArgs = payload.args ?? '';
+        const origin: PluginCommandOrigin = {
+          kind: 'plugin_command',
+          activationId: randomUUID(),
+          pluginId: payload.pluginId,
+          commandName: payload.commandName,
+          commandArgs: payload.args,
+          trigger: 'user-slash',
+        };
+        this.emitEvent({
+          type: 'plugin_command.activated',
+          activationId: origin.activationId,
+          pluginId: origin.pluginId,
+          commandName: origin.commandName,
+          commandArgs: origin.commandArgs,
+          trigger: origin.trigger,
+        });
+        this.turn.prompt(
+          [{ type: 'text', text: expandCommandArguments(def.body, commandArgs) }],
+          origin,
+        );
       },
       startBtw: () => this.subagentHost!.startBtw(),
       createGoal: (payload) => this.goal.createGoal(payload),

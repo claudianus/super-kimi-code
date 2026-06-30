@@ -8,6 +8,8 @@ import {
   createKimiHarness,
   type Event,
   type KimiError,
+  type PluginCommandActivatedEvent,
+  type PluginCommandDef,
   type SkillActivatedEvent,
   type SkillSummary,
 } from '#/index';
@@ -208,6 +210,93 @@ describe('Session skills', () => {
     }
   });
 
+  it('lists and activates installed plugin commands through core', async () => {
+    const homeDir = await makeTempDir(tempDirs, 'kimi-sdk-plugin-cmd-home-');
+    const workDir = await makeTempDir(tempDirs, 'kimi-sdk-plugin-cmd-work-');
+    const pluginRoot = await writePluginCommand(
+      'demo-plugin',
+      'deploy.md',
+      '---\ndescription: Deploy\n---\nDeploy $ARGUMENTS',
+    );
+    const harness = createKimiHarness({ homeDir, identity: TEST_IDENTITY });
+
+    try {
+      const installer = await harness.createSession({
+        id: 'ses_sdk_plugin_command_installer',
+        workDir,
+      });
+      await installer.installPlugin(pluginRoot);
+
+      const session = await harness.createSession({ id: 'ses_sdk_plugin_command', workDir });
+      const commands = await session.listPluginCommands();
+      expect(commands).toEqual([
+        expect.objectContaining({
+          pluginId: 'demo-plugin',
+          name: 'deploy',
+          description: 'Deploy',
+          body: 'Deploy $ARGUMENTS',
+        }),
+      ]);
+
+      const activated = waitForSDKEvent(
+        session,
+        (event) => event.type === 'plugin_command.activated',
+      );
+      const metaUpdated = waitForSDKEvent(
+        session,
+        (event) => event.type === 'session.meta.updated',
+      );
+      const ended = waitForSDKEvent(session, (event) => event.type === 'turn.ended');
+
+      await session.activatePluginCommand(' demo-plugin ', ' deploy ', ' prod ');
+      const activatedEvent = await activated;
+      const metaEvent = await metaUpdated;
+      await ended;
+
+      expect(activatedEvent).toMatchObject({
+        type: 'plugin_command.activated',
+        sessionId: session.id,
+        agentId: 'main',
+        pluginId: 'demo-plugin',
+        commandName: 'deploy',
+        commandArgs: 'prod',
+        trigger: 'user-slash',
+      });
+      expect(metaEvent).toMatchObject({
+        type: 'session.meta.updated',
+        sessionId: session.id,
+        agentId: 'main',
+        title: '/demo-plugin:deploy prod',
+        patch: {
+          title: '/demo-plugin:deploy prod',
+          isCustomTitle: false,
+          lastPrompt: '/demo-plugin:deploy prod',
+        },
+      });
+
+      await expect(
+        waitForAgentWireEvent(
+          homeDir,
+          session.id,
+          'turn.prompt',
+          (event) => event['origin'] !== undefined,
+        ),
+      ).resolves.toMatchObject({
+        type: 'turn.prompt',
+        input: [{ type: 'text', text: 'Deploy prod' }],
+        origin: {
+          kind: 'plugin_command',
+          pluginId: 'demo-plugin',
+          commandName: 'deploy',
+          commandArgs: 'prod',
+          trigger: 'user-slash',
+        },
+      });
+    } finally {
+      await harness.close();
+    }
+  });
+
   it('resolves user brand skills from KIMI_CODE_HOME, not the OS home', async () => {
     const homeDir = await makeTempDir(tempDirs, 'kimi-sdk-skills-home-');
     const processHome = await makeTempDir(tempDirs, 'kimi-sdk-skills-process-home-');
@@ -231,17 +320,21 @@ describe('Session skills', () => {
 
   it('rejects empty names before calling RPC and rejects after close', async () => {
     const activateSkill = vi.fn(async () => {});
+    const activatePluginCommand = vi.fn(async () => {});
     const closeSession = vi.fn(async (_input: { readonly sessionId: string }) => {});
     const clearSessionHandlers = vi.fn();
     const listSkills = vi.fn(async () => []);
+    const listPluginCommands = vi.fn(async () => []);
     const session = new Session({
       id: 'ses_skill_validation',
       workDir: '/tmp/work',
       rpc: {
         activateSkill,
+        activatePluginCommand,
         closeSession,
         clearSessionHandlers,
         listSkills,
+        listPluginCommands,
       } as unknown as SDKRpcClientBase,
     });
 
@@ -250,6 +343,21 @@ describe('Session skills', () => {
       code: 'skill.name_empty',
     } satisfies Partial<KimiError>);
     expect(activateSkill).not.toHaveBeenCalled();
+    await expect(session.activatePluginCommand('   ', 'deploy')).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'request.invalid',
+    } satisfies Partial<KimiError>);
+    await expect(session.activatePluginCommand('demo', '   ')).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'request.invalid',
+    } satisfies Partial<KimiError>);
+    await session.activatePluginCommand(' demo ', ' deploy ', ' prod ');
+    expect(activatePluginCommand).toHaveBeenCalledWith({
+      sessionId: session.id,
+      pluginId: 'demo',
+      commandName: 'deploy',
+      args: 'prod',
+    });
 
     await session.close();
     expect(closeSession).toHaveBeenCalledWith({ sessionId: session.id });
@@ -258,7 +366,15 @@ describe('Session skills', () => {
       name: 'KimiError',
       code: 'session.closed',
     } satisfies Partial<KimiError>);
+    await expect(session.listPluginCommands()).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'session.closed',
+    } satisfies Partial<KimiError>);
     await expect(session.activateSkill('review')).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'session.closed',
+    } satisfies Partial<KimiError>);
+    await expect(session.activatePluginCommand('demo', 'deploy')).rejects.toMatchObject({
       name: 'KimiError',
       code: 'session.closed',
     } satisfies Partial<KimiError>);
@@ -270,15 +386,19 @@ describe('Session skills', () => {
     });
     const clearSessionHandlers = vi.fn();
     const listSkills = vi.fn(async () => []);
+    const listPluginCommands = vi.fn(async () => []);
     const activateSkill = vi.fn(async () => {});
+    const activatePluginCommand = vi.fn(async () => {});
     const session = new Session({
       id: 'ses_close_failed',
       workDir: '/tmp/work',
       rpc: {
         activateSkill,
+        activatePluginCommand,
         closeSession,
         clearSessionHandlers,
         listSkills,
+        listPluginCommands,
       } as unknown as SDKRpcClientBase,
     });
 
@@ -295,6 +415,8 @@ describe('Session skills', () => {
   it('exposes public skill event and summary types', () => {
     expectTypeOf<SkillSummary['name']>().toEqualTypeOf<string>();
     expectTypeOf<SkillActivatedEvent['skillName']>().toEqualTypeOf<string>();
+    expectTypeOf<PluginCommandDef['pluginId']>().toEqualTypeOf<string>();
+    expectTypeOf<PluginCommandActivatedEvent['commandName']>().toEqualTypeOf<string>();
   });
 });
 
@@ -302,6 +424,24 @@ async function writeSkill(workDir: string, name: string, lines: readonly string[
   const dir = join(workDir, '.kimi-code', 'skills', name);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, 'SKILL.md'), lines.join('\n'));
+}
+
+async function writePluginCommand(
+  name: string,
+  commandFile: string,
+  body: string,
+): Promise<string> {
+  const root = await makeTempDir(tempDirs, 'kimi-sdk-plugin-command-root-');
+  await mkdir(join(root, 'commands', commandFile.split('/').slice(0, -1).join('/')), {
+    recursive: true,
+  });
+  await writeFile(
+    join(root, 'kimi.plugin.json'),
+    JSON.stringify({ name, commands: './commands' }),
+    'utf8',
+  );
+  await writeFile(join(root, 'commands', commandFile), body, 'utf8');
+  return realpath(root);
 }
 
 async function writeLegacyUserSkill(

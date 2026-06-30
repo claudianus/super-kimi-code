@@ -35,6 +35,7 @@ import { BannerProvider } from './banner/banner-provider';
 import { readBannerDisplayState, writeBannerDisplayState } from './banner/state';
 import {
   BUILTIN_SLASH_COMMANDS,
+  buildPluginSlashCommands,
   buildSkillSlashCommands,
   isExperimentalFlagEnabled,
   setExperimentalFeatures,
@@ -79,6 +80,7 @@ import {
   GoalCompletionMessageComponent,
   GoalSetMessageComponent,
 } from './components/messages/goal-panel';
+import { PluginCommandComponent } from './components/messages/plugin-command';
 import { SkillActivationComponent } from './components/messages/skill-activation';
 import { ShellRunComponent } from './components/messages/shell-run';
 import {
@@ -250,7 +252,9 @@ export class KimiTUI {
   private readonly questionController = new QuestionController();
   private readonly reverseRpcDisposers: Array<() => void> = [];
   private skillCommands: readonly KimiSlashCommand[] = [];
+  private pluginCommands: readonly KimiSlashCommand[] = [];
   readonly skillCommandMap = new Map<string, string>();
+  readonly pluginCommandMap = new Map<string, string>();
   private readonly imageStore = new ImageAttachmentStore();
   private fdPath: string | null = detectFdPath();
   private fdDownloadStarted = false;
@@ -368,14 +372,16 @@ export class KimiTUI {
       isExperimentalFlagEnabled(command.experimentalFlag),
     );
     const visibleBuiltins = slashCommandsForHelp(builtins, mode);
-    return mode === 'diagnostics' ? visibleBuiltins : [...visibleBuiltins, ...this.skillCommands];
+    return mode === 'diagnostics'
+      ? visibleBuiltins
+      : [...visibleBuiltins, ...this.skillCommands, ...this.pluginCommands];
   }
 
   private setupAutocomplete(): void {
     const primaryCommands = this.getSlashCommands('primary');
     const advancedCommands = this
       .getSlashCommands('advanced')
-      .filter((cmd) => !this.skillCommands.includes(cmd));
+      .filter((cmd) => !this.skillCommands.includes(cmd) && !this.pluginCommands.includes(cmd));
     const slashCommands: SlashAutocompleteCommand[] = [
       ...primaryCommands,
       ...advancedCommands,
@@ -421,6 +427,36 @@ export class KimiTUI {
     this.skillCommands = [];
     this.skillCommandMap.clear();
     this.setupAutocomplete();
+  }
+
+  private async refreshPluginCommands(session?: Session): Promise<void> {
+    this.pluginCommands = [];
+    this.pluginCommandMap.clear();
+    if (session === undefined) {
+      this.setupAutocomplete();
+      return;
+    }
+
+    let defs;
+    try {
+      defs = await session.listPluginCommands();
+    } catch {
+      this.setupAutocomplete();
+      return;
+    }
+    if (this.session !== session) return;
+
+    const pluginCommands = buildPluginSlashCommands(defs);
+    this.pluginCommands = pluginCommands.commands;
+    for (const [commandName, body] of pluginCommands.commandMap) {
+      this.pluginCommandMap.set(commandName, body);
+    }
+    this.setupAutocomplete();
+  }
+
+  private async refreshDynamicSlashCommands(session?: Session): Promise<void> {
+    await this.refreshSkillCommands(session);
+    await this.refreshPluginCommands(session);
   }
 
   private async searchSkillSlashCommands(
@@ -630,7 +666,7 @@ export class KimiTUI {
     if (this.session !== undefined) {
       this.updateTerminalTitle();
     }
-    void this.refreshSkillCommands(this.session);
+    void this.refreshDynamicSlashCommands(this.session);
   }
 
   private async showSessionWarnings(session: Session): Promise<void> {
@@ -743,6 +779,7 @@ export class KimiTUI {
     }
     await this.setSession(session);
     await this.syncRuntimeState(session);
+    await this.refreshDynamicSlashCommands(session);
     this.applyStartupPermissionAndPlanToAppState();
     this.state.startupState = 'ready';
     return shouldReplayHistory;
@@ -1207,6 +1244,19 @@ export class KimiTUI {
     });
   }
 
+  activatePluginCommand(
+    session: Session,
+    pluginId: string,
+    commandName: string,
+    args: string,
+  ): void {
+    this.beginSessionRequest();
+    void session.activatePluginCommand(pluginId, commandName, args).catch((error: unknown) => {
+      const message = formatErrorMessage(error);
+      this.failSessionRequest(`Command "${pluginId}:${commandName}" failed: ${message}`);
+    });
+  }
+
   private sendMessage(session: Session, input: string, options?: SendMessageOptions): void {
     if (
       this.deferUserMessages ||
@@ -1516,6 +1566,10 @@ export class KimiTUI {
     this.streamingUI.resetToolCallState();
     this.streamingUI.resetToolUi();
     this.sessionEventHandler.resetRuntimeState();
+    this.skillCommands = [];
+    this.skillCommandMap.clear();
+    this.pluginCommands = [];
+    this.pluginCommandMap.clear();
     this.tasksBrowserController.close();
     this.btwPanelController.clear();
     this.state.footer.setBackgroundCounts({ bashTasks: 0, agentTasks: 0 });
@@ -1572,7 +1626,7 @@ export class KimiTUI {
     await this.syncRuntimeState(session);
     this.updateTerminalTitle();
     try {
-      await this.refreshSkillCommands(this.session);
+      await this.refreshDynamicSlashCommands(this.session);
     } catch {
       /* keep the switched session usable even if dynamic skills fail */
     }
@@ -1609,7 +1663,7 @@ export class KimiTUI {
     await this.syncRuntimeState(session);
     this.updateTerminalTitle();
     try {
-      await this.refreshSkillCommands(session);
+      await this.refreshDynamicSlashCommands(session);
     } catch {
       /* keep the reloaded session usable even if dynamic skills fail */
     }
@@ -1650,7 +1704,7 @@ export class KimiTUI {
       return;
     }
     try {
-      await this.refreshSkillCommands(this.session);
+      await this.refreshDynamicSlashCommands(this.session);
     } catch {
       /* keep the new session usable even if dynamic skills fail */
     }
@@ -1701,6 +1755,13 @@ export class KimiTUI {
           entry.skillName ?? entry.content,
           entry.skillArgs,
           entry.skillTrigger,
+        );
+      case 'plugin_command':
+        return new PluginCommandComponent(
+          entry.pluginId ?? '',
+          entry.pluginCommandName ?? entry.content,
+          entry.pluginCommandArgs,
+          entry.pluginCommandTrigger,
         );
       case 'cron':
         return new CronMessageComponent(entry.content, entry.cronData ?? {});
@@ -1843,7 +1904,9 @@ export class KimiTUI {
   }
 
   private isTurnBoundaryComponent(child: Component): boolean {
-    if (!(child instanceof UserMessageComponent)) return false;
+    if (!(child instanceof UserMessageComponent) && !(child instanceof PluginCommandComponent)) {
+      return false;
+    }
     const entry = getTranscriptComponentEntry(child);
     if (entry === undefined) return false;
     // Live user messages have an undefined turnId; replayed user messages get a

@@ -24,6 +24,7 @@ async function makePlugin(
     sessionStartSkill?: string;
     mcpServers?: Record<string, unknown>;
     hooks?: readonly unknown[];
+    commands?: Record<string, string>;
   } = {},
 ): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), `plugin-${name}-`));
@@ -52,6 +53,15 @@ async function makePlugin(
   }
   if (options.hooks !== undefined) {
     manifest['hooks'] = options.hooks;
+  }
+  if (options.commands !== undefined) {
+    manifest['commands'] = ['./commands'];
+    await mkdir(path.join(root, 'commands'), { recursive: true });
+    for (const [file, body] of Object.entries(options.commands)) {
+      const filePath = path.join(root, 'commands', file);
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, body, 'utf8');
+    }
   }
   await writeFile(
     path.join(root, 'kimi.plugin.json'),
@@ -320,6 +330,54 @@ describe('PluginManager', () => {
 
     await manager.setEnabled('demo', false);
     expect(manager.enabledSessionStarts()).toEqual([]);
+  });
+
+  it('enabledCommands() loads command markdown only from enabled plugins', async () => {
+    const home = await makeKimiHome();
+    const enabled = await makePlugin('enabled', {
+      commands: {
+        'deploy.md': '---\ndescription: Deploy\n---\nDeploy $ARGUMENTS',
+        'frontend/component.md': 'Make component',
+      },
+    });
+    const disabled = await makePlugin('disabled', {
+      commands: {
+        'skip.md': 'Skip',
+      },
+    });
+    const manager = new PluginManager({ kimiHomeDir: home });
+    await manager.load();
+    await manager.install(enabled);
+    await manager.install(disabled);
+    await manager.setEnabled('disabled', false);
+
+    await expect(manager.enabledCommands()).resolves.toEqual([
+      {
+        pluginId: 'enabled',
+        name: 'deploy',
+        description: 'Deploy',
+        body: 'Deploy $ARGUMENTS',
+        path: path.join(await managedPluginRoot(home, 'enabled'), 'commands', 'deploy.md'),
+      },
+      {
+        pluginId: 'enabled',
+        name: 'frontend/component',
+        description: 'Make component',
+        body: 'Make component',
+        path: path.join(
+          await managedPluginRoot(home, 'enabled'),
+          'commands',
+          'frontend',
+          'component.md',
+        ),
+      },
+    ]);
+    expect(manager.summaries()).toContainEqual(
+      expect.objectContaining({
+        id: 'enabled',
+        commandCount: 2,
+      }),
+    );
   });
 
   it('maps manifest skillInstructions to record skillInstructions', async () => {

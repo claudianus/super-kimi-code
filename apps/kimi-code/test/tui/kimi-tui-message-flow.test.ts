@@ -169,7 +169,9 @@ function makeSession(overrides: Record<string, unknown> = {}) {
     onEvent: vi.fn(() => vi.fn()),
     listMcpServers: vi.fn(async () => []),
     listSkills: vi.fn(async () => []),
+    listPluginCommands: vi.fn(async () => []),
     searchSkills: vi.fn(async () => []),
+    activatePluginCommand: vi.fn(async () => {}),
     getResumeState: vi.fn(() => ({
       sessionMetadata: {},
       agents: {
@@ -3609,7 +3611,9 @@ command = "vim"
 
     await vi.waitFor(() => {
       const output = stripSgr(driver.state.transcriptContainer.render(120).join('\n'));
-      expect(output).toContain('No MCP servers configured. Run /mcp-config to add one.');
+      expect(output).toContain(
+        'No MCP servers configured. Run /mcp-config to add optional tool backends.',
+      );
     });
   });
 
@@ -3910,6 +3914,37 @@ command = "vim"
       expect(session.removePlugin).toHaveBeenCalledWith('kimi-webbridge');
     });
     expect(session.activateSkill).not.toHaveBeenCalled();
+  });
+
+  it('activates installed plugin slash commands from the TUI', async () => {
+    const session = makeSession({
+      listPluginCommands: vi.fn(async () => [
+        {
+          pluginId: 'demo-plugin',
+          name: 'deploy',
+          description: 'Deploy',
+          body: 'Deploy $ARGUMENTS',
+          path: '/plugins/demo-plugin/commands/deploy.md',
+        },
+      ]),
+    });
+    const { driver } = await makeDriver(session);
+
+    await vi.waitFor(() => {
+      expect(session.listPluginCommands).toHaveBeenCalled();
+      expect(
+        (driver as unknown as { readonly pluginCommandMap: Map<string, string> })
+          .pluginCommandMap.has('demo-plugin:deploy'),
+      ).toBe(true);
+    });
+    driver.handleUserInput('/demo-plugin:deploy prod');
+
+    await vi.waitFor(() => {
+      expect(session.activatePluginCommand).toHaveBeenCalledWith('demo-plugin', 'deploy', 'prod');
+    });
+    expect(driver.state.transcriptContainer.render(120).join('\n')).not.toContain(
+      'Deploy $ARGUMENTS',
+    );
   });
 
   it('installs default marketplace entries through plain install', async () => {

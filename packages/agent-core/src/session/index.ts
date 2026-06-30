@@ -30,7 +30,7 @@ import {
   type McpServerEntry,
   type SessionMcpConfig,
 } from '../mcp';
-import type { EnabledPluginSessionStart } from '../plugin';
+import type { EnabledPluginSessionStart, PluginCommandDef } from '../plugin';
 import {
   DEFAULT_AGENT_PROFILES,
   DEFAULT_INIT_PROMPT,
@@ -73,6 +73,7 @@ export interface SessionOptions {
   readonly mcpConfig?: SessionMcpConfig;
   readonly telemetry?: TelemetryClient | undefined;
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
+  readonly pluginCommands?: readonly PluginCommandDef[];
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly additionalDirs?: readonly string[];
@@ -639,6 +640,10 @@ export class Session {
     return this.skills.listSkills().map(summarizeSkill);
   }
 
+  listPluginCommands(): readonly PluginCommandDef[] {
+    return this.options.pluginCommands ?? [];
+  }
+
   async searchSkills(query: string, limit?: number): Promise<readonly SkillSearchHit[]> {
     await this.skillsReady;
     return this.skills.searchByQuery(query, limit);
@@ -745,6 +750,7 @@ export class Session {
       telemetry: this.telemetry,
       log: this.log.createChild({ agentId: id }),
       pluginSessionStarts: type === 'main' ? this.options.pluginSessionStarts : undefined,
+      pluginCommands: type === 'main' ? this.options.pluginCommands : undefined,
       experimentalFlags: this.experimentalFlags,
       additionalDirs: parentAgent?.getAdditionalDirs() ?? this.additionalDirs,
       memory: this.options.memory?.forAgent({

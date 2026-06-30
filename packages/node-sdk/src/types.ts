@@ -53,6 +53,7 @@ export type {
   ModelAlias,
   MoonshotServiceConfig,
   OAuthRef,
+  PluginCommandDef,
   PluginGithubMetadata,
   PluginGithubRef,
   PluginInfo,

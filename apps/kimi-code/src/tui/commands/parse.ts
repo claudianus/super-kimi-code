@@ -7,6 +7,6 @@ export function parseSlashInput(input: string): ParsedSlashInput | null {
   const spaceIdx = trimmed.indexOf(' ');
   const name = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx);
   const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
-  if (name.includes('/')) return null;
+  if (name.includes('/') && !name.includes(':')) return null;
   return { name, args };
 }

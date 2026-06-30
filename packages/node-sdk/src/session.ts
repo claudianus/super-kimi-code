@@ -23,6 +23,7 @@ import type {
   MemorySearchRequest,
   MemorySearchResult,
   PermissionMode,
+  PluginCommandDef,
   PluginInfo,
   PluginSummary,
   PromptInput,
@@ -319,6 +320,11 @@ export class Session {
     return this.rpc.listSkills({ sessionId: this.id });
   }
 
+  async listPluginCommands(): Promise<readonly PluginCommandDef[]> {
+    this.ensureOpen();
+    return this.rpc.listPluginCommands({ sessionId: this.id });
+  }
+
   async searchSkills(
     query: string,
     options: { readonly limit?: number } = {},
@@ -514,6 +520,31 @@ export class Session {
       sessionId: this.id,
       name: skillName,
       ...(skillArgs !== undefined ? { args: skillArgs } : {}),
+    });
+  }
+
+  async activatePluginCommand(
+    pluginId: string,
+    commandName: string,
+    args?: string | undefined,
+  ): Promise<void> {
+    this.ensureOpen();
+    const normalizedPluginId = normalizeRequiredString(
+      pluginId,
+      'Plugin id cannot be empty',
+      ErrorCodes.REQUEST_INVALID,
+    );
+    const normalizedCommandName = normalizeRequiredString(
+      commandName,
+      'Plugin command name cannot be empty',
+      ErrorCodes.REQUEST_INVALID,
+    );
+    const commandArgs = normalizeOptionalString(args);
+    await this.rpc.activatePluginCommand({
+      sessionId: this.id,
+      pluginId: normalizedPluginId,
+      commandName: normalizedCommandName,
+      ...(commandArgs !== undefined ? { args: commandArgs } : {}),
     });
   }
 

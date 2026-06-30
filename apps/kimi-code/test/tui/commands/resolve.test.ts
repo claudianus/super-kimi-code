@@ -14,6 +14,7 @@ function resolve(
   return resolveSlashCommandInput({
     input,
     skillCommandMap: new Map<string, string>(),
+    pluginCommandMap: new Map<string, string>(),
     isStreaming: false,
     isCompacting: false,
     ...overrides,
@@ -35,6 +36,36 @@ describe('resolveSlashCommandInput', () => {
       commandName: 'skill:review',
       skillName: 'review',
       args: 'src/app.ts',
+    });
+  });
+
+  it('resolves namespaced plugin commands only when registered', () => {
+    const pluginCommandMap = new Map([['my-plugin:deploy', 'Deploy $ARGUMENTS']]);
+
+    expect(resolve('/my-plugin:deploy prod', { pluginCommandMap })).toEqual({
+      kind: 'plugin-command',
+      pluginId: 'my-plugin',
+      commandName: 'deploy',
+      args: 'prod',
+    });
+    expect(resolve('/my-plugin:missing prod', { pluginCommandMap })).toEqual({
+      kind: 'message',
+      input: '/my-plugin:missing prod',
+    });
+  });
+
+  it('blocks plugin commands while busy', () => {
+    const pluginCommandMap = new Map([['my-plugin:deploy', 'Deploy $ARGUMENTS']]);
+
+    expect(resolve('/my-plugin:deploy prod', { pluginCommandMap, isStreaming: true })).toEqual({
+      kind: 'blocked',
+      commandName: 'my-plugin:deploy',
+      reason: 'streaming',
+    });
+    expect(resolve('/my-plugin:deploy prod', { pluginCommandMap, isCompacting: true })).toEqual({
+      kind: 'blocked',
+      commandName: 'my-plugin:deploy',
+      reason: 'compacting',
     });
   });
 

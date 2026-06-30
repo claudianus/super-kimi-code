@@ -33,6 +33,7 @@ import {
   formatHookResultMessageForTranscript,
   isTerminalBackgroundTask,
   limitReplayRecordsByTurn,
+  pluginCommandFromOrigin,
   REPLAY_TURN_LIMIT,
   replayBackgroundProjection,
   replayEntry,
@@ -40,6 +41,7 @@ import {
   toolCallFromReplayMessage,
   toolResultOutput,
   type ReplayRenderContext,
+  type PluginCommandProjection,
   type SkillActivationProjection,
 } from '../utils/message-replay';
 import type { StreamingUIController } from './streaming-ui';
@@ -323,6 +325,15 @@ export class SessionReplayRenderer {
       return;
     }
 
+    const pluginCommand = pluginCommandFromOrigin(message.origin);
+    if (pluginCommand !== undefined) {
+      this.renderPluginCommand(context, pluginCommand);
+      if (message.origin?.kind === 'plugin_command' && message.origin.trigger === 'user-slash') {
+        this.advanceTurn(context);
+      }
+      return;
+    }
+
     this.advanceTurn(context);
     this.host.appendTranscriptEntry(
       replayEntry(context, 'user', contentPartsToText(message.content), 'plain'),
@@ -416,6 +427,30 @@ export class SessionReplayRenderer {
       skillName: skill.skillName,
       skillArgs: skill.skillArgs,
       skillTrigger: skill.trigger,
+    });
+  }
+
+  private renderPluginCommand(
+    context: ReplayRenderContext,
+    command: PluginCommandProjection,
+  ): void {
+    const { sessionEventHandler } = this.host;
+    if (context.pluginCommandActivationIds.has(command.activationId)) return;
+    if (sessionEventHandler.renderedPluginCommandActivationIds.has(command.activationId)) return;
+    context.pluginCommandActivationIds.add(command.activationId);
+    sessionEventHandler.renderedPluginCommandActivationIds.add(command.activationId);
+    this.host.appendTranscriptEntry({
+      ...replayEntry(
+        context,
+        'plugin_command',
+        `Ran command: ${command.pluginId}:${command.commandName}`,
+        'plain',
+      ),
+      pluginCommandActivationId: command.activationId,
+      pluginId: command.pluginId,
+      pluginCommandName: command.commandName,
+      pluginCommandArgs: command.commandArgs,
+      pluginCommandTrigger: command.trigger,
     });
   }
 

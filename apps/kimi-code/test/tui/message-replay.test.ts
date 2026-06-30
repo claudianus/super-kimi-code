@@ -194,6 +194,7 @@ function makeSession(
     onEvent: vi.fn(() => vi.fn()),
     listMcpServers: vi.fn(async () => []),
     listSkills: vi.fn(async () => []),
+    listPluginCommands: vi.fn(async () => []),
     searchSkills: vi.fn(async () => []),
     getResumeState: vi.fn(() => ({
       sessionMetadata: {},
@@ -989,6 +990,31 @@ describe('KimiTUI resume message replay', () => {
     expect(transcript).toContain('src/app.ts');
     expect(transcript).not.toContain('Review the requested file');
     expect(driver.sessionEventHandler.renderedSkillActivationIds.has('act-review')).toBe(true);
+  });
+
+  it('renders user-slash plugin commands once without exposing expanded command text', async () => {
+    const activation = message(
+      'user',
+      [{ type: 'text', text: 'Deploy production with internal runbook details' }],
+      {
+        origin: {
+          kind: 'plugin_command',
+          activationId: 'cmd-deploy',
+          pluginId: 'demo-plugin',
+          commandName: 'deploy',
+          commandArgs: 'prod',
+          trigger: 'user-slash',
+        },
+      },
+    );
+
+    const driver = await replayIntoDriver([activation, activation]);
+    const transcript = driver.state.transcriptContainer.render(120).join('\n');
+
+    expect(transcript).toContain('/demo-plugin:deploy');
+    expect(transcript).toContain('prod');
+    expect(transcript).not.toContain('Deploy production with internal runbook details');
+    expect(driver.sessionEventHandler.renderedPluginCommandActivationIds.has('cmd-deploy')).toBe(true);
   });
 
   it('renders replayed hook results as assistant transcript entries', async () => {
