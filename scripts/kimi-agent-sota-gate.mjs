@@ -115,10 +115,35 @@ const REQUIRED_DEFINITION_OF_DONE_CONTRACTS = Object.freeze([
 ]);
 const REQUIRED_HUMAN_WRITING_CONTRACTS = Object.freeze([
   { name: 'harness-level-output-gate', pattern: /\bharness-level output quality gate\b/i },
+  {
+    name: 'surface-specific-voice-lane',
+    pattern: /\bsurface-specific voice lane\b[\s\S]*\bproduct UX microcopy\b[\s\S]*\binstitutional corporate copy\b/i,
+  },
+  {
+    name: 'product-ux-microcopy-lane',
+    pattern: /\bproduct UX microcopy\b[\s\S]*friendly 해요체[\s\S]*\bactive wording\b[\s\S]*\bpositive-first recovery\b[\s\S]*\bspecific CTAs\b/i,
+  },
+  {
+    name: 'institutional-corporate-lane',
+    pattern: /\binstitutional corporate copy\b[\s\S]*formal 합니다\/습니다[\s\S]*\bproof before emotion\b[\s\S]*\bfuture-facing continuity\b/i,
+  },
+  {
+    name: 'style-source-safety',
+    pattern: /\bstyle-analysis inputs only\b[\s\S]*\bcopy source passages\b[\s\S]*\bofficial affiliation\b/i,
+  },
   { name: 'plain-specific-claims', pattern: /\bplain specific claims\b.*\bconcrete nouns and verbs\b/i },
+  { name: 'source-backed-user-context', pattern: /\bsource-backed details\b.*\buser(?:'s)? context\b/i },
   { name: 'anti-slop-self-audit', pattern: /\bself-audit\b.*\btemplate openings\b/i },
-  { name: 'detectors-advisory-only', pattern: /\bAI-writing detectors\b.*\btruth\b/i },
-  { name: 'second-pass-cleanup', pattern: /\bsecond-pass rewrite\b.*\bdeterministic cleanup\b/i },
+  { name: 'avoid-ai-writing-pattern-checks', pattern: /\bavoid-ai-writing\b.*\bpattern checks?\b/i },
+  {
+    name: 'detectors-not-authorship-verdicts',
+    pattern: /\bAI-writing detectors\b[\s\S]*\btruth\b[\s\S]*\baccuse an author\b/i,
+  },
+  { name: 'detectors-advisory-only', pattern: /\badvisory pattern checks\b/i },
+  {
+    name: 'meaning-preserving-second-pass',
+    pattern: /\bsecond-pass rewrite\b[\s\S]*\bdeterministic cleanup\b[\s\S]*\breread the result for changed meaning\b/i,
+  },
 ]);
 const REQUIRED_WORKFLOW_VALIDATIONS = Object.freeze([
   'tmuxPreflight',
@@ -2532,7 +2557,7 @@ function renderMarkdown(report) {
       }
     }
     if (Array.isArray(report.loopScorecard.humanWriting) && report.loopScorecard.humanWriting.length > 0) {
-      lines.push('', '### Human Writing Anti-Slop Rules', '');
+      lines.push('', '### Human Writing / Anti-Slop Rules', '');
       for (const item of report.loopScorecard.humanWriting) {
         lines.push(`- ${item}`);
       }
