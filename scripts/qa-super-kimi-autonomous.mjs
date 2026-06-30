@@ -27,6 +27,7 @@ import {
   evidenceSummaryCompletedAtMs,
   isCompleteUltraworkEvidenceSummary,
 } from './kimi-sota-evidence-contract.mjs';
+import { captureRetryPolicyForScenario } from './kimi-tui-capture-retry-policy.mjs';
 
 const DEFAULT_EVIDENCE_BASE = '.omo/evidence/super-kimi-autonomous-qa-env';
 const DEFAULT_SOTA_TUI_SUMMARY_PATH =
@@ -4512,7 +4513,36 @@ async function runTuiLaunchPhase(context) {
         );
         await sleep(scenario.postInputDelayMs ?? 1_000);
       }
-      let scenarioCapture = await captureTmuxPane(context, tmuxSession, scenario.name);
+      const captureRetryPolicy = captureRetryPolicyForScenario(scenario.name);
+      let scenarioCapture;
+      if (captureRetryPolicy !== undefined) {
+        const scenarioCaptureResult = await captureTmuxPaneWithRetry(context, tmuxSession, scenario.name, {
+          maxAttempts: captureRetryPolicy.maxAttempts,
+          retryDelayMs: captureRetryPolicy.retryDelayMs,
+          afterFailedAttempt: async ({ attempt }) => {
+            const retryTrace = await sendTmuxKeySequence(
+              context,
+              tmuxSession,
+              `${scenario.name}-recapture-${String(attempt).padStart(2, '0')}`,
+              captureRetryPolicy.recoveryKeys,
+            );
+            summary.inputTraces.push(retryTrace);
+            commandRecords.push(...retryTrace.commands);
+            cleanupOverrides.proofCommands.push(
+              ...retryTrace.commands.map((record) => commandProofFromRecord(record)),
+            );
+          },
+        });
+        scenarioCapture = scenarioCaptureResult.capture;
+        if (scenarioCaptureResult.retry !== undefined) {
+          summary.scenarioRetries.push({
+            ...scenarioCaptureResult.retry,
+            policyReason: captureRetryPolicy.reason,
+          });
+        }
+      } else {
+        scenarioCapture = await captureTmuxPane(context, tmuxSession, scenario.name);
+      }
       if (scenario.name === 'status' && scenarioCapture.status !== 'PASS') {
         const retryTrace = await sendTmuxKeySequence(context, tmuxSession, 'status-retry', [
           'Escape',
@@ -9240,7 +9270,12 @@ async function captureTmuxPaneWithRetry(context, tmuxSession, scenario, options 
     capture = await captureTmuxPane(context, tmuxSession, scenario, { artifactName });
     attempts.push(captureAttemptSummary(capture, attempt));
     if (capture.status === 'PASS') break;
-    if (attempt < maxAttempts && retryDelayMs > 0) await sleep(retryDelayMs);
+    if (attempt < maxAttempts) {
+      if (typeof options.afterFailedAttempt === 'function') {
+        await options.afterFailedAttempt({ attempt, capture, nextAttempt: attempt + 1 });
+      }
+      if (retryDelayMs > 0) await sleep(retryDelayMs);
+    }
   }
 
   const canonicalCapture = await copyCaptureToCanonicalScenario(context, capture, scenario);
