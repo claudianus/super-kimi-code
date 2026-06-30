@@ -77,6 +77,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Workflow\s+Kimi chooses planning, goal tracking, or team mode as needed\./);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
+    expect(output).toMatch(/Writing\s+plain specific output; detector signals advisory-only/);
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+relevant tests \+ available typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Describe the task; Kimi will plan first\./);
@@ -123,6 +124,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Workflow\s+Kimi chooses planning, goal tracking, or team mode as needed\./);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
+    expect(output).toMatch(/Writing\s+plain specific output; detector signals advisory-only/);
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+relevant tests \+ available typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Run \/login or \/provider first; use \/model after sign-in\./);
@@ -178,5 +180,38 @@ describe('status panel report lines', () => {
     expect(output).toContain('Worktree     feature [±] dirty');
     expect(output).toMatch(/State\s+Worktree dirty/);
     expect(output).toMatch(/Next\s+Review changed files before finishing\./);
+  });
+
+  it('surfaces blocked writing guidance without exposing internal command names', () => {
+    const lines = buildStatusReportLines({
+      version: '1.2.3',
+      model: 'k2',
+      workDir: '/tmp/project',
+      sessionId: 'ses-1',
+      sessionTitle: null,
+      thinking: true,
+      permissionMode: 'manual',
+      planMode: false,
+      contextUsage: 0.1,
+      contextTokens: 1000,
+      maxContextTokens: 10000,
+      availableModels: {},
+      humanWriting: {
+        ready: false,
+        advisoryOnly: false,
+        nextAction: 'Restore writing-quality guidance before long autonomous work.',
+      },
+    }).map(strip);
+
+    const output = lines.join('\n');
+    expect(output).toMatch(/State\s+Writing guidance blocked/);
+    expect(output).toMatch(/Writing\s+guidance blocked; advisory-only detector use required/);
+    expect(output).toMatch(/Next\s+Restore writing-quality guidance before long autonomous work\./);
+    expect(output).not.toContain('/preflight');
+    expect(output).not.toContain('/bench');
+    expect(output).not.toContain('/ultrawork');
+    expect(output).not.toContain('/ultraswarm');
+    expect(output).not.toContain('harness QA');
+    expect(output).not.toContain('internal QA');
   });
 });

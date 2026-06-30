@@ -25,6 +25,12 @@ interface FieldRow {
   readonly severity?: 'error';
 }
 
+export interface StatusHumanWritingReadiness {
+  readonly ready: boolean;
+  readonly advisoryOnly: boolean;
+  readonly nextAction: string;
+}
+
 export interface StatusReportOptions {
   readonly version: string;
   readonly model: string;
@@ -43,6 +49,7 @@ export interface StatusReportOptions {
   readonly managedUsage?: ManagedUsageReport;
   readonly managedUsageError?: string;
   readonly gitStatus?: GitStatus | null;
+  readonly humanWriting?: StatusHumanWritingReadiness;
 }
 
 type Colorize = (text: string) => string;
@@ -96,23 +103,39 @@ const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
 const WORKFLOW_GATE = 'Kimi chooses planning, goal tracking, or team mode as needed.';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
+const WRITING_GATE = 'plain specific output; detector signals advisory-only';
+const WRITING_BLOCKED_GATE = 'guidance blocked; advisory-only detector use required';
 const SCREEN_CHECK_GATE = 'open changed screen before finishing';
 const DONE_GATE = 'relevant tests + available typecheck/lint/build + clean diff + TUI';
-const READINESS_GATE_ROWS: readonly FieldRow[] = [
-  { label: 'Checks', value: READINESS_CHECKS },
-  { label: 'Workflow', value: WORKFLOW_GATE },
-  { label: 'Scope', value: SCOPE_GATE },
-  { label: 'Coverage', value: COVERAGE_GATE },
-  { label: 'Screen check', value: SCREEN_CHECK_GATE },
-  { label: 'Done gate', value: DONE_GATE },
-];
+
+function humanWritingBlocked(options: StatusReportOptions): boolean {
+  const humanWriting = options.humanWriting;
+  return humanWriting !== undefined && (!humanWriting.ready || !humanWriting.advisoryOnly);
+}
+
+function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
+  const writingBlocked = humanWritingBlocked(options);
+  const writingRow: FieldRow = writingBlocked
+    ? { label: 'Writing', value: WRITING_BLOCKED_GATE, severity: 'error' }
+    : { label: 'Writing', value: WRITING_GATE };
+  return [
+    { label: 'Checks', value: READINESS_CHECKS },
+    { label: 'Workflow', value: WORKFLOW_GATE },
+    { label: 'Scope', value: SCOPE_GATE },
+    { label: 'Coverage', value: COVERAGE_GATE },
+    writingRow,
+    { label: 'Screen check', value: SCREEN_CHECK_GATE },
+    { label: 'Done gate', value: DONE_GATE },
+  ];
+}
 
 function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
+  const gateRows = readinessGateRows(options);
   const model = (options.status?.model ?? options.model).trim();
   if (model.length === 0) {
     return [
       { label: 'State', value: 'Model needed', severity: 'error' },
-      ...READINESS_GATE_ROWS,
+      ...gateRows,
       { label: 'Next', value: 'Run /login or /provider first; use /model after sign-in.' },
     ];
   }
@@ -121,7 +144,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   if (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) {
     return [
       { label: 'State', value: 'Context high' },
-      ...READINESS_GATE_ROWS,
+      ...gateRows,
       { label: 'Next', value: 'Run /compact before long work.' },
     ];
   }
@@ -129,15 +152,26 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
   if (options.gitStatus?.dirty === true) {
     return [
       { label: 'State', value: 'Worktree dirty' },
-      ...READINESS_GATE_ROWS,
+      ...gateRows,
       { label: 'Next', value: 'Review changed files before finishing.' },
+    ];
+  }
+
+  if (humanWritingBlocked(options)) {
+    return [
+      { label: 'State', value: 'Writing guidance blocked', severity: 'error' },
+      ...gateRows,
+      {
+        label: 'Next',
+        value: options.humanWriting?.nextAction ?? 'Restore writing-quality guidance before long autonomous work.',
+      },
     ];
   }
 
   const planMode = options.status?.planMode ?? options.planMode;
   return [
     { label: 'State', value: 'Ready' },
-    ...READINESS_GATE_ROWS,
+    ...gateRows,
     {
       label: 'Next',
       value: planMode ? 'Describe the task; Kimi will plan first.' : 'Describe the task to start.',

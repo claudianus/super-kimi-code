@@ -23,6 +23,7 @@ import { submitFeedbackWithAttachments } from '../../feedback/feedback-attachmen
 import { formatErrorMessage } from '../utils/event-payload';
 import { createGitStatusCache } from '#/utils/git/git-status';
 import { openUrl } from '#/utils/open-url';
+import { loadPreflightHumanWriting } from './preflight';
 import { promptFeedbackAttachment, promptFeedbackInput } from './prompts';
 import type { SlashCommandHost } from './dispatch';
 
@@ -127,6 +128,7 @@ export async function showStatusReport(host: SlashCommandHost): Promise<void> {
     loadManagedUsageReport(host),
   ]);
   const appState = host.state.appState;
+  const humanWriting = loadPreflightHumanWriting(appState.workDir);
   const reportArgs = {
     version: appState.version,
     model: appState.model,
@@ -143,6 +145,13 @@ export async function showStatusReport(host: SlashCommandHost): Promise<void> {
     status: runtimeStatus.status,
     statusError: runtimeStatus.error,
     gitStatus: createGitStatusCache(appState.workDir).getStatus(),
+    humanWriting: {
+      ready: humanWriting.ready,
+      advisoryOnly: humanWriting.advisoryOnly,
+      nextAction: humanWriting.ready
+        ? 'Describe the task to start.'
+        : 'Restore writing-quality guidance before long autonomous work.',
+    },
     managedUsage: managedUsage?.usage,
     managedUsageError: managedUsage?.error,
   };
