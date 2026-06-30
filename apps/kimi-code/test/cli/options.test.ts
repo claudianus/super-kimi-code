@@ -84,6 +84,28 @@ describe('CLI options parsing', () => {
     });
   });
 
+  describe('--help', () => {
+    it('describes --plan as Ultrawork plan steering instead of plan mode', () => {
+      let output = '';
+      const program = createProgram(
+        '1.2.3',
+        () => {},
+        () => {},
+      );
+      program.exitOverride();
+      program.configureOutput({
+        writeOut: (s) => {
+          output += s;
+        },
+      });
+
+      expect(() => program.parse(['node', 'kimi', '--help'])).toThrow();
+      expect(output).toContain('--plan');
+      expect(output).toContain('Start with Ultrawork plan steering.');
+      expect(output).not.toContain('Start in plan mode.');
+    });
+  });
+
   describe('hidden plugin node runner', () => {
     it('routes __plugin_run_node without calling the main action', () => {
       const pluginRunnerCalls: Array<{ entry: string; args: readonly string[] }> = [];
