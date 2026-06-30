@@ -117,12 +117,23 @@ function humanWritingBlocked(options: StatusReportOptions): boolean {
   return humanWriting !== undefined && (!humanWriting.ready || !humanWriting.advisoryOnly);
 }
 
+function verifyBlockedByReadiness(options: StatusReportOptions): boolean {
+  const model = (options.status?.model ?? options.model).trim();
+  const { ratio, maxTokens } = contextValues(options);
+  return (
+    model.length === 0 ||
+    (maxTokens > 0 && safeUsageRatio(ratio) >= 0.85) ||
+    options.gitStatus?.dirty === true ||
+    humanWritingBlocked(options)
+  );
+}
+
 function formatUltraworkStageStatus(options: StatusReportOptions): string {
   const planMode = options.status?.planMode ?? options.planMode;
   const plan = planMode ? 'Plan on' : 'Plan off';
   const goal = `Goal ${formatGoalStatus(options.goalStatus)}`;
   const swarm = `Swarm ${options.swarmMode === true ? 'armed' : 'standby'}`;
-  const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode)}`;
+  const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, verifyBlockedByReadiness(options))}`;
   return `${plan} | ${goal} | ${swarm} | ${verify}`;
 }
 
@@ -141,12 +152,11 @@ function formatGoalStatus(status: StatusGoalStatus | undefined): string {
   }
 }
 
-function formatVerifyStatus(status: StatusGoalStatus | undefined, planMode: boolean): string {
+function formatVerifyStatus(status: StatusGoalStatus | undefined, planMode: boolean, blocked: boolean): string {
+  if (status === 'complete') return 'passed';
+  if (status === 'blocked' || blocked) return 'blocked';
+
   switch (status) {
-    case 'blocked':
-      return 'blocked';
-    case 'complete':
-      return 'passed';
     case 'active':
     case 'paused':
       return 'queued';

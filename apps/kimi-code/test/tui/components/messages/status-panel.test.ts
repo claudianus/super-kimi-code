@@ -128,6 +128,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
     expect(output).toMatch(/Workflow\s+UltraPlan -> UltraGoal -> UltraSwarm -> Verify/);
+    expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm standby \| Verify blocked/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
     expect(output).toMatch(/Writing\s+human voice lanes; detectors advisory-only/);
@@ -185,6 +186,7 @@ describe('status panel report lines', () => {
 
     const output = lines.join('\n');
     expect(output).toMatch(/State\s+Context high/);
+    expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm standby \| Verify blocked/);
     expect(output).toMatch(/Next\s+Run \/compact before long work\./);
   });
 
@@ -216,6 +218,7 @@ describe('status panel report lines', () => {
     const output = lines.join('\n');
     expect(output).toContain('Worktree     feature [±] dirty');
     expect(output).toMatch(/State\s+Worktree dirty/);
+    expect(output).toMatch(/Stages\s+Plan on \| Goal ready \| Swarm standby \| Verify blocked/);
     expect(output).toMatch(/Next\s+Review changed files before finishing\./);
   });
 
@@ -242,6 +245,7 @@ describe('status panel report lines', () => {
 
     const output = lines.join('\n');
     expect(output).toMatch(/State\s+Writing guidance blocked/);
+    expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm standby \| Verify blocked/);
     expect(output).toMatch(/Writing\s+voice-lane guidance blocked; detectors must stay advisory-only/);
     expect(output).toMatch(/Next\s+Restore writing-quality guidance before long autonomous work\./);
     expect(output).not.toContain('/preflight');
