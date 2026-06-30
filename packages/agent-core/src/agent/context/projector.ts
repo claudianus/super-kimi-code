@@ -3,14 +3,174 @@ import type { ContentPart, Message, TextPart } from '@moonshot-ai/kosong';
 import { ErrorCodes, KimiError } from '../../errors';
 import type { ContextMessage } from './types';
 
-export function project(history: readonly ContextMessage[]): Message[] {
-  return mergeAdjacentUserMessages(history);
+export interface ProjectOptions {
+  /**
+   * Close even the trailing open tool exchange with a synthetic result. Normal
+   * turn sends leave the tail open because it may still be in flight; compaction
+   * and strict resend can enable this to force a complete wire request.
+   */
+  readonly synthesizeMissing?: boolean;
+  /**
+   * Drop tool results with no matching assistant tool call. Normal sends keep
+   * recorded output; strict resend uses this as a last-resort repair.
+   */
+  readonly dropOrphanResults?: boolean;
+  /** Drop leading assistant/tool messages until the first projected turn is user. */
+  readonly dropLeadingNonUser?: boolean;
+  /** Merge adjacent assistant turns for strict providers that require alternation. */
+  readonly mergeConsecutiveAssistants?: boolean;
+  /** Observe projection repairs for diagnostics without mutating source history. */
+  readonly onAnomaly?: (anomaly: ProjectionAnomaly) => void;
 }
 
-function mergeAdjacentUserMessages(history: readonly ContextMessage[]): Message[] {
+export type ProjectionAnomaly =
+  | { readonly kind: 'tool_result_reordered'; readonly toolCallId: string }
+  | { readonly kind: 'tool_result_synthesized'; readonly toolCallId: string; readonly trailing: boolean }
+  | { readonly kind: 'orphan_tool_result_dropped'; readonly toolCallId: string }
+  | { readonly kind: 'leading_non_user_dropped'; readonly role: string }
+  | { readonly kind: 'consecutive_assistants_merged' }
+  | { readonly kind: 'whitespace_text_dropped'; readonly role: string };
+
+export function project(history: readonly ContextMessage[], options?: ProjectOptions): Message[] {
+  let result = repairToolExchangeAdjacency(
+    mergeAdjacentUserMessages(history, options?.onAnomaly),
+    options,
+  );
+  if (options?.mergeConsecutiveAssistants === true) {
+    result = mergeConsecutiveAssistantMessages(result, options.onAnomaly);
+  }
+  if (options?.dropOrphanResults === true) {
+    result = dropOrphanToolResults(result, options.onAnomaly);
+  }
+  if (options?.dropLeadingNonUser === true) {
+    result = dropLeadingNonUserMessages(result, options.onAnomaly);
+  }
+  return result;
+}
+
+const SYNTHETIC_TOOL_RESULT_TEXT =
+  'Tool result is not available in the current context. Do not assume the tool completed successfully.';
+
+function repairToolExchangeAdjacency(
+  messages: readonly Message[],
+  options?: ProjectOptions,
+): Message[] {
+  let lastNonToolIndex = messages.length - 1;
+  while (lastNonToolIndex >= 0 && messages[lastNonToolIndex]?.role === 'tool') {
+    lastNonToolIndex -= 1;
+  }
+
+  const out: Message[] = [];
+  const consumed = new Set<number>();
+  for (let i = 0; i < messages.length; i++) {
+    if (consumed.has(i)) continue;
+    const message = messages[i]!;
+    if (message.role !== 'assistant' || message.toolCalls.length === 0) {
+      out.push(message);
+      continue;
+    }
+
+    out.push(message);
+    const pending = new Set(message.toolCalls.map((toolCall) => toolCall.id));
+    let foreignBetween = false;
+    for (let j = i + 1; j < messages.length && pending.size > 0; j++) {
+      if (consumed.has(j)) continue;
+      const next = messages[j]!;
+      const toolCallId = next.toolCallId;
+      if (next.role === 'tool' && toolCallId !== undefined && pending.has(toolCallId)) {
+        out.push(next);
+        consumed.add(j);
+        pending.delete(toolCallId);
+        if (foreignBetween) {
+          options?.onAnomaly?.({ kind: 'tool_result_reordered', toolCallId });
+        }
+      } else {
+        foreignBetween = true;
+      }
+    }
+
+    const isMidHistory = i < lastNonToolIndex;
+    if (options?.synthesizeMissing === true || isMidHistory) {
+      for (const missingId of pending) {
+        out.push(makeSyntheticToolResult(missingId));
+        options?.onAnomaly?.({
+          kind: 'tool_result_synthesized',
+          toolCallId: missingId,
+          trailing: !isMidHistory,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function makeSyntheticToolResult(toolCallId: string): Message {
+  return {
+    role: 'tool',
+    content: [{ type: 'text', text: SYNTHETIC_TOOL_RESULT_TEXT }],
+    toolCalls: [],
+    toolCallId,
+  };
+}
+
+function dropOrphanToolResults(
+  messages: readonly Message[],
+  onAnomaly?: (anomaly: ProjectionAnomaly) => void,
+): Message[] {
+  const toolUseIds = new Set<string>();
+  for (const message of messages) {
+    if (message.role === 'assistant') {
+      for (const toolCall of message.toolCalls) toolUseIds.add(toolCall.id);
+    }
+  }
+  return messages.filter((message) => {
+    if (message.role !== 'tool' || message.toolCallId === undefined) return true;
+    if (toolUseIds.has(message.toolCallId)) return true;
+    onAnomaly?.({ kind: 'orphan_tool_result_dropped', toolCallId: message.toolCallId });
+    return false;
+  });
+}
+
+function dropLeadingNonUserMessages(
+  messages: readonly Message[],
+  onAnomaly?: (anomaly: ProjectionAnomaly) => void,
+): Message[] {
+  let start = 0;
+  while (start < messages.length && messages[start]!.role !== 'user') {
+    onAnomaly?.({ kind: 'leading_non_user_dropped', role: messages[start]!.role });
+    start += 1;
+  }
+  return start === 0 ? [...messages] : messages.slice(start);
+}
+
+function mergeConsecutiveAssistantMessages(
+  messages: readonly Message[],
+  onAnomaly?: (anomaly: ProjectionAnomaly) => void,
+): Message[] {
+  const out: Message[] = [];
+  for (const message of messages) {
+    const previous = out.at(-1);
+    if (previous !== undefined && previous.role === 'assistant' && message.role === 'assistant') {
+      out[out.length - 1] = {
+        ...previous,
+        content: [...previous.content, ...message.content],
+        toolCalls: [...previous.toolCalls, ...message.toolCalls],
+      };
+      onAnomaly?.({ kind: 'consecutive_assistants_merged' });
+      continue;
+    }
+    out.push(message);
+  }
+  return out;
+}
+
+function mergeAdjacentUserMessages(
+  history: readonly ContextMessage[],
+  onAnomaly?: (anomaly: ProjectionAnomaly) => void,
+): Message[] {
   const out: ContextMessage[] = [];
   for (const source of history) {
-    const message = prepareMessageForProjection(source);
+    const message = prepareMessageForProjection(source, onAnomaly);
     if (message === null) continue;
 
     const previous = out.at(-1);
@@ -27,13 +187,19 @@ function mergeAdjacentUserMessages(history: readonly ContextMessage[]): Message[
   return out.map(stripContextMetadata);
 }
 
-function prepareMessageForProjection(message: ContextMessage): ContextMessage | null {
+function prepareMessageForProjection(
+  message: ContextMessage,
+  onAnomaly?: (anomaly: ProjectionAnomaly) => void,
+): ContextMessage | null {
   if (message.partial === true) return null;
 
   let content: ContentPart[] | undefined;
   for (const [index, part] of message.content.entries()) {
-    if (part.type === 'text' && part.text.length === 0) {
+    if (part.type === 'text' && part.text.trim().length === 0) {
       content ??= message.content.slice(0, index);
+      if (part.text.length > 0) {
+        onAnomaly?.({ kind: 'whitespace_text_dropped', role: message.role });
+      }
       continue;
     }
     content?.push(part);

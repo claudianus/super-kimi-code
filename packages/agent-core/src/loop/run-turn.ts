@@ -34,6 +34,7 @@ export interface RunTurnInput {
   readonly signal: AbortSignal;
   readonly llm: LLM;
   readonly buildMessages: LoopMessageBuilder;
+  readonly buildMessagesStrict?: LoopMessageBuilder | undefined;
   readonly dispatchEvent: LoopEventDispatcher;
   readonly tools?: readonly ExecutableTool[] | undefined;
   readonly hooks?: LoopHooks | undefined;
@@ -51,6 +52,7 @@ export async function runTurn(input: RunTurnInput): Promise<TurnResult> {
     signal,
     llm,
     buildMessages,
+    buildMessagesStrict,
     dispatchEvent,
     tools,
     hooks,
@@ -85,6 +87,7 @@ export async function runTurn(input: RunTurnInput): Promise<TurnResult> {
         turnId,
         signal,
         buildMessages,
+        buildMessagesStrict,
         dispatchEvent,
         llm,
         tools,

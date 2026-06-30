@@ -9,10 +9,11 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { TokenUsage } from '@moonshot-ai/kosong';
+import { isRecoverableRequestStructureError, type TokenUsage } from '@moonshot-ai/kosong';
 import type { Logger } from '#/logging/types';
 
 import type { LoopEventDispatcher } from './events';
+import { errorMessage } from './errors';
 import type { LLM, LLMChatParams, LLMChatResponse } from './llm';
 import { chatWithRetry } from './retry';
 import { runToolCallBatch, type ToolCallStepContext } from './tool-call';
@@ -33,6 +34,7 @@ export interface ExecuteLoopStepDeps {
   readonly turnId: string;
   readonly signal: AbortSignal;
   readonly buildMessages: LoopMessageBuilder;
+  readonly buildMessagesStrict?: LoopMessageBuilder | undefined;
   readonly dispatchEvent: LoopEventDispatcher;
   readonly llm: LLM;
   readonly tools?: readonly ExecutableTool[] | undefined;
@@ -51,6 +53,7 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
     turnId,
     signal,
     buildMessages,
+    buildMessagesStrict,
     dispatchEvent,
     llm,
     tools,
@@ -110,16 +113,48 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
       stepUuid,
     }),
   };
-  const response: LLMChatResponse = await chatWithRetry({
+  const retryInput = {
     llm,
-    params: chatParams,
     dispatchEvent,
     turnId,
     currentStep,
     stepUuid,
     maxAttempts: maxRetryAttempts,
     log,
-  });
+  } as const;
+  let response: LLMChatResponse;
+  try {
+    response = await chatWithRetry({ ...retryInput, params: chatParams });
+  } catch (error) {
+    if (buildMessagesStrict === undefined || !isRecoverableRequestStructureError(error)) {
+      throw error;
+    }
+
+    signal.throwIfAborted();
+    log?.warn('provider rejected request structure; resending strict projection', {
+      turnStep: `${turnId}.${String(currentStep)}`,
+      model: llm.modelName,
+    });
+    const strictMessages = await buildMessagesStrict();
+    signal.throwIfAborted();
+    try {
+      response = await chatWithRetry({
+        ...retryInput,
+        params: { ...chatParams, messages: strictMessages },
+      });
+    } catch (strictError) {
+      log?.error('strict projection resend failed', {
+        turnStep: `${turnId}.${String(currentStep)}`,
+        model: llm.modelName,
+        originalError: errorMessage(error),
+        strictError: errorMessage(strictError),
+      });
+      throw strictError;
+    }
+    log?.info('recovered after strict projection resend', {
+      turnStep: `${turnId}.${String(currentStep)}`,
+    });
+  }
   const usage = response.usage;
   const usageResult = await recordUsage(usage);
   const stopTurnAfterUsage = usageResult?.stopTurn === true;

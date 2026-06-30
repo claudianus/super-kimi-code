@@ -10,11 +10,25 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { APIStatusError, type Message } from '@moonshot-ai/kosong';
 import { ErrorCodes, KimiError } from '../../src/errors';
 import type { Logger, LogPayload } from '../../src/logging';
-import type { LoopHooks } from '../../src/loop/index';
-import { makeEndTurnResponse, makeToolCall, makeToolUseResponse } from './fixtures/fake-llm';
+import {
+  createLoopEventDispatcher,
+  runTurn as runLoopTurn,
+  type LoopHooks,
+  type LoopMessageBuilder,
+  type RunTurnInput,
+} from '../../src/loop/index';
+import { CollectingSink } from './fixtures/collecting-sink';
+import {
+  FakeLLM,
+  makeEndTurnResponse,
+  makeToolCall,
+  makeToolUseResponse,
+} from './fixtures/fake-llm';
 import { runTurn, runTurnExpectingThrow } from './fixtures/helpers';
+import { RecordingContext } from './fixtures/recording-context';
 import { EchoTool } from './fixtures/tools';
 
 interface CapturedLogEntry {
@@ -158,6 +172,33 @@ describe('runTurn — error paths', () => {
     expect(sink.count('step.end')).toBe(0);
     expect(sink.count('turn.interrupted')).toBe(1);
   });
+
+  it('resends once with strict messages after a recoverable request-structure 400', async () => {
+    const adjacencyError = new APIStatusError(
+      400,
+      '`tool_use` ids were found without `tool_result` blocks immediately after',
+    );
+    const { input, llm, strictMessages, strictCalls } = makeStrictResendHarness(adjacencyError);
+
+    const result = await runLoopTurn(input);
+
+    expect(result.stopReason).toBe('end_turn');
+    expect(llm.callCount).toBe(2);
+    expect(strictCalls.count).toBe(1);
+    expect(llm.calls[0]?.messages).toEqual([userMessage('normal projection')]);
+    expect(llm.calls[1]?.messages).toBe(strictMessages);
+  });
+
+  it('does not resend for unrelated provider 400 errors', async () => {
+    const { input, llm, strictCalls } = makeStrictResendHarness(
+      new APIStatusError(400, 'Bad request'),
+    );
+
+    await expect(runLoopTurn(input)).rejects.toThrow('Bad request');
+
+    expect(llm.callCount).toBe(1);
+    expect(strictCalls.count).toBe(0);
+  });
 });
 
 function captureLogs(): { readonly logger: Logger; readonly entries: CapturedLogEntry[] } {
@@ -178,4 +219,40 @@ function captureLogs(): { readonly logger: Logger; readonly entries: CapturedLog
     createChild: () => logger,
   };
   return { logger, entries };
+}
+
+function userMessage(text: string): Message {
+  return { role: 'user', content: [{ type: 'text', text }], toolCalls: [] };
+}
+
+function makeStrictResendHarness(error: unknown): {
+  readonly input: RunTurnInput;
+  readonly llm: FakeLLM;
+  readonly strictMessages: Message[];
+  readonly strictCalls: { count: number };
+} {
+  const llm = new FakeLLM({
+    responses: [makeEndTurnResponse('unused'), makeEndTurnResponse('recovered')],
+    throwOnIndex: { index: 0, error },
+  });
+  const context = new RecordingContext({ messages: [userMessage('normal projection')] });
+  const sink = new CollectingSink({});
+  const strictMessages = [userMessage('strict projection')];
+  const strictCalls = { count: 0 };
+  const buildMessagesStrict: LoopMessageBuilder = () => {
+    strictCalls.count += 1;
+    return strictMessages;
+  };
+  const input: RunTurnInput = {
+    turnId: 'turn-1',
+    signal: new AbortController().signal,
+    llm,
+    buildMessages: context.buildMessages,
+    buildMessagesStrict,
+    dispatchEvent: createLoopEventDispatcher({
+      appendTranscriptRecord: context.appendTranscriptRecord,
+      emitLiveEvent: sink.emit,
+    }),
+  };
+  return { input, llm, strictMessages, strictCalls };
 }

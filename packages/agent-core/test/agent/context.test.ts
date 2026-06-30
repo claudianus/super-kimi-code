@@ -227,7 +227,7 @@ describe('Agent context', () => {
     ]);
   });
 
-  it('drops empty text parts only in LLM projection', () => {
+  it('drops empty and whitespace-only text parts only in LLM projection', () => {
     const history: ContextMessage[] = [
       {
         role: 'user',
@@ -246,6 +246,12 @@ describe('Agent context', () => {
         role: 'assistant',
         content: [{ type: 'text', text: '' }],
         toolCalls: [{ type: 'function', id: 'call_empty', name: 'empty', arguments: '{}' }],
+      },
+      {
+        role: 'tool',
+        content: [{ type: 'text', text: 'result' }],
+        toolCallId: 'call_empty',
+        toolCalls: [],
       },
       {
         role: 'assistant',
@@ -271,13 +277,14 @@ describe('Agent context', () => {
         toolCalls: [{ type: 'function', id: 'call_empty', name: 'empty', arguments: '{}' }],
       },
       {
-        role: 'assistant',
-        content: [{ type: 'think', think: '', encrypted: 'enc_empty_thinking' }],
+        role: 'tool',
+        content: [{ type: 'text', text: 'result' }],
+        toolCallId: 'call_empty',
         toolCalls: [],
       },
       {
-        role: 'user',
-        content: [{ type: 'text', text: '   ' }],
+        role: 'assistant',
+        content: [{ type: 'think', think: '', encrypted: 'enc_empty_thinking' }],
         toolCalls: [],
       },
     ]);
@@ -306,6 +313,68 @@ describe('Agent context', () => {
     expect(() => project(history)).toThrow(
       'Tool result message content cannot be empty after removing empty text blocks.',
     );
+  });
+
+  it('repairs non-adjacent tool results before sending to strict providers', () => {
+    const messages = project([
+      userMessage('run lookup'),
+      assistantMessage(['call_lookup']),
+      userMessage('background reminder', {
+        kind: 'background_task',
+        taskId: 'task',
+        status: 'completed',
+        notificationId: 'task:task:completed',
+      }),
+      toolMessage('call_lookup', 'lookup result'),
+    ]);
+
+    expect(messages.map((message) => [message.role, message.toolCallId])).toEqual([
+      ['user', undefined],
+      ['assistant', undefined],
+      ['tool', 'call_lookup'],
+      ['user', undefined],
+    ]);
+  });
+
+  it('closes mid-history missing tool results but leaves trailing calls pending', () => {
+    const messages = project([
+      userMessage('first'),
+      assistantMessage(['call_missing']),
+      userMessage('second'),
+      assistantMessage(['call_pending']),
+    ]);
+
+    const missingCallIndex = messages.findIndex((message) =>
+      message.toolCalls.some((toolCall) => toolCall.id === 'call_missing'),
+    );
+    expect(messages[missingCallIndex + 1]).toMatchObject({
+      role: 'tool',
+      toolCallId: 'call_missing',
+    });
+    expect(textOf(messages[missingCallIndex + 1]!)).toContain('not available');
+    expect(messages.some((message) => message.toolCallId === 'call_pending')).toBe(false);
+  });
+
+  it('strict projection drops stray results and leading assistant messages', () => {
+    const messages = project(
+      [
+        { role: 'assistant', content: [{ type: 'text', text: 'stray opener' }], toolCalls: [] },
+        userMessage('hello'),
+        toolMessage('missing_call', 'orphan output'),
+      ],
+      { dropLeadingNonUser: true, dropOrphanResults: true },
+    );
+
+    expect(messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'hello' }],
+        toolCalls: [],
+        partial: undefined,
+        name: undefined,
+        toolCallId: undefined,
+      },
+    ]);
   });
 
   it('projects hook result messages into LLM projection', async () => {
@@ -1053,6 +1122,28 @@ function userMessage(text: string, origin?: ContextMessage['origin']): ContextMe
     content: [{ type: 'text', text }],
     toolCalls: [],
     origin,
+  };
+}
+
+function assistantMessage(toolCallIds: readonly string[]): ContextMessage {
+  return {
+    role: 'assistant',
+    content: [],
+    toolCalls: toolCallIds.map((id) => ({
+      type: 'function',
+      id,
+      name: 'Run',
+      arguments: '{}',
+    })),
+  };
+}
+
+function toolMessage(toolCallId: string, text: string): ContextMessage {
+  return {
+    role: 'tool',
+    content: [{ type: 'text', text }],
+    toolCalls: [],
+    toolCallId,
   };
 }
 

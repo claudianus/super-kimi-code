@@ -6,7 +6,12 @@ import type { ExecutableToolResult, LoopRecordedEvent } from '../../loop';
 import { estimateTokensForMessages } from '../../utils/tokens';
 import { escapeXml } from '../../utils/xml-escape';
 import type { CompactionResult } from '../compaction';
-import { project, trimTrailingOpenToolExchange } from './projector';
+import {
+  project,
+  type ProjectionAnomaly,
+  type ProjectOptions,
+  trimTrailingOpenToolExchange,
+} from './projector';
 import {
   USER_PROMPT_ORIGIN,
   type AgentContextData,
@@ -36,6 +41,7 @@ export class ContextMemory {
   private pendingToolResultIds = new Set<string>();
   private deferredMessages: ContextMessage[] = [];
   private _lastAssistantAt: number | null = null;
+  private lastProjectionRepairSignature: string | null = null;
 
   constructor(protected readonly agent: Agent) {}
 
@@ -251,12 +257,85 @@ export class ContextMemory {
     return this._history;
   }
 
-  project(messages: readonly ContextMessage[]): Message[] {
-    return project(this.agent.microCompaction.compact(messages));
+  project(messages: readonly ContextMessage[], options?: ProjectOptions): Message[] {
+    const anomalies: ProjectionAnomaly[] = [];
+    const result = project(this.agent.microCompaction.compact(messages), {
+      ...options,
+      onAnomaly: (anomaly) => {
+        anomalies.push(anomaly);
+        options?.onAnomaly?.(anomaly);
+      },
+    });
+    this.reportProjectionRepairs(anomalies);
+    return result;
   }
 
   get messages(): Message[] {
     return this.project(this.history);
+  }
+
+  get strictMessages(): Message[] {
+    return this.project(this.history, {
+      synthesizeMissing: true,
+      dropOrphanResults: true,
+      dropLeadingNonUser: true,
+      mergeConsecutiveAssistants: true,
+    });
+  }
+
+  private reportProjectionRepairs(anomalies: readonly ProjectionAnomaly[]): void {
+    const notable = anomalies.filter(
+      (anomaly) => !(anomaly.kind === 'tool_result_synthesized' && anomaly.trailing),
+    );
+    if (notable.length === 0) {
+      this.lastProjectionRepairSignature = null;
+      return;
+    }
+
+    const signature = notable
+      .map((anomaly) => ('toolCallId' in anomaly ? `${anomaly.kind}:${anomaly.toolCallId}` : anomaly.kind))
+      .toSorted()
+      .join('|');
+    if (signature === this.lastProjectionRepairSignature) return;
+    this.lastProjectionRepairSignature = signature;
+
+    let reordered = 0;
+    let synthesized = 0;
+    let droppedOrphan = 0;
+    let leadingDropped = 0;
+    let assistantsMerged = 0;
+    let whitespaceDropped = 0;
+    for (const anomaly of notable) {
+      if (anomaly.kind === 'tool_result_reordered') reordered += 1;
+      else if (anomaly.kind === 'tool_result_synthesized') synthesized += 1;
+      else if (anomaly.kind === 'orphan_tool_result_dropped') droppedOrphan += 1;
+      else if (anomaly.kind === 'leading_non_user_dropped') leadingDropped += 1;
+      else if (anomaly.kind === 'consecutive_assistants_merged') assistantsMerged += 1;
+      else whitespaceDropped += 1;
+    }
+    const toolCallIds = [
+      ...new Set(
+        notable.flatMap((anomaly) => ('toolCallId' in anomaly ? [anomaly.toolCallId] : [])),
+      ),
+    ].slice(0, 5);
+
+    this.agent.log.warn('repaired request projection for strict provider wire validity', {
+      reordered,
+      synthesized,
+      droppedOrphan,
+      leadingDropped,
+      assistantsMerged,
+      whitespaceDropped,
+      toolCallIds,
+    });
+    this.agent.telemetry.track('context_projection_repaired', {
+      reordered,
+      synthesized,
+      dropped_orphan: droppedOrphan,
+      leading_dropped: leadingDropped,
+      assistants_merged: assistantsMerged,
+      whitespace_dropped: whitespaceDropped,
+    });
   }
 
   useProjectedHistoryFrom(source: ContextMemory): void {
@@ -438,7 +517,7 @@ function toolResultOutputForModel(result: ExecutableToolResult): string | Conten
     return isEmptyOutputText(output) ? TOOL_EMPTY_STATUS : output;
   }
 
-  if (output.length === 0) {
+  if (isEmptyEquivalentContentArray(output)) {
     return [
       {
         type: 'text',
@@ -452,8 +531,12 @@ function toolResultOutputForModel(result: ExecutableToolResult): string | Conten
   return output;
 }
 
+function isEmptyEquivalentContentArray(output: readonly ContentPart[]): boolean {
+  return output.every((part) => part.type === 'text' && part.text.trim().length === 0);
+}
+
 function isEmptyOutputText(output: string): boolean {
-  return output.length === 0 || output.trim() === TOOL_OUTPUT_EMPTY_TEXT;
+  return output.trim().length === 0 || output.trim() === TOOL_OUTPUT_EMPTY_TEXT;
 }
 
 function isRealUserPrompt(message: ContextMessage): boolean {

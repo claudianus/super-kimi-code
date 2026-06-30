@@ -7,7 +7,9 @@ import {
   APITimeoutError,
   ChatProviderError,
   isProviderRateLimitError,
+  isRecoverableRequestStructureError,
   isRetryableGenerateError,
+  isToolExchangeAdjacencyError,
   normalizeAPIStatusError,
 } from '#/errors';
 import { describe, expect, it } from 'vitest';
@@ -206,6 +208,69 @@ describe('normalizeAPIStatusError', () => {
     const error = normalizeAPIStatusError(statusCode, message);
     expect(error).toBeInstanceOf(APIStatusError);
     expect(error).not.toBeInstanceOf(APIContextOverflowError);
+  });
+});
+
+describe('isToolExchangeAdjacencyError', () => {
+  it('matches missing and unexpected tool_result structural errors', () => {
+    expect(
+      isToolExchangeAdjacencyError(
+        new APIStatusError(
+          400,
+          '`tool_use` ids were found without `tool_result` blocks immediately after',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isToolExchangeAdjacencyError(new APIStatusError(422, 'unexpected `tool_result` block')),
+    ).toBe(true);
+  });
+
+  it('does not match context overflow, unrelated status errors, or plain errors', () => {
+    expect(
+      isToolExchangeAdjacencyError(new APIContextOverflowError(400, 'context length exceeded')),
+    ).toBe(false);
+    expect(isToolExchangeAdjacencyError(new APIStatusError(400, 'Bad request'))).toBe(false);
+    expect(
+      isToolExchangeAdjacencyError(
+        new APIStatusError(500, '`tool_use` without `tool_result`'),
+      ),
+    ).toBe(false);
+    expect(isToolExchangeAdjacencyError(new Error('unexpected `tool_result` block'))).toBe(false);
+  });
+});
+
+describe('isRecoverableRequestStructureError', () => {
+  it('matches strict-provider message-shape validation failures', () => {
+    expect(
+      isRecoverableRequestStructureError(
+        new APIStatusError(400, '`tool_use` ids were found without `tool_result` blocks'),
+      ),
+    ).toBe(true);
+    expect(
+      isRecoverableRequestStructureError(
+        new APIStatusError(400, 'text content blocks must contain non-whitespace text'),
+      ),
+    ).toBe(true);
+    expect(
+      isRecoverableRequestStructureError(
+        new APIStatusError(400, 'first message must use the "user" role'),
+      ),
+    ).toBe(true);
+    expect(
+      isRecoverableRequestStructureError(new APIStatusError(400, 'roles must alternate')),
+    ).toBe(true);
+  });
+
+  it('does not match context overflow, auth, generic bad requests, or non-status errors', () => {
+    expect(
+      isRecoverableRequestStructureError(
+        new APIContextOverflowError(400, 'context length exceeded'),
+      ),
+    ).toBe(false);
+    expect(isRecoverableRequestStructureError(new APIStatusError(401, 'unauthorized'))).toBe(false);
+    expect(isRecoverableRequestStructureError(new APIStatusError(400, 'Bad request'))).toBe(false);
+    expect(isRecoverableRequestStructureError(new Error('roles must alternate'))).toBe(false);
   });
 });
 
