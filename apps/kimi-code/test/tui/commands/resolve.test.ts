@@ -99,6 +99,16 @@ describe('resolveSlashCommandInput', () => {
       name: 'ultrawork',
       args: 'Ship feature X',
     });
+    expect(resolve('/ultraswarm Ship feature X')).toMatchObject({
+      kind: 'builtin',
+      name: 'ultrawork',
+      args: 'Ship feature X',
+    });
+    expect(resolve('/us Ship feature X')).toMatchObject({
+      kind: 'builtin',
+      name: 'ultrawork',
+      args: 'Ship feature X',
+    });
   });
 
   it('blocks idle-only built-ins while streaming', () => {
@@ -162,6 +172,11 @@ describe('resolveSlashCommandInput', () => {
       commandName: 'ultragoal',
       reason: 'streaming',
     });
+    expect(resolve('/ultraswarm Ship feature X', { isStreaming: true })).toEqual({
+      kind: 'blocked',
+      commandName: 'ultraswarm',
+      reason: 'streaming',
+    });
   });
 
   it('blocks model and session pickers while compacting', () => {
@@ -208,6 +223,11 @@ describe('resolveSlashCommandInput', () => {
     expect(resolve('/ultragoal Ship feature X', { isCompacting: true })).toEqual({
       kind: 'blocked',
       commandName: 'ultragoal',
+      reason: 'compacting',
+    });
+    expect(resolve('/us Ship feature X', { isCompacting: true })).toEqual({
+      kind: 'blocked',
+      commandName: 'us',
       reason: 'compacting',
     });
   });

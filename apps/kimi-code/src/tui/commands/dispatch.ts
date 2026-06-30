@@ -53,7 +53,6 @@ import {
   handleTitleCommand,
 } from './session';
 import { handleSwarmCommand } from './swarm';
-import { handleUltraSwarmCommand } from './ultra-swarm';
 import { handleUltraworkCommand, shouldAutoActivateUltrawork } from './ultrawork';
 import { handleUndoCommand } from './undo';
 
@@ -79,7 +78,6 @@ export {
   showSettingsSelector,
 } from './config';
 export { handleSwarmCommand } from './swarm';
-export { handleUltraSwarmCommand } from './ultra-swarm';
 export { handleUltraworkCommand } from './ultrawork';
 export { handleFeedbackCommand, showMcpServers, showStatusReport, showUsage } from './info';
 export { handleMemoryCommand } from './memory';
@@ -323,9 +321,6 @@ async function handleBuiltInSlashCommand(
       return;
     case 'swarm':
       await handleSwarmCommand(host, args);
-      return;
-    case 'ultraswarm':
-      await handleUltraSwarmCommand(host, args);
       return;
     case 'ultrawork':
       await handleUltraworkCommand(host, args);
