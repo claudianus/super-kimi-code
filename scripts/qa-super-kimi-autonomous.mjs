@@ -123,6 +123,12 @@ const TUI_REAL_WORKFLOW_TEST_FILE = 'apps/kimi-code/test/tui/commands/ultrawork.
 const TUI_REAL_WORKFLOW_VERIFIER_DIR = '.super-kimi-real-workflow';
 const TUI_REAL_WORKFLOW_VERIFIER = path.posix.join(TUI_REAL_WORKFLOW_VERIFIER_DIR, 'check.mjs');
 const TUI_REAL_WORKFLOW_GUIDANCE = 'SUPER_KIMI_REAL_WORKFLOW_EVIDENCE';
+const TUI_REAL_WORKFLOW_SOURCE_GUIDANCE_PATTERN =
+  /const\s+ULTRAWORK_BENCH_GUIDANCE\s*=\s*\[[\s\S]*['"`][^'"`]*SUPER_KIMI_REAL_WORKFLOW_EVIDENCE[^'"`]*['"`][\s\S]*\]\.join\('\\n'\)/u;
+const TUI_REAL_WORKFLOW_PROMPT_ASSERTION_PATTERN =
+  /expect\s*\(\s*prompt\s*\)\s*\.\s*toContain\s*\(\s*['"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['"`]\s*\)/u;
+const TUI_REAL_WORKFLOW_VACUOUS_ASSERTION_PATTERN =
+  /expect\s*\(\s*['"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['"`]\s*\)\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(\s*['"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['"`]\s*\)/u;
 const TUI_REAL_WORKFLOW_EDIT_FILES = Object.freeze([
   TUI_REAL_WORKFLOW_SOURCE_FILE,
   TUI_REAL_WORKFLOW_TEST_FILE,
@@ -4946,7 +4952,7 @@ async function runTuiRealWorkflowPhase(context) {
     );
     summary.validations.repositorySourceTestChanged = passFail(
       fileState.source.complete && fileState.test.complete,
-      'The real repository source file and its real test file must both contain the requested evidence phrase.',
+      'The real repository source must contain the requested guidance and the real test must assert the generated prompt contains it.',
     );
     summary.validations.diffContainsSentinel = passFail(
       diffRecord.exitCode === 0 &&
@@ -5474,7 +5480,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
     );
     summary.validations.repositorySourceTestChanged = passFail(
       fileState.source.complete && fileState.test.complete,
-      'The real repository source file and its real test file must both contain the requested evidence phrase.',
+      'The real repository source must contain the requested guidance and the real test must assert the generated prompt contains it.',
     );
     summary.validations.diffContainsSentinel = passFail(
       diffRecord.exitCode === 0 &&
@@ -7251,8 +7257,14 @@ function buildTuiRealWorkflowVerifierSource() {
     "import fs from 'fs';",
     `const source = fs.readFileSync(${JSON.stringify(TUI_REAL_WORKFLOW_SOURCE_FILE)}, 'utf8');`,
     `const test = fs.readFileSync(${JSON.stringify(TUI_REAL_WORKFLOW_TEST_FILE)}, 'utf8');`,
+    "const sourceGuidance = /const\\s+ULTRAWORK_BENCH_GUIDANCE\\s*=\\s*\\[[\\s\\S]*['\"`][^'\"`]*SUPER_KIMI_REAL_WORKFLOW_EVIDENCE[^'\"`]*['\"`][\\s\\S]*\\]\\.join\\('\\\\n'\\)/u;",
+    "const promptAssertion = /expect\\s*\\(\\s*prompt\\s*\\)\\s*\\.\\s*toContain\\s*\\(\\s*['\"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['\"`]\\s*\\)/u;",
+    "const vacuousAssertion = /expect\\s*\\(\\s*['\"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['\"`]\\s*\\)\\s*\\.\\s*(?:toBe|toEqual|toStrictEqual)\\s*\\(\\s*['\"`]SUPER_KIMI_REAL_WORKFLOW_EVIDENCE['\"`]\\s*\\)/u;",
     `if (!source.includes(${JSON.stringify(TUI_REAL_WORKFLOW_GUIDANCE)})) throw new Error('source guidance was not completed');`,
+    "if (!sourceGuidance.test(source)) throw new Error('source guidance must be added to ULTRAWORK_BENCH_GUIDANCE so buildUltraworkPrompt emits it');",
     `if (!test.includes(${JSON.stringify(TUI_REAL_WORKFLOW_GUIDANCE)})) throw new Error('test expectation was not completed');`,
+    "if (!promptAssertion.test(test)) throw new Error('test expectation must assert the generated Ultrawork prompt contains the guidance token');",
+    "if (vacuousAssertion.test(test)) throw new Error('test expectation is vacuous; assert against the generated prompt instead');",
     `console.log(${JSON.stringify(`${TUI_REAL_WORKFLOW_SENTINEL} source and test verified`)});`,
     '',
   ].join('\n');
@@ -7315,20 +7327,27 @@ async function readTuiRealWorkflowFileState(paths) {
   const sourceText = await readFileIfExists(paths.sourcePath);
   const testText = await readFileIfExists(paths.testPath);
   const verifierText = await readFileIfExists(paths.verifierPath);
+  const hasSourcePromptGuidance =
+    typeof sourceText === 'string' && TUI_REAL_WORKFLOW_SOURCE_GUIDANCE_PATTERN.test(sourceText);
+  const testGuidance = inspectTuiRealWorkflowTestGuidance(testText);
   return {
     source: {
       path: paths.sourcePath,
       exists: typeof sourceText === 'string',
       text: sourceText,
-      complete:
+      containsGuidance:
         typeof sourceText === 'string' && sourceText.includes(TUI_REAL_WORKFLOW_GUIDANCE),
+      hasPromptGuidance: hasSourcePromptGuidance,
+      complete: hasSourcePromptGuidance,
     },
     test: {
       path: paths.testPath,
       exists: typeof testText === 'string',
       text: testText,
-      complete:
-        typeof testText === 'string' && testText.includes(TUI_REAL_WORKFLOW_GUIDANCE),
+      containsGuidance: testGuidance.containsGuidance,
+      hasPromptAssertion: testGuidance.hasPromptAssertion,
+      hasVacuousAssertion: testGuidance.hasVacuousAssertion,
+      complete: testGuidance.complete,
     },
     verifier: {
       path: paths.verifierPath,
@@ -7338,12 +7357,32 @@ async function readTuiRealWorkflowFileState(paths) {
   };
 }
 
+function inspectTuiRealWorkflowTestGuidance(testText) {
+  if (typeof testText !== 'string') {
+    return {
+      containsGuidance: false,
+      hasPromptAssertion: false,
+      hasVacuousAssertion: false,
+      complete: false,
+    };
+  }
+  const containsGuidance = testText.includes(TUI_REAL_WORKFLOW_GUIDANCE);
+  const hasPromptAssertion = TUI_REAL_WORKFLOW_PROMPT_ASSERTION_PATTERN.test(testText);
+  const hasVacuousAssertion = TUI_REAL_WORKFLOW_VACUOUS_ASSERTION_PATTERN.test(testText);
+  return {
+    containsGuidance,
+    hasPromptAssertion,
+    hasVacuousAssertion,
+    complete: containsGuidance && hasPromptAssertion && !hasVacuousAssertion,
+  };
+}
+
 function buildTuiRealWorkflowPrompt(paths) {
   return [
     'Do not use Ultrawork automation for this direct QA harness task.',
     'Please complete this real repository source-and-test TUI workflow task.',
-    `Edit ${paths.sourcePath}: append exactly one new TypeScript line comment at the end of the file: // ${TUI_REAL_WORKFLOW_GUIDANCE}. Do not edit any existing string literal.`,
-    `Edit ${paths.testPath}: add one new harmless assertion inside the existing buildUltraworkPrompt test that contains this exact token: ${TUI_REAL_WORKFLOW_GUIDANCE}. Do not replace existing assertions.`,
+    `Edit ${paths.sourcePath}: add exactly one new string item inside the ULTRAWORK_BENCH_GUIDANCE array containing ${TUI_REAL_WORKFLOW_GUIDANCE}, so buildUltraworkPrompt emits it. Do not add the token as a comment.`,
+    `Edit ${paths.testPath}: inside the existing buildUltraworkPrompt test, add expect(prompt).toContain('${TUI_REAL_WORKFLOW_GUIDANCE}'). Do not add a constant-to-constant self assertion and do not replace existing assertions.`,
     `Do not edit ${paths.verifierPath}; it is the harness-owned verifier.`,
     `Then run node ${TUI_REAL_WORKFLOW_VERIFIER}.`,
     `Then run ${paths.targetedTestCommand}.`,
@@ -7357,8 +7396,8 @@ function buildTuiUltraworkWorkflowPrompt(paths) {
     'Do not use AskUserQuestion for this task; no decision is missing.',
     'If Ultra Plan opens, call NextPhase immediately and proceed with best judgment.',
     'If auto permission mode makes AskUserQuestion unavailable, do not retry that tool; continue implementation.',
-    `Edit ${paths.sourcePath}: append exactly one new TypeScript line comment at the end of the file: // ${TUI_REAL_WORKFLOW_GUIDANCE}. Do not edit any existing string literal.`,
-    `Also edit ${paths.testPath}: add one new harmless assertion inside the existing buildUltraworkPrompt test that contains this exact token: ${TUI_REAL_WORKFLOW_GUIDANCE}. Do not replace existing assertions.`,
+    `Edit ${paths.sourcePath}: add exactly one new string item inside the ULTRAWORK_BENCH_GUIDANCE array containing ${TUI_REAL_WORKFLOW_GUIDANCE}, so buildUltraworkPrompt emits it. Do not add the token as a comment.`,
+    `Also edit ${paths.testPath}: inside the existing buildUltraworkPrompt test, add expect(prompt).toContain('${TUI_REAL_WORKFLOW_GUIDANCE}'). Do not add a constant-to-constant self assertion and do not replace existing assertions.`,
     `Do not edit ${paths.verifierPath}; it is the harness-owned verifier.`,
     `Then run node ${TUI_REAL_WORKFLOW_VERIFIER}.`,
     `Then run ${paths.targetedTestCommand}.`,
