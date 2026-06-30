@@ -32,7 +32,7 @@ describe('TUI surface leak checks', () => {
       'Coverage      test public behavior changes',
       'Screen check  open changed screen before finishing',
       'Done gate     tests + typecheck/lint/build + clean diff + TUI',
-      'next: describe task; Ultrawork orchestrates the ultra workflow',
+      'next: describe task; Ultrawork auto-runs the workflow',
     ].join('\n');
     const setupScreen = [
       'Model: not set',

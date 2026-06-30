@@ -123,7 +123,7 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(out).toContain('ultrawork-ready');
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
-    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork orchestrates the ultra workflow');
+    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork auto-runs the workflow');
   });
 
   it('renders transient hints on the context line', () => {
@@ -141,7 +141,7 @@ describe('FooterComponent — context NaN resilience', () => {
 
     const [, line2] = footer.render(120);
 
-    expect(strip(line2 ?? '')).toContain('next: describe task; Kimi verifies');
+    expect(strip(line2 ?? '')).toContain('next: describe task; Ultrawork auto-runs the workflow');
     expect(strip(line2 ?? '')).toContain('context: 0.0%');
   });
 
