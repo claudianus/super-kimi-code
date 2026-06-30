@@ -240,7 +240,7 @@ Goal: Explore the codebase and converge on the best approach.
 - You may use Bash only when needed for exploration
 
 You CANNOT write to the plan file yet. You CANNOT call ExitPlanMode.
-Your turn MUST end with a design summary in your response.`,
+Your turn MUST end with a design summary, then call NextPhase({ phase: 'review' }). Do not skip directly to write.`,
 
   review: `## Review Phase
 You are in the Review Phase. Read-only tools only (Read, Grep, Glob).
@@ -252,7 +252,7 @@ Goal: Re-read key files to verify your understanding before writing the plan.
 - Confirm file paths and dependencies
 
 You CANNOT write to the plan file yet. You CANNOT call ExitPlanMode.
-Your turn MUST end with a verification summary.`,
+Your turn MUST end with a verification summary, then call NextPhase({ phase: 'write' }).`,
 
   write: `## Write Phase
 You are in the Write Phase. You may ONLY write to the current plan file.

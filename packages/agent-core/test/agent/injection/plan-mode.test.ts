@@ -118,6 +118,37 @@ describe('PlanModeInjector content', () => {
     expect(text).toContain('Do not call EnterPlanMode while already in Ultra Plan');
     expect(text).not.toContain('You MUST ask at least 3 rounds');
   });
+
+  it('routes Ultra Plan design to review before write', async () => {
+    const agent = planAgent({
+      isActive: true,
+      isUltraMode: true,
+      phase: 'design',
+      planFilePath: '/tmp/ultra-plan.md',
+    });
+    const injector = new PlanModeInjector(agent);
+
+    await injector.inject();
+
+    const text = lastReminder(agent);
+    expect(text).toContain("call NextPhase({ phase: 'review' })");
+    expect(text).toContain('Do not skip directly to write');
+  });
+
+  it('routes Ultra Plan review to write after verification', async () => {
+    const agent = planAgent({
+      isActive: true,
+      isUltraMode: true,
+      phase: 'review',
+      planFilePath: '/tmp/ultra-plan.md',
+    });
+    const injector = new PlanModeInjector(agent);
+
+    await injector.inject();
+
+    const text = lastReminder(agent);
+    expect(text).toContain("call NextPhase({ phase: 'write' })");
+  });
 });
 
 describe('PlanModeInjector cadence', () => {

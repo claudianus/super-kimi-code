@@ -255,8 +255,26 @@ describe('Plan mode permission policy', () => {
 
     expect(result.isError).toBeFalsy();
     expect(result.output).toContain('Advanced from interview phase to design phase');
+    expect(result.output).toContain("call NextPhase({ phase: 'review' })");
     expect(planMode.phase).toBe('design');
     expect(planMode.interviewRoundCount).toBe(0);
+  });
+
+  it('tells Ultra Plan review to advance to write after verification', async () => {
+    const { agent, planMode } = await activePlanAgent({ ultra: true });
+    planMode.setPhase('review');
+
+    const result = await executeTool(new NextPhaseTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_next_phase_write',
+      args: { phase: 'write' },
+      signal,
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.output).toContain('Advanced from review phase to write phase');
+    expect(result.output).toContain('Write Phase');
+    expect(planMode.phase).toBe('write');
   });
 
   it('points blocked interview tools toward NextPhase when no question is needed', async () => {

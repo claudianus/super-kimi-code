@@ -88,8 +88,8 @@ You can only advance forward, never backward.`;
 
   private phaseInstructions(phase: string): string {
     const instructions: Record<string, string> = {
-      design: 'Design Phase: Use read-only tools (Read, Grep, Glob, WebSearch, FetchURL, Bash) to explore the codebase and converge on the best approach.',
-      review: 'Review Phase: Use Read, Grep, Glob to re-read key files and verify your understanding before writing the plan.',
+      design: "Design Phase: Use read-only tools (Read, Grep, Glob, WebSearch, FetchURL, Bash) to explore the codebase and converge on the best approach. When the design summary is ready, call NextPhase({ phase: 'review' }); do not skip directly to write.",
+      review: "Review Phase: Use Read, Grep, Glob to re-read key files and verify your understanding before writing the plan. When verification is complete, call NextPhase({ phase: 'write' }).",
       write: 'Write Phase: Write the complete plan to the plan file. Only the plan file can be edited. Include Seed Spec, AC Tree, Evaluation Plan, and Execution Plan.',
       exit: 'Exit Phase: The plan is complete. Call ExitPlanMode to request user approval.',
     };
