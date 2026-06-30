@@ -80,6 +80,10 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Workflow\s+task -> Ultrawork stages -> verify/);
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
     expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
+    expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
+    expect(output).toMatch(/Recovery\s+resumable floor -> durable target/);
+    expect(output).toMatch(/Tools\s+search first; load tools on demand/);
+    expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify queued/);
     expect(output).toMatch(/Stages\s+Plan on \| Goal active \| Swarm armed \| Verify queued/);
     expect(output).toMatch(/Blockers\s+none detected/);
@@ -139,6 +143,10 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Workflow\s+task -> Ultrawork stages -> verify/);
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
     expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
+    expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
+    expect(output).toMatch(/Recovery\s+resumable floor -> durable target/);
+    expect(output).toMatch(/Tools\s+search first; load tools on demand/);
+    expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify blocked/);
     expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm ready \| Verify blocked/);
     expect(output).toMatch(/Blockers\s+model setup/);
@@ -180,6 +188,10 @@ describe('status panel report lines', () => {
       'Workflow',
       'Engine',
       'Auto',
+      'Autonomy',
+      'Recovery',
+      'Tools',
+      'Memory',
       'Flow',
       'Stages',
       'Blockers',

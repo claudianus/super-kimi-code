@@ -9,6 +9,7 @@ import { evaluateHarnessRadarGate } from './kimi-harness-radar.mjs';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasHarnessRadarStatusContract,
   hasStatusPanelSetupNextAction,
   hasXpDodReadinessContract,
   shouldRequireModelSetupAction,
@@ -54,6 +55,10 @@ const TUI_SCREEN_SIGNAL_PATTERNS = Object.freeze([
   { name: 'prompt-entry', pattern: /visible qa prompt entry only/i },
   { name: 'status-readiness', pattern: /\breadiness\b.*\bstate\b.*\bchecks\b.*\bnext\b/i },
   { name: 'xp-dod-readiness', pattern: /\bScope\b.*\bCoverage\b.*\bScreen check\b.*\bDone gate\b/i },
+  {
+    name: 'harness-radar-readiness',
+    pattern: /\bAutonomy\b.*\bRecovery\b.*\bTools\b.*\bMemory\b/i,
+  },
   {
     name: 'done-gate',
     pattern: /\bDone gate\b\s+relevant tests\s+\+\s+available typecheck\/lint\/build\s+\+\s+clean diff\s+\+\s+TUI/i,
@@ -957,7 +962,7 @@ function statusScenarioHasReadinessSignals(tuiGate) {
   const signals = getTuiScenario(tuiGate, 'status')?.screenObservationSignals;
   return (
     Array.isArray(signals) &&
-    ['status-readiness', 'xp-dod-readiness'].every((signal) => signals.includes(signal))
+    ['status-readiness', 'xp-dod-readiness', 'harness-radar-readiness'].every((signal) => signals.includes(signal))
   );
 }
 
@@ -2128,6 +2133,9 @@ function inspectTuiScreenText(scenario, output) {
       }
       if (!hasXpDodReadinessContract(normalized)) {
         failures.push('status capture does not show the XP-lite/Definition of Done readiness gates');
+      }
+      if (!hasHarnessRadarStatusContract(normalized)) {
+        failures.push('status capture does not show autonomy/recovery/tool/memory readiness');
       }
       if (shouldRequireModelSetupAction(normalized) && !hasLoggedOutSetupNextAction(normalized)) {
         failures.push('status capture does not keep the footer setup next action visible');

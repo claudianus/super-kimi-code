@@ -107,6 +107,10 @@ const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
 const WORKFLOW_GATE = 'task -> Ultrawork stages -> verify';
 const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
 const AUTO_GATE = 'ask if needed | plan | goal | swarm | verify';
+const AUTONOMY_GATE = 'bounded now -> headless target';
+const RECOVERY_GATE = 'resumable floor -> durable target';
+const TOOLS_GATE = 'search first; load tools on demand';
+const MEMORY_GATE = 'prefs | session recall | long-run notes';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const WRITING_GATE = 'human voice lanes; detectors advisory-only';
@@ -228,6 +232,10 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
     { label: 'Workflow', value: WORKFLOW_GATE },
     { label: 'Engine', value: ENGINE_GATE },
     { label: 'Auto', value: AUTO_GATE },
+    { label: 'Autonomy', value: AUTONOMY_GATE },
+    { label: 'Recovery', value: RECOVERY_GATE },
+    { label: 'Tools', value: TOOLS_GATE },
+    { label: 'Memory', value: MEMORY_GATE },
     formatUltraworkFlow(options),
     { label: 'Stages', value: formatUltraworkStageStatus(options) },
     { label: 'Blockers', value: formatReadinessBlockers(options) },

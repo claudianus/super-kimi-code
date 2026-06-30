@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   defaultUserSurfaceLeakFailures,
   hasLoggedOutSetupNextAction,
+  hasHarnessRadarStatusContract,
   hasUltraworkAdvancedHelpContract,
   hasUltraworkFooterNextAction,
   hasUltraworkHelpContract,
@@ -94,6 +95,10 @@ describe('TUI surface leak checks', () => {
           'Workflow      task -> Ultrawork stages -> verify',
           'Engine        UltraPlan | UltraGoal | UltraSwarm | Verify',
           'Auto          ask if needed | plan | goal | swarm | verify',
+          'Autonomy      bounded now -> headless target',
+          'Recovery      resumable floor -> durable target',
+          'Tools         search first; load tools on demand',
+          'Memory        prefs | session recall | long-run notes',
           'Flow          ███░ 3/4 verify queued',
           'Stages        Plan on | Goal ready | Swarm auto | Verify queued',
           'Next          Type task; Ultrawork runs the full workflow, then verifies.',
@@ -103,6 +108,17 @@ describe('TUI surface leak checks', () => {
 
     expect(hasUltraworkHelpContract('Run /ultrawork manually.')).toBe(false);
     expect(hasUltraworkStatusContract('Ultrawork    ready')).toBe(false);
+    expect(
+      hasHarnessRadarStatusContract(
+        [
+          'Autonomy      bounded now -> headless target',
+          'Recovery      resumable floor -> durable target',
+          'Tools         search first; load tools on demand',
+          'Memory        prefs | session recall | long-run notes',
+        ].join('\n'),
+      ),
+    ).toBe(true);
+    expect(hasHarnessRadarStatusContract('Tools         all tools loaded')).toBe(false);
   });
 
   it('recognizes the advanced Ultrawork steering help contract', () => {
