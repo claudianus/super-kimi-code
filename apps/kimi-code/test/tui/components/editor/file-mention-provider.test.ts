@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { FileMentionProvider } from '#/tui/components/editor/file-mention-provider';
+import { findBuiltInSlashCommand } from '#/tui/commands/index';
 
 function ctrl(): AbortSignal {
   return new AbortController().signal;
@@ -263,6 +264,22 @@ describe('FileMentionProvider', () => {
       value: 'goal',
       description: '<objective> — Start or manage a goal',
     });
+  });
+
+  it('does not tag the primary help suggestion as advanced', async () => {
+    const help = findBuiltInSlashCommand('help');
+    expect(help).toBeDefined();
+    if (help === undefined) throw new Error('expected built-in help command');
+    const provider = new FileMentionProvider([help], workDir, NO_FD);
+
+    const result = await provider.getSuggestions(['/h'], 0, 2, { signal: ctrl() });
+
+    expect(result).not.toBeNull();
+    expect(result!.items[0]).toMatchObject({
+      value: 'help',
+      description: 'Show available commands and shortcuts',
+    });
+    expect(result!.items[0]?.description).not.toContain('[advanced]');
   });
 
   it('joins multiple aliases with an ASCII comma in the label', async () => {

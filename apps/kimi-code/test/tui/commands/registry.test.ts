@@ -110,7 +110,7 @@ describe('built-in slash command registry', () => {
     const help = findBuiltInSlashCommand('help') as KimiSlashCommand | undefined;
     expect(helpArgumentCompletions('')?.map((item) => item.value)).toEqual(['advanced']);
     expect(helpArgumentCompletions('d')?.map((item) => item.value)).toEqual(['diagnostics']);
-    expect(help?.argumentHint).toBe('[advanced]');
+    expect(help?.argumentHint).toBeUndefined();
   });
 
   it('puts core vibe-coding controls first in primary help order', () => {

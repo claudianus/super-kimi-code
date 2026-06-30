@@ -294,7 +294,6 @@ export const BUILTIN_SLASH_COMMANDS = [
     aliases: ['h', '?'],
     description: 'Show available commands and shortcuts',
     priority: 80,
-    argumentHint: '[advanced]',
     completeArgs: helpArgumentCompletions,
     availability: 'always',
   },
