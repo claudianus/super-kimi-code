@@ -88,7 +88,9 @@ const ULTRAWORK_WEB_RESEARCH_GUIDANCE = [
   '- Prefer the built-in WebSearch and FetchURL tools; WebSearch must have a local no-subscription provider before paid or external search services. Use precise 3-12 keyword queries, then fetch primary sources before relying on snippets.',
   '- Prioritize official docs, release notes, GitHub issues and PRs, papers, benchmark pages, and dated primary sources; record source URLs for claims that affect implementation.',
   '- Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.',
-  '- Use browser automation only for public pages and legitimate observation such as rendered DOM, screenshots, downloads, or PDF extraction; Do not attempt CAPTCHA, paywall, authentication/auth, policy, or access-control bypass.',
+  '- Do not reinvent advanced scraping primitives: evaluate Scrapling MCP, CLI, or fetchers as an optional local backend for dynamic public-page rendering, CSS selector targeting, main-content extraction, screenshots, session reuse, and adaptive element relocation.',
+  '- Use browser automation for public pages, rendered DOM observation, screenshots, downloads, PDF extraction, user-provided authenticated sessions, and explicitly authorized test targets.',
+  '- Authorized/public access boundary: do not defeat CAPTCHA, paywall, login, permission, rate-limit, robots, or other access-control systems.',
   '- Default path must work without a paid search subscription or extra-cost search API; optional paid providers are only an explicitly configured accelerator.',
 ].join('\n');
 const ULTRAWORK_BENCH_GUIDANCE = [

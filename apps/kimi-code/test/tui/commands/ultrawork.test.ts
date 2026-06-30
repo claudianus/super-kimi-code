@@ -160,9 +160,13 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('fetch primary sources before relying on snippets');
     expect(prompt).toContain('official docs, release notes, GitHub issues and PRs, papers, benchmark pages');
     expect(prompt).toContain('Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
+    expect(prompt).toContain('Scrapling MCP, CLI, or fetchers as an optional local backend');
+    expect(prompt).toContain('CSS selector targeting, main-content extraction, screenshots, session reuse');
+    expect(prompt).toContain('rendered DOM observation, screenshots, downloads, PDF extraction');
     expect(prompt).toContain(
-      'Do not attempt CAPTCHA, paywall, authentication/auth, policy, or access-control bypass',
+      'user-provided authenticated sessions, and explicitly authorized test targets',
     );
+    expect(prompt).toContain('do not defeat CAPTCHA, paywall, login');
     expect(prompt).toContain('without a paid search subscription or extra-cost search API');
     expect(prompt).toContain('Kimi Agent Bench');
     expect(prompt).toContain('node scripts/kimi-agent-sota-gate.mjs');

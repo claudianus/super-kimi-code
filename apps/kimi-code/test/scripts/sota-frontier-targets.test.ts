@@ -56,6 +56,9 @@ describe('free web research harness criteria', () => {
     expect(harness.requirements.join('\n')).toContain('Use FetchURL to fetch primary sources');
     expect(harness.requirements.join('\n')).toContain('3-12 keyword queries');
     expect(harness.requirements.join('\n')).toContain('Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
-    expect(harness.safetyBoundaries.join('\n')).toContain('Do not attempt CAPTCHA, paywall, authentication');
+    expect(harness.requirements.join('\n')).toContain('Scrapling MCP, CLI, or fetchers');
+    expect(harness.requirements.join('\n')).toContain('adaptive element relocation');
+    expect(harness.safetyBoundaries.join('\n')).toContain('Authorized/public access is the boundary');
+    expect(harness.safetyBoundaries.join('\n')).toContain('do not defeat CAPTCHA, paywall, login');
   });
 });

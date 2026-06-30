@@ -126,8 +126,9 @@ const REQUIRED_FREE_WEB_RESEARCH_CONTRACTS = Object.freeze([
   { name: 'precise-keyword-queries', pattern: /\b3-12 keyword queries\b/i },
   { name: 'primary-source-priority', pattern: /\bofficial docs\b[\s\S]*\bGitHub issues and PRs\b[\s\S]*\bpapers\b/i },
   { name: 'durable-findings', pattern: /\bKimi Knowledge Map\b[\s\S]*\bmemory\b[\s\S]*\bbenchmark radar\b[\s\S]*\bSOTA criteria\b/i },
+  { name: 'scrapling-optional-backend', pattern: /\bScrapling\b[\s\S]*\boptional local backend\b[\s\S]*\bCSS selector\b[\s\S]*\badaptive element relocation\b/i },
   { name: 'public-browser-automation', pattern: /\bbrowser automation\b[\s\S]*\bpublic\b[\s\S]*\bDOM\b[\s\S]*\bscreenshots\b/i },
-  { name: 'no-access-bypass', pattern: /\bDo not attempt CAPTCHA\b[\s\S]*\bpaywall\b[\s\S]*\bauthentication\b[\s\S]*\baccess-control bypass\b/i },
+  { name: 'authorized-access-boundary', pattern: /\bpublic pages\b[\s\S]*\buser-provided authenticated sessions\b[\s\S]*\bauthorized test targets\b[\s\S]*\bdo not defeat\b[\s\S]*\bCAPTCHA\b[\s\S]*\bpaywall\b[\s\S]*\blogin\b/i },
 ]);
 const REQUIRED_XP_LITE_CONTRACTS = Object.freeze([
   { name: 'inspect-first', pattern: /\binspect\b.*\bfiles\b.*\btests\b.*\bproject\b/i },
@@ -2913,6 +2914,8 @@ function renderMarkdown(report) {
       '',
       `- status: ${gateStatus(report.gates.find((gate) => gate.name === 'free-web-research-harness-contract'))}`,
       `- cost policy: ${String(report.freeWebResearchHarness.costPolicy ?? 'unavailable')}`,
+      '- advanced backend: Scrapling-compatible optional MCP/CLI/fetcher path for authorized public-page extraction',
+      '- access boundary: public pages, user-provided authenticated sessions, and explicitly authorized test targets',
       `- criteria items: ${String(report.freeWebResearchHarness.criteriaCount ?? 0)}`,
       `- contract path: ${report.freeWebResearchHarness.contractPath}`,
     );
