@@ -19,6 +19,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1225`: treat `/` as path completion in shell mode instead of opening slash-command completion.
 - Upstream `#1233`: bound completed headless prompt cleanup and arm a force-exit backstop after stdio drains.
 - Upstream `#1241`: recover strict-provider request-structure failures caused by malformed tool exchange history.
+- Upstream `#1068`: use ripgrep-backed Glob for faster file discovery.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -29,10 +30,11 @@ Super Kimi adaptation:
 - Ported only the strict-provider projector/one-shot resend hardening from `#1241`, without taking the broader compaction rewrite.
 - Added focused regressions for non-adjacent tool results, mid-history missing results, strict resend, and provider error classification.
 - Verified `skimi` still points at the freshly built local `apps/kimi-code/dist/main.mjs`.
+- Preserved Super Kimi builtin smoke coverage while moving Glob from `kaos.glob` traversal to `rg --files`.
+- Kept the product surface TUI-first: updated Glob help/profile wording and TUI tool-call summaries; no web UI work.
 
 ## Next Candidate Queue
 
 - `#1214` compaction strategy: potential token-efficiency win, but large behavioral surface.
-- `#1068` ripgrep-backed Glob: likely speed win, must preserve Super Kimi search semantics.
 - `#1204` plugin slash commands: likely useful, but must fit Super Kimi skill/plugin UX.
 - `#1220` double-Esc undo selector: small TUI ergonomics win after current input fixes settle.
