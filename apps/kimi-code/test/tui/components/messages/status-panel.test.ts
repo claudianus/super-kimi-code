@@ -67,7 +67,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('Directory    /tmp/project');
     expect(output).toContain('Worktree     main [+12 -3 ↑1] clean');
     expect(output).toContain('Permissions  auto');
-    expect(output).toMatch(/Ultrawork\s+on/);
+    expect(output).toMatch(/Ultrawork\s+goal active/);
     expect(output).not.toMatch(/Planning\s+Ultrawork/);
     expect(output).toContain('Session      ses-1');
     expect(output).toContain('Title        Implement status');
@@ -77,9 +77,9 @@ describe('status panel report lines', () => {
     expect(output).toContain('Readiness');
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
-    expect(output).toMatch(/Workflow\s+plan -> track goal -> get help -> verify/);
+    expect(output).toMatch(/Workflow\s+task -> auto-plan\/goal\/help -> verify/);
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
-    expect(output).toMatch(/Auto\s+vague->ask \| clear->run \| risky->help \| done->verify/);
+    expect(output).toMatch(/Auto\s+ask if needed \| run \| get help \| verify/);
     expect(output).toMatch(/Stages\s+Planning on \| Goal active \| Help armed \| Verify queued/);
     expect(output).toMatch(/Blockers\s+none detected/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
@@ -88,7 +88,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests \+ typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(
-      /Next\s+Describe task; Ultrawork plans, tracks goal, gets help, verifies\./,
+      /Next\s+Type the task; Ultrawork auto-links plan, goal, helpers, verify\./,
     );
     expect(output).not.toContain('Ultrawork plans, sets goal, swarms, verifies.');
     expect(output).not.toContain('Advanced');
@@ -134,9 +134,9 @@ describe('status panel report lines', () => {
     expect(output).toContain('No context window data available.');
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
-    expect(output).toMatch(/Workflow\s+plan -> track goal -> get help -> verify/);
+    expect(output).toMatch(/Workflow\s+task -> auto-plan\/goal\/help -> verify/);
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
-    expect(output).toMatch(/Auto\s+vague->ask \| clear->run \| risky->help \| done->verify/);
+    expect(output).toMatch(/Auto\s+ask if needed \| run \| get help \| verify/);
     expect(output).toMatch(/Stages\s+Planning off \| Goal ready \| Help ready \| Verify blocked/);
     expect(output).toMatch(/Blockers\s+model setup/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
@@ -145,7 +145,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests \+ typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Run \/login or \/provider first; use \/model after sign-in\./);
-    expect(output).toMatch(/Ultrawork\s+off/);
+    expect(output).toMatch(/Ultrawork\s+needs readiness/);
     expect(output).not.toMatch(/Planning\s+Ultrawork/);
   });
 
@@ -214,7 +214,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Stages\s+Planning auto \| Goal ready \| Help auto \| Verify ready/);
     expect(output).toMatch(/Blockers\s+none detected/);
     expect(output).toMatch(
-      /Next\s+Describe task; Ultrawork plans, tracks goal, gets help, verifies\./,
+      /Next\s+Type the task; Ultrawork auto-links plan, goal, helpers, verify\./,
     );
     expect(output).not.toContain('Ultrawork plans, sets goal, swarms, verifies.');
     expect(output).not.toContain('/ultrawork');

@@ -104,9 +104,9 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
-const WORKFLOW_GATE = 'plan -> track goal -> get help -> verify';
+const WORKFLOW_GATE = 'task -> auto-plan/goal/help -> verify';
 const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
-const AUTO_GATE = 'vague->ask | clear->run | risky->help | done->verify';
+const AUTO_GATE = 'ask if needed | run | get help | verify';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const WRITING_GATE = 'human voice lanes; detectors advisory-only';
@@ -140,6 +140,24 @@ function formatUltraworkStageStatus(options: StatusReportOptions): string {
   const help = `Help ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'auto' : 'ready'}`;
   const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, blocked)}`;
   return `${plan} | ${goal} | ${help} | ${verify}`;
+}
+
+function formatUltraworkStatus(options: StatusReportOptions): string {
+  const blocked = verifyBlockedByReadiness(options);
+  if (blocked && options.goalStatus !== 'blocked') return 'needs readiness';
+
+  switch (options.goalStatus) {
+    case 'active':
+      return 'goal active';
+    case 'paused':
+      return 'goal paused';
+    case 'blocked':
+      return 'goal blocked';
+    case 'complete':
+      return 'verified';
+    case undefined:
+      return 'auto-link ready';
+  }
 }
 
 function formatGoalStatus(status: StatusGoalStatus | undefined): string {
@@ -254,7 +272,7 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ...gateRows,
     {
       label: 'Next',
-      value: 'Describe task; Ultrawork plans, tracks goal, gets help, verifies.',
+      value: 'Type the task; Ultrawork auto-links plan, goal, helpers, verify.',
     },
   ];
 }
@@ -268,13 +286,12 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     sev === 'danger' ? 'error' : sev === 'warn' ? 'warning' : 'success';
 
   const permission = options.status?.permission ?? options.permissionMode;
-  const planMode = options.status?.planMode ?? options.planMode;
   const sessionId = options.sessionId.trim().length > 0 ? options.sessionId : 'none';
   const rows: FieldRow[] = [
     { label: 'Model', value: formatModelStatus(options) },
     { label: 'Directory', value: options.workDir },
     { label: 'Permissions', value: permission },
-    { label: 'Ultrawork', value: planMode ? 'on' : 'off' },
+    { label: 'Ultrawork', value: formatUltraworkStatus(options) },
     { label: 'Session', value: sessionId },
   ];
   if (options.gitStatus !== undefined && options.gitStatus !== null) {

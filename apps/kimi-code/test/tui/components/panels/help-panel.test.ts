@@ -27,7 +27,7 @@ describe('HelpPanelComponent', () => {
     });
     const out = strip(panel.render(80).join('\n'));
     expect(out).toMatch(/help/);
-    expect(out).toMatch(/Describe task; Ultrawork plans, tracks goal, gets help, verifies\./);
+    expect(out).toMatch(/Describe task; Ultrawork auto-links plan, goal, helpers, verify\./);
     expect(out).not.toMatch(/UltraPlan, UltraGoal, UltraSwarm/);
     expect(out).toMatch(/Steering controls live in \/help advanced\./);
     expect(out).toMatch(/Keyboard shortcuts/);
@@ -67,7 +67,7 @@ describe('HelpPanelComponent', () => {
   it('renders the advanced Ultrawork help framing when provided', () => {
     const panel = new HelpPanelComponent({
       commands: [
-        cmd('ultrawork', 'Force Ultrawork; plans, tracks goal, gets help, verifies', ['uw']),
+        cmd('ultrawork', 'Force Ultrawork; auto-links plan, goal, helpers, verify', ['uw']),
       ],
       intro: ADVANCED_HELP_INTRO,
       shortcuts: ADVANCED_KEYBOARD_SHORTCUTS,
@@ -82,7 +82,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Toggle UltraPlan steering/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
-    expect(out).toMatch(/plans, tracks goal, gets help, verifies/);
+    expect(out).toMatch(/auto-links plan, goal, helpers, verify/);
   });
 
   it('Escape fires onClose', () => {

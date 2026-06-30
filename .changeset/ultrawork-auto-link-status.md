@@ -2,4 +2,4 @@
 "@moonshot-ai/kimi-code": patch
 ---
 
-Clarify Ultrawork readiness and activation copy so users see UltraPlan, UltraGoal, UltraSwarm, and verification as one auto-linked workflow.
+Clarify that Ultrawork automatically links planning, goal tracking, helper routing, and verification from a plain task.
