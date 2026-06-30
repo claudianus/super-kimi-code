@@ -6193,7 +6193,7 @@ function inspectUltraworkWorkflowSignals(output) {
     /Write a Swarm decision before implementation[\s\S]{0,240}\bENGAGE\b[\s\S]{0,120}\bDEFER\b/i,
   ]);
   const swarmDecisionOutcomeVisible = matchesAny(output, [
-    /Swarm decision:\s*(?:ENGAGE|DEFER)(?!\s*(?:[|/]|\bor\b))\s+-[\s\S]{0,400}\bowner\s*:/i,
+    /Swarm decision:\s*(?:ENGAGE|DEFER)(?!\s*(?:[|/]|\bor\b))\s+-[\s\S]{0,400}\bvalue\s*:[\s\S]{0,200}\bowner\s*:/i,
   ]);
   const policyConflictPatterns = [
     {
@@ -6249,8 +6249,8 @@ function inspectUltraworkWorkflowSignals(output) {
       ? 'screen shows an auditable ENGAGE/DEFER Swarm decision cue'
       : 'screen does not show an auditable ENGAGE/DEFER Swarm decision cue yet',
     swarmDecisionOutcomeReason: swarmDecisionOutcomeVisible
-      ? 'screen shows a concrete ENGAGE or DEFER Swarm decision outcome with an owner'
-      : 'screen does not show a concrete ENGAGE or DEFER Swarm decision outcome yet',
+      ? 'screen shows a concrete ENGAGE or DEFER Swarm decision outcome with value and owner'
+      : 'screen does not show a concrete ENGAGE or DEFER Swarm decision outcome with value and owner yet',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -6518,8 +6518,8 @@ function validateUltraworkSwarmDecisionOutcome(waitResult) {
     status: count > 0 ? 'PASS' : 'FAIL',
     reason:
       count > 0
-        ? 'Live TUI screen shows a concrete ENGAGE or DEFER Swarm decision outcome with an owner.'
-        : 'Live TUI screen did not show a concrete ENGAGE or DEFER Swarm decision outcome.',
+        ? 'Live TUI screen shows a concrete ENGAGE or DEFER Swarm decision outcome with value and owner.'
+        : 'Live TUI screen did not show a concrete ENGAGE or DEFER Swarm decision outcome with value and owner.',
     evidenceCount: count,
   };
 }

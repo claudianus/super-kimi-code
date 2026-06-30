@@ -7,7 +7,7 @@ export type UltraworkModeMarkerState = 'active' | 'ended';
 
 const ULTRAWORK_PIPELINE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
 const ULTRAWORK_STAGE_STATUS = 'One workflow: UltraPlan, UltraGoal, UltraSwarm auto-link';
-const ULTRAWORK_NEXT_ACTION = 'Next: Swarm decision: ENGAGE|DEFER reason + owner';
+const ULTRAWORK_NEXT_ACTION = 'Next: Swarm decision: ENGAGE|DEFER reason + value + owner';
 
 export class UltraworkModeMarkerComponent implements Component {
   constructor(

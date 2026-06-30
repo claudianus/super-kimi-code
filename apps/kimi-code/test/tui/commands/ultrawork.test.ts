@@ -257,7 +257,7 @@ describe('handleUltraworkCommand', () => {
       'One workflow: UltraPlan, UltraGoal, UltraSwarm auto-link',
     );
     expect(renderedMarker(host)).toContain(
-      'Next: Swarm decision: ENGAGE|DEFER reason + owner',
+      'Next: Swarm decision: ENGAGE|DEFER reason + value + owner',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(
