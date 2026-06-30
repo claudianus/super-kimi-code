@@ -78,20 +78,27 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
           return;
         }
         if (toolName === 'NextPhase') return; // Allow manual phase advance
+        if (toolName === 'EnterPlanMode') {
+          return {
+            kind: 'deny',
+            message:
+              'EnterPlanMode is already active in Ultra Plan interview. Use NextPhase to advance to Design; do not call EnterPlanMode with a phase argument.',
+          };
+        }
         if (toolName === 'ExitPlanMode') {
           return {
             kind: 'deny',
-            message: 'ExitPlanMode is blocked in Interview phase. Ambiguity must be resolved first. Use AskUserQuestion to clarify requirements. After at least 3 interview rounds with ambiguity score ≤ 0.2, the system will auto-advance to Design.',
+            message: 'ExitPlanMode is blocked in Interview phase. Use AskUserQuestion only for blocking ambiguity, or call NextPhase to advance to Design when the task is already actionable.',
           };
         }
         return {
           kind: 'deny',
-          message: `${toolName} is blocked in Interview phase. Only AskUserQuestion and NextPhase are allowed. Use AskUserQuestion to reduce ambiguity.`,
+          message: `${toolName} is blocked in Interview phase. Only AskUserQuestion and NextPhase are allowed. Ask only for blocking ambiguity; otherwise call NextPhase to advance to Design.`,
         };
       }
       case 'design': {
         // Read-only exploration
-        const designAllowed = ['Read', 'Grep', 'Glob', 'WebSearch', 'FetchURL', 'Bash'];
+        const designAllowed = ['Read', 'Grep', 'Glob', 'WebSearch', 'FetchURL', 'Bash', 'NextPhase'];
         if (designAllowed.includes(toolName)) return;
         if (toolName === 'ExitPlanMode') {
           return {
@@ -105,7 +112,7 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
         };
       }
       case 'review': {
-        const reviewAllowed = ['Read', 'Grep', 'Glob'];
+        const reviewAllowed = ['Read', 'Grep', 'Glob', 'NextPhase'];
         if (reviewAllowed.includes(toolName)) return;
         if (toolName === 'ExitPlanMode') {
           return {

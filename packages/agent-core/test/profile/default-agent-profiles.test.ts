@@ -50,6 +50,21 @@ describe('default agent profiles', () => {
     }
   });
 
+  it('exposes Ultrawork orchestration tools on the root agent profile', () => {
+    const agentTools = DEFAULT_AGENT_PROFILES['agent']?.tools ?? [];
+    expect(agentTools).toEqual(
+      expect.arrayContaining([
+        'EnterPlanMode',
+        'NextPhase',
+        'ExitPlanMode',
+        'CreateGoal',
+        'UpdateGoal',
+        'AgentSwarm',
+        'UltraSwarm',
+      ]),
+    );
+  });
+
   it('keeps the root skill runtime prompt aligned with exposed tools', () => {
     const agent = DEFAULT_AGENT_PROFILES['agent'];
     expect(agent?.tools).toEqual(expect.arrayContaining(['Skill', 'SearchSkill']));

@@ -17,6 +17,7 @@ Permission mode notes:
 - In auto permission mode, do not use AskUserQuestion; make the best decision from available context.
 - In auto permission mode, ExitPlanMode exits plan mode without asking the user.
 - Use EnterPlanMode only when planning itself adds value.
+- Do not use EnterPlanMode while plan mode is already active. In Ultra Plan, use NextPhase to move between phases; never call EnterPlanMode with a phase argument.
 
 When NOT to use:
 - Single-line or few-line fixes (typos, obvious bugs, small tweaks)

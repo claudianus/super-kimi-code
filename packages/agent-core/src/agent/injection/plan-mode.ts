@@ -195,7 +195,7 @@ function exitReminder(): string {
 
 const PHASE_INSTRUCTIONS: Record<string, string> = {
   interview: `## Interview Phase
-You are in the Interview Phase. Your ONLY allowed tool is AskUserQuestion.
+You are in the Interview Phase. Your ONLY allowed tools are AskUserQuestion and NextPhase.
 Write, Edit, Bash, TaskStop, CronCreate, CronDelete, and ExitPlanMode are BLOCKED.
 
 ## Current Perspective: {{perspective}}
@@ -223,8 +223,11 @@ Completion streak: {{streak}}
 
 Next milestone target: {{nextMilestone}}
 
-You MUST ask at least 3 rounds. Score ≤ 0.2 for 2 consecutive rounds = auto-advance to Design.
-Your turn MUST end with AskUserQuestion.`,
+Ask 1-3 focused questions only when a missing decision blocks correctness.
+If the task is already actionable, or AskUserQuestion is unavailable or rejected by policy, call NextPhase({ phase: 'design' }) and proceed with best judgment.
+Do not call EnterPlanMode while already in Ultra Plan. EnterPlanMode starts planning; NextPhase advances phases. Do not pass a phase argument to EnterPlanMode.
+Score ≤ 0.2 for 2 consecutive rounds can still auto-advance to Design.
+Your turn MUST end with AskUserQuestion or NextPhase.`,
 
   design: `## Design Phase
 You are in the Design Phase. Read-only tools only (Read, Grep, Glob, WebSearch, FetchURL).

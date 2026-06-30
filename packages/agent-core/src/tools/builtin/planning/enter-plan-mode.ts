@@ -34,6 +34,13 @@ export class EnterPlanModeTool implements BuiltinTool<EnterPlanModeInput> {
       execute: async () => {
         // Guard: already in plan mode
         if (this.agent.planMode.isActive) {
+          if (this.agent.planMode.isUltraMode) {
+            return {
+              isError: true,
+              output:
+                'Ultra Plan mode is already active. Do not call EnterPlanMode again or pass it a phase argument. Use NextPhase to advance Ultra Plan phases.',
+            };
+          }
           return {
             isError: true,
             output: 'Plan mode is already active. Use ExitPlanMode when the plan is ready.',

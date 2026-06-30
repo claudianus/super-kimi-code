@@ -11,6 +11,8 @@ import { PlanModeGuardDenyPermissionPolicy } from '../../src/agent/permission/po
 import { PlanMode } from '../../src/agent/plan';
 import { ToolAccesses } from '../../src/loop';
 import type { ToolExecutionHookContext } from '../../src/loop';
+import { NextPhaseTool } from '../../src/tools/builtin/planning/next-phase';
+import { executeTool } from './fixtures/execute-tool';
 
 const signal = new AbortController().signal;
 
@@ -22,6 +24,7 @@ async function activePlanAgent(
     emitStatusUpdated: vi.fn(),
     records: { logRecord: vi.fn() },
     replayBuilder: { push: vi.fn() },
+    telemetry: { track: vi.fn() },
     kaos: {
       mkdir: vi.fn().mockResolvedValue(undefined),
       writeText: vi.fn().mockResolvedValue(undefined),
@@ -238,6 +241,51 @@ describe('Plan mode permission policy', () => {
     ).toBeUndefined();
     expect(planMode.phase).toBe('design');
     expect(planMode.interviewRoundCount).toBe(3);
+  });
+
+  it('lets actionable ultra plans advance from interview without forced question rounds', async () => {
+    const { agent, planMode } = await activePlanAgent({ ultra: true });
+
+    const result = await executeTool(new NextPhaseTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_next_phase',
+      args: { phase: 'design' },
+      signal,
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.output).toContain('Advanced from interview phase to design phase');
+    expect(planMode.phase).toBe('design');
+    expect(planMode.interviewRoundCount).toBe(0);
+  });
+
+  it('points blocked interview tools toward NextPhase when no question is needed', async () => {
+    const { agent } = await activePlanAgent({ ultra: true });
+
+    const deny = expectDeny(evaluatePlanPolicy(agent, 'ExitPlanMode', {}));
+
+    expect(deny.message ?? '').toContain('call NextPhase');
+    expect(deny.message ?? '').not.toContain('at least 3 interview rounds');
+  });
+
+  it('explains that EnterPlanMode is not a phase transition tool in ultra interview', async () => {
+    const { agent } = await activePlanAgent({ ultra: true });
+
+    const deny = expectDeny(evaluatePlanPolicy(agent, 'EnterPlanMode', {}));
+
+    expect(deny.message ?? '').toContain('EnterPlanMode is already active');
+    expect(deny.message ?? '').toContain('Use NextPhase');
+  });
+
+  it.each([
+    ['design', 'review'],
+    ['review', 'write'],
+    ['write', 'exit'],
+  ] as const)('allows NextPhase from %s to %s in Ultra Plan', async (phase, nextPhase) => {
+    const { agent, planMode } = await activePlanAgent({ ultra: true });
+    planMode.setPhase(phase);
+
+    expect(evaluatePlanPolicy(agent, 'NextPhase', { phase: nextPhase })).toBeUndefined();
   });
 
   it.each(['manual', 'yolo', 'auto'] as const)(

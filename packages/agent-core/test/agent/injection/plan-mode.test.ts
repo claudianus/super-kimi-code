@@ -6,6 +6,8 @@ import { PlanModeInjector } from '../../../src/agent/injection/plan-mode';
 interface PlanModeStub {
   isActive: boolean;
   planFilePath?: string | null;
+  isUltraMode?: boolean;
+  phase?: string;
 }
 
 function planAgent(stub: PlanModeStub): Agent {
@@ -18,6 +20,12 @@ function planAgent(stub: PlanModeStub): Agent {
       },
       get planFilePath() {
         return stub.planFilePath ?? null;
+      },
+      get isUltraMode() {
+        return stub.isUltraMode ?? false;
+      },
+      get phase() {
+        return stub.phase ?? 'interview';
       },
     },
     context: {
@@ -91,6 +99,24 @@ describe('PlanModeInjector content', () => {
     await injector.inject();
 
     expect(history(agent)).toHaveLength(0);
+  });
+
+  it('lets Ultra Plan interview advance when the task is already actionable', async () => {
+    const agent = planAgent({
+      isActive: true,
+      isUltraMode: true,
+      phase: 'interview',
+      planFilePath: '/tmp/ultra-plan.md',
+    });
+    const injector = new PlanModeInjector(agent);
+
+    await injector.inject();
+
+    const text = lastReminder(agent);
+    expect(text).toContain('Ask 1-3 focused questions only when a missing decision blocks correctness');
+    expect(text).toContain("call NextPhase({ phase: 'design' })");
+    expect(text).toContain('Do not call EnterPlanMode while already in Ultra Plan');
+    expect(text).not.toContain('You MUST ask at least 3 rounds');
   });
 });
 

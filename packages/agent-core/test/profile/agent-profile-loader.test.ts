@@ -173,10 +173,15 @@ describe('default agent profiles', () => {
         'Edit',
         'Bash',
         'Agent',
+        'AgentSwarm',
+        'UltraSwarm',
         'Skill',
         'TaskList',
         'TaskOutput',
         'TaskStop',
+        'EnterPlanMode',
+        'NextPhase',
+        'ExitPlanMode',
       ]),
     );
     expect(DEFAULT_AGENT_PROFILES['coder']?.tools).toEqual(

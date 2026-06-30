@@ -4,7 +4,7 @@ import { DynamicInjector } from './injector';
 const AUTO_MODE_ENTER_REMINDER = [
   'Auto permission mode is active. Tool approvals will be handled automatically while this mode remains enabled.',
   '  - Continue normally without pausing for approval prompts.',
-  '  - Do NOT call AskUserQuestion while auto mode is active unless the current Ultra Plan interview phase explicitly requires it. Otherwise make a reasonable decision and continue without asking the user.',
+  '  - Do NOT call AskUserQuestion while auto mode is active unless a missing Ultra Plan interview decision blocks correctness. If the task is actionable, make a reasonable decision or call NextPhase and continue without asking the user.',
 ].join('\n');
 
 const AUTO_MODE_EXIT_REMINDER = [

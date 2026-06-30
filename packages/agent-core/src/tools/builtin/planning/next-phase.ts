@@ -12,8 +12,6 @@ import type { BuiltinTool } from '../../../agent/tool';
 import type { ExecutableToolResult, ToolExecution } from '../../../loop/types';
 import { toInputJsonSchema } from '../../support/input-schema';
 
-const MIN_INTERVIEW_ROUNDS = 3;
-
 export const NextPhaseInputSchema = z.object({
   phase: z.enum(['design', 'review', 'write', 'exit']).describe(
     'The target phase to advance to. Must be the next logical phase in the workflow.',
@@ -27,11 +25,12 @@ export class NextPhaseTool implements BuiltinTool<NextPhaseInput> {
   readonly description = `Advance to the next phase in Ultra Plan Mode workflow.
 
 Usage: call this tool when you have completed the current phase.
-- From interview: call NextPhase({ phase: 'design' }) after at least ${MIN_INTERVIEW_ROUNDS} interview rounds
+- From interview: call NextPhase({ phase: 'design' }) when blocking ambiguity is resolved, or immediately when the task is already actionable
 - From design: call NextPhase({ phase: 'review' })
 - From review: call NextPhase({ phase: 'write' })
 - From write: call NextPhase({ phase: 'exit' })
 
+This is the Ultra Plan phase-transition tool. Do not use EnterPlanMode to advance phases.
 You can only advance forward, never backward.`;
   readonly parameters: Record<string, unknown> = toInputJsonSchema(NextPhaseInputSchema);
 
@@ -79,18 +78,7 @@ You can only advance forward, never backward.`;
       };
     }
 
-    // Enforce minimum interview rounds
-    if (currentPhase === 'interview' && targetPhase === 'design') {
-      const rounds = this.agent.planMode.interviewRoundCount;
-      if (rounds < MIN_INTERVIEW_ROUNDS) {
-        return {
-          isError: true,
-          output: `Interview phase requires at least ${MIN_INTERVIEW_ROUNDS} rounds. Current rounds: ${rounds}. Continue using AskUserQuestion to clarify requirements.`,
-        };
-      }
-    }
-
-    this.agent.planMode.setPhase(targetPhase as any);
+    this.agent.planMode.setPhase(targetPhase);
     this.agent.telemetry.track('ultra_plan_phase_transition', { from: currentPhase, to: targetPhase });
 
     return {

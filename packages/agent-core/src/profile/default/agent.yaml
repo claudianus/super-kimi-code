@@ -26,9 +26,11 @@ tools:
   - WebSearch
   - Agent
   - AgentSwarm
+  - UltraSwarm
   - FetchURL
   - AskUserQuestion
   - EnterPlanMode
+  - NextPhase
   - ExitPlanMode
   - CreateGoal
   - GetGoal

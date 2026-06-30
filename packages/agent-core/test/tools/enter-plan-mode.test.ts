@@ -19,6 +19,7 @@ function makeAgent(
     readonly active?: boolean;
     readonly mode?: PermissionMode;
     readonly planFilePath?: string | null;
+    readonly ultra?: boolean;
     readonly enter?: () => Promise<void>;
     readonly emit?: (event: unknown) => void;
   } = {},
@@ -40,6 +41,9 @@ function makeAgent(
     planMode: {
       get isActive() {
         return active;
+      },
+      get isUltraMode() {
+        return input.ultra ?? false;
       },
       get planFilePath() {
         return input.planFilePath ?? null;
@@ -90,6 +94,21 @@ describe('EnterPlanModeTool', () => {
 
     expect(result).toMatchObject({ isError: true });
     expect(result.output).toContain('already active');
+  });
+
+  it('points active Ultra Plan sessions to NextPhase instead of re-entering plan mode', async () => {
+    const { agent } = makeAgent({ active: true, ultra: true });
+    const result = await executeTool(new EnterPlanModeTool(agent), {
+      turnId: '0',
+      toolCallId: 'tc_ultra_active',
+      args: {},
+      signal,
+    });
+
+    expect(result).toMatchObject({ isError: true });
+    expect(result.output).toContain('Ultra Plan mode is already active');
+    expect(result.output).toContain('NextPhase');
+    expect(result.output).not.toContain('ExitPlanMode');
   });
 
   it.each(['manual', 'auto', 'yolo'] satisfies PermissionMode[])(
