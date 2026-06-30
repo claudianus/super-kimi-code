@@ -174,6 +174,7 @@ const VALUE_OPTIONS = new Set([
   '--tmux-session',
   '--kimi-code-home',
   '--require-computer-use',
+  '--computer-use-app',
   '--tui-before',
   '--tui-after',
   '--baseline-file',
@@ -241,6 +242,7 @@ Options:
   --use-real-kimi-home                Use the real ~/.kimi-code home for live TUI workflow auth/model checks.
   --require-computer-use <available|missing>
                                       Record expected computer-use availability.
+  --computer-use-app <name>           Expected app name for supplied computer-use evidence. Defaults to Terminal.
   --simulate-missing-auth             Record a missing-auth simulation request.
   --tui-before <dir>                  Record the TUI before-artifact directory.
   --tui-after <dir>                   Record the TUI after-artifact directory.
@@ -339,6 +341,9 @@ function parseArgs(argv) {
   ) {
     errors.push('--require-computer-use must be "available" or "missing"');
   }
+  if (options.computerUseApp !== undefined && options.computerUseApp.trim().length === 0) {
+    errors.push('--computer-use-app cannot be empty');
+  }
 
   if (options.port !== undefined) {
     const portNumber = Number(options.port);
@@ -404,6 +409,9 @@ function setValueOption(options, flag, value) {
       break;
     case '--require-computer-use':
       options.requireComputerUse = value;
+      break;
+    case '--computer-use-app':
+      options.computerUseApp = value;
       break;
     case '--tui-before':
       options.tuiBefore = value;
@@ -4357,11 +4365,14 @@ async function runTuiLaunchPhase(context) {
     const computerUse = await collectComputerUseEvidence(context);
     summary.computerUse = computerUse;
     const computerUseExplicitlyRequired = context.options.requireComputerUse !== undefined;
+    const computerUseUnavailableReason = computerUseExplicitlyRequired
+      ? `Required computer-use unavailable: ${computerUse.reason}`
+      : `Optional computer-use unavailable; continuing with tmux visible evidence: ${computerUse.reason}`;
     summary.validations.computerUseState = passFail(
       computerUse.status === 'PASS' || !computerUseExplicitlyRequired,
       computerUse.status === 'PASS'
         ? computerUse.reason
-        : `Optional computer-use unavailable; continuing with tmux visible evidence: ${computerUse.reason}`,
+        : computerUseUnavailableReason,
     );
     summary.computerUseOptional = {
       status: computerUse.status,
@@ -8758,10 +8769,11 @@ async function writeTuiAttachHelpers(context, tmuxSession) {
 async function collectComputerUseEvidence(context) {
   const evidencePath = path.join(context.evidenceRoot, 'tui', 'computer-use-state.json');
   const suppliedPath = process.env.KIMI_QA_COMPUTER_USE_STATE_PATH;
+  const app = context.options.computerUseApp ?? process.env.KIMI_QA_COMPUTER_USE_APP ?? 'Terminal';
   const base = {
-    app: 'Terminal',
+    app,
     requiredTool: 'mcp__computer_use.get_app_state',
-    expectedCall: 'mcp__computer_use.get_app_state({ app: "Terminal" })',
+    expectedCall: `mcp__computer_use.get_app_state({ app: ${JSON.stringify(app)} })`,
     evidencePath,
     suppliedPath,
     requireComputerUse: context.options.requireComputerUse,
@@ -8780,12 +8792,12 @@ async function collectComputerUseEvidence(context) {
     try {
       const raw = await readFile(path.resolve(suppliedPath), 'utf8');
       const parsed = JSON.parse(raw);
-      const validation = validateSuppliedComputerUseState(parsed, new Date());
+      const validation = validateSuppliedComputerUseState(parsed, new Date(), app);
       const result = {
         ...base,
         status: validation.status,
         reason: validation.reason,
-        schema: computerUseStateSchemaDescription(),
+        schema: computerUseStateSchemaDescription(app),
         validation,
         state: parsed,
       };
@@ -8809,35 +8821,37 @@ async function collectComputerUseEvidence(context) {
     reason:
       'No callable computer-use MCP bridge is available inside this Node harness and no KIMI_QA_COMPUTER_USE_STATE_PATH artifact was supplied.',
     callableInNodeHarness: false,
-    schema: computerUseStateSchemaDescription(),
+    schema: computerUseStateSchemaDescription(app),
     unblock:
-      'Call mcp__computer_use.get_app_state({ app: "Terminal" }), wrap the result with sourceTool/app/capturedAt plus a non-empty state/accessibilityTree/screenshot payload, then provide its JSON path with KIMI_QA_COMPUTER_USE_STATE_PATH.',
+      `Call mcp__computer_use.get_app_state({ app: ${JSON.stringify(app)} }), wrap the result with sourceTool/app/capturedAt plus a non-empty state/accessibilityTree/screenshot payload, then provide its JSON path with KIMI_QA_COMPUTER_USE_STATE_PATH. If the app is policy-blocked, supply a BLOCKED artifact with status/reason so the harness records a truthful blocker instead of a fake PASS.`,
   };
   await writeJson(evidencePath, result);
   return result;
 }
 
-function computerUseStateSchemaDescription() {
+function computerUseStateSchemaDescription(app = 'Terminal') {
   return {
     schemaVersion: COMPUTER_USE_STATE_SCHEMA_VERSION,
     requiredFields: {
       sourceTool: 'mcp__computer_use.get_app_state',
-      app: 'Terminal',
+      app,
       capturedAt: 'ISO-8601 timestamp no older than 10 minutes and not more than 60 seconds in the future',
     },
     inspectablePayload:
       'One of state, accessibilityTree, accessibility_tree, screenshot, screen, or windows must be present and non-empty.',
+    blockedArtifact:
+      'For policy or permission failures, use { schemaVersion, status: "BLOCKED", sourceTool, app, capturedAt, reason }. It remains BLOCKED and cannot satisfy --require-computer-use available.',
     example: {
       schemaVersion: COMPUTER_USE_STATE_SCHEMA_VERSION,
       sourceTool: 'mcp__computer_use.get_app_state',
-      app: 'Terminal',
+      app,
       capturedAt: new Date(0).toISOString(),
       state: { windows: ['<Terminal state returned by the tool>'] },
     },
   };
 }
 
-function validateSuppliedComputerUseState(state, now) {
+function validateSuppliedComputerUseState(state, now, expectedApp = 'Terminal') {
   const failures = [];
   if (state === null || typeof state !== 'object' || Array.isArray(state)) {
     failures.push('top-level JSON value must be an object');
@@ -8848,8 +8862,8 @@ function validateSuppliedComputerUseState(state, now) {
   if (state?.sourceTool !== 'mcp__computer_use.get_app_state') {
     failures.push('sourceTool must be "mcp__computer_use.get_app_state"');
   }
-  if (state?.app !== 'Terminal') {
-    failures.push('app must be "Terminal"');
+  if (state?.app !== expectedApp) {
+    failures.push(`app must be ${JSON.stringify(expectedApp)}`);
   }
 
   const capturedAt = typeof state?.capturedAt === 'string' ? Date.parse(state.capturedAt) : NaN;
@@ -8863,6 +8877,25 @@ function validateSuppliedComputerUseState(state, now) {
     if (ageMs < -COMPUTER_USE_STATE_FUTURE_SKEW_MS) {
       failures.push('capturedAt is too far in the future');
     }
+  }
+
+  if (state?.status === 'BLOCKED') {
+    const reason = typeof state?.reason === 'string' ? state.reason.trim() : '';
+    if (reason.length < 10) {
+      failures.push('BLOCKED computer-use state must include a specific reason');
+    }
+    return failures.length > 0
+      ? {
+          status: 'BLOCKED',
+          reason: `supplied blocked computer-use state failed schema/provenance/freshness checks: ${failures.join('; ')}`,
+          failures,
+        }
+      : {
+          status: 'BLOCKED',
+          reason: `supplied computer-use state reports blocker for ${expectedApp}: ${reason}`,
+          capturedAt: state.capturedAt,
+          blocker: reason,
+        };
   }
 
   const payload = findInspectableComputerUsePayload(state);
@@ -8882,7 +8915,7 @@ function validateSuppliedComputerUseState(state, now) {
   return {
     status: 'PASS',
     reason:
-      'Externally supplied Terminal state has required sourceTool/app/capturedAt provenance and a non-empty inspectable payload.',
+      `Externally supplied ${expectedApp} state has required sourceTool/app/capturedAt provenance and a non-empty inspectable payload.`,
     capturedAt: state.capturedAt,
     payloadKey: payload.key,
   };
