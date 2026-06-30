@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-import { appendFile, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { createWriteStream, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -123,6 +123,8 @@ const TUI_ULTRAWORK_SCORE_THRESHOLD = 90;
 const TUI_PROMPT_ENTRY_TEXT = 'visible qa prompt entry only';
 const TUI_INPUT_STEP_DELAY_MS = 150;
 const TUI_READY_TIMEOUT_MS = 45_000;
+const TUI_STARTUP_CAPTURE_ATTEMPTS = 5;
+const TUI_STARTUP_CAPTURE_RETRY_DELAY_MS = 1_000;
 const TUI_REAL_WORKFLOW_SOURCE_FILE = 'apps/kimi-code/src/tui/commands/ultrawork-contract.ts';
 const TUI_REAL_WORKFLOW_TEST_FILE = 'apps/kimi-code/test/tui/commands/ultrawork.test.ts';
 const TUI_REAL_WORKFLOW_VERIFIER_DIR = '.super-kimi-real-workflow';
@@ -4458,8 +4460,15 @@ async function runTuiLaunchPhase(context) {
     cleanupOverrides.liveProductCommandsStarted = true;
 
     await sleep(4_000);
-    const startupCapture = await captureTmuxPane(context, tmuxSession, 'startup');
+    const startupCaptureResult = await captureTmuxPaneWithRetry(context, tmuxSession, 'startup', {
+      maxAttempts: TUI_STARTUP_CAPTURE_ATTEMPTS,
+      retryDelayMs: TUI_STARTUP_CAPTURE_RETRY_DELAY_MS,
+    });
+    const startupCapture = startupCaptureResult.capture;
     summary.captures.push(startupCapture);
+    if (startupCaptureResult.retry !== undefined) {
+      summary.scenarioRetries.push(startupCaptureResult.retry);
+    }
     summary.validations.launchWorkspace = await validateTuiLaunchWorkspace(context, startupCapture);
 
     for (const scenario of TUI_CAPTURE_SCENARIOS.filter((item) => item.name !== 'startup')) {
@@ -9028,18 +9037,82 @@ async function waitForKimiTuiReady(context, tmuxSession, timeoutMs) {
   };
 }
 
-async function captureTmuxPane(context, tmuxSession, scenario) {
+async function captureTmuxPaneWithRetry(context, tmuxSession, scenario, options = {}) {
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 1);
+  const retryDelayMs = Math.max(0, options.retryDelayMs ?? 0);
+  const attempts = [];
+  let capture;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const artifactName = maxAttempts === 1 ? scenario : `${scenario}-attempt-${attempt}`;
+    capture = await captureTmuxPane(context, tmuxSession, scenario, { artifactName });
+    attempts.push(captureAttemptSummary(capture, attempt));
+    if (capture.status === 'PASS') break;
+    if (attempt < maxAttempts && retryDelayMs > 0) await sleep(retryDelayMs);
+  }
+
+  const canonicalCapture = await copyCaptureToCanonicalScenario(context, capture, scenario);
+  const retry =
+    attempts.length > 1 || attempts[0]?.status !== canonicalCapture.status
+      ? {
+          scenario,
+          reason: canonicalCapture.reason,
+          attempts,
+          finalAttempt: attempts.length,
+          finalStatus: canonicalCapture.status,
+          canonicalPath: canonicalCapture.path,
+        }
+      : undefined;
+
+  return { capture: canonicalCapture, retry };
+}
+
+function captureAttemptSummary(capture, attempt) {
+  return {
+    attempt,
+    status: capture.status,
+    reason: capture.reason,
+    bytes: capture.bytes,
+    path: capture.path,
+    stderrPath: capture.stderrPath,
+    failures: capture.screenProof?.failures ?? [],
+  };
+}
+
+async function copyCaptureToCanonicalScenario(context, capture, scenario) {
+  const filePath = path.join(context.evidenceRoot, 'tui', `${scenario}.txt`);
+  const stderrPath = path.join(context.evidenceRoot, 'tui', `${scenario}.stderr.txt`);
+  if (capture.path !== filePath) {
+    await copyFile(capture.path, filePath);
+  }
+  if (capture.stderrPath !== stderrPath) {
+    await copyFile(capture.stderrPath, stderrPath);
+  }
+  return {
+    ...capture,
+    artifactName: scenario,
+    path: filePath,
+    stderrPath,
+    canonicalizedFrom: capture.path === filePath ? undefined : capture.path,
+    canonicalizedFromArtifactName:
+      capture.artifactName === scenario ? undefined : capture.artifactName,
+  };
+}
+
+async function captureTmuxPane(context, tmuxSession, scenario, options = {}) {
   const result = runBoundedCommand('tmux', ['capture-pane', '-pt', tmuxSession, '-S', '-200'], {
     cwd: context.sourceCheckout,
     timeoutMs: 10_000,
   });
-  const filePath = path.join(context.evidenceRoot, 'tui', `${scenario}.txt`);
+  const artifactName = options.artifactName ?? scenario;
+  const filePath = path.join(context.evidenceRoot, 'tui', `${artifactName}.txt`);
   await writeFile(filePath, result.stdout, 'utf8');
-  const stderrPath = path.join(context.evidenceRoot, 'tui', `${scenario}.stderr.txt`);
+  const stderrPath = path.join(context.evidenceRoot, 'tui', `${artifactName}.stderr.txt`);
   await writeFile(stderrPath, result.stderr, 'utf8');
   const screenProof = inspectTuiCapture(scenario, result.stdout);
   return {
     scenario,
+    artifactName,
     command: 'tmux capture-pane -pt <session> -S -200',
     exitCode: result.status,
     status: result.status === 0 && screenProof.status === 'PASS' ? 'PASS' : 'FAIL',
