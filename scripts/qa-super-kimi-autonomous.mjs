@@ -5440,6 +5440,7 @@ async function runTuiUltraworkWorkflowPhase(context) {
       'disposable target worktree must resolve installed repository test tooling.',
     );
     summary.validations.ultraworkActivated = validateUltraworkActivation(waitResult);
+    summary.validations.linkedUltraworkStages = validateUltraworkLinkedStages(waitResult);
     summary.validations.ultraPlanInterviewReached = validateUltraworkInterview(waitResult);
     summary.validations.questionAnswered = validateUltraworkQuestionAnswered(waitResult);
     summary.validations.postQuestionProgressObserved = validateUltraworkPostQuestionProgress(waitResult);
@@ -5765,6 +5766,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
   const policyConflictEvidence = [];
   const policyConflictFingerprints = new Set();
   const phaseTransitionErrorEvidence = [];
+  const linkedStageEvidence = [];
   const agentVerificationEvidence = [];
   const submittedQuestionPanels = new Set();
   let questionAnswerCount = 0;
@@ -5831,6 +5833,12 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         reason: signals.phaseTransitionErrorReason,
       });
     }
+    if (signals.linkedStagesVisible && linkedStageEvidence.length === 0) {
+      linkedStageEvidence.push({
+        atMs: Date.now() - startedAt,
+        reason: signals.linkedStageReason,
+      });
+    }
     const state = classifyUltraworkWorkflowScreenState(normalized);
     const decision = decideUltraworkOperatorAction(state);
     observations.push({
@@ -5846,6 +5854,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
       questionToolError: signals.questionToolError,
       policyConflict: signals.policyConflict,
       phaseTransitionError: signals.phaseTransitionError,
+      linkedStagesVisible: signals.linkedStagesVisible,
       workspaceComplete,
       completedFiles: {
         source: fileState?.source.complete ?? false,
@@ -5870,6 +5879,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         questionToolErrorEvidence,
         policyConflictEvidence,
         phaseTransitionErrorEvidence,
+        linkedStageEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -5901,6 +5911,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
         questionToolErrorEvidence,
         policyConflictEvidence,
         phaseTransitionErrorEvidence,
+        linkedStageEvidence,
         agentVerificationEvidence,
         operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
       };
@@ -5995,6 +6006,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
     questionToolErrorEvidence,
     policyConflictEvidence,
     phaseTransitionErrorEvidence,
+    linkedStageEvidence,
     agentVerificationEvidence,
     operatorLoop: buildUltraworkOperatorLoopSummary(observations, interventions),
   };
@@ -6072,6 +6084,11 @@ function inspectUltraworkWorkflowSignals(output) {
   const phaseTransitionError = matchesAny(output, [
     /Invalid phase transition:\s*cannot go from/i,
   ]);
+  const linkedStagesVisible = matchesAny(output, [
+    /Tip:\s*Ultrawork:\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify/i,
+    /UltraPlan active\s*\|\s*UltraGoal created\s*\|\s*UltraSwarm armed\s*\|\s*Verify queued/i,
+    /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
+  ]);
   const policyConflictPatterns = [
     {
       fingerprint: 'ask-user-disabled-auto-permission',
@@ -6093,6 +6110,7 @@ function inspectUltraworkWorkflowSignals(output) {
     postQuestionProgress,
     questionToolError,
     phaseTransitionError,
+    linkedStagesVisible,
     policyConflict,
     policyFingerprint: policyConflictMatch?.fingerprint,
     activationReason: activated
@@ -6116,6 +6134,9 @@ function inspectUltraworkWorkflowSignals(output) {
     phaseTransitionErrorReason: phaseTransitionError
       ? 'screen shows an invalid Ultra Plan phase transition'
       : 'screen does not show an invalid Ultra Plan phase transition',
+    linkedStageReason: linkedStagesVisible
+      ? 'screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow'
+      : 'screen does not show the linked Ultrawork stage pipeline yet',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -6347,6 +6368,20 @@ function validateUltraworkActivation(waitResult) {
   };
 }
 
+function validateUltraworkLinkedStages(waitResult) {
+  const count = Array.isArray(waitResult.linkedStageEvidence)
+    ? waitResult.linkedStageEvidence.length
+    : 0;
+  return {
+    status: count > 0 ? 'PASS' : 'FAIL',
+    reason:
+      count > 0
+        ? 'Live TUI screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow.'
+        : 'Live TUI screen did not show UltraPlan, UltraGoal, UltraSwarm, and Verify as one linked Ultrawork workflow.',
+    evidenceCount: count,
+  };
+}
+
 function validateUltraworkInterview(waitResult) {
   const count = Array.isArray(waitResult.interviewEvidence)
     ? waitResult.interviewEvidence.length
@@ -6553,6 +6588,11 @@ function buildTuiUltraworkOperatorTrajectory(summary) {
       evidence: 'workflow.wait.activationEvidence',
     },
     {
+      name: 'observe-linked-ultrawork-stages',
+      status: summary.validations?.linkedUltraworkStages?.status === 'PASS' ? 'PASS' : 'FAIL',
+      evidence: 'workflow.wait.linkedStageEvidence',
+    },
+    {
       name: 'observe-ultra-plan-interview',
       status: summary.validations?.ultraPlanInterviewReached?.status === 'PASS' ? 'PASS' : 'FAIL',
       evidence: 'workflow.wait.interviewEvidence',
@@ -6658,7 +6698,7 @@ function validateTuiUltraworkOperatorTrajectory(summary) {
     status: failedSteps.length === 0 ? 'PASS' : 'FAIL',
     reason:
       failedSteps.length === 0
-        ? 'Ultrawork TUI workflow includes visible activation, optional interview handling, source/test completion, agent-run verification, no question tool contract error, and no policy-deadlock evidence.'
+        ? 'Ultrawork TUI workflow includes visible activation, linked UltraPlan/UltraGoal/UltraSwarm/Verify stages, optional interview handling, source/test completion, agent-run verification, no question tool contract error, and no policy-deadlock evidence.'
         : `Ultrawork TUI workflow is missing operator evidence: ${failedSteps
             .map((step) => step.name)
             .join(', ')}.`,
