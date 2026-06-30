@@ -87,6 +87,7 @@ interface MessageDriver {
   };
   init(): Promise<boolean>;
   handleUserInput(text: string): void;
+  sendNormalUserInput(text: string, options?: { readonly displayText?: string }): void;
   persistInputHistory(text: string): Promise<void>;
   sendQueuedMessage(session: unknown, item: QueuedMessage): void;
   getCurrentSessionId(): string;
@@ -1514,6 +1515,24 @@ command = "vim"
     ]);
   });
 
+  it('can hide internal prompt scaffolding from the transcript display', async () => {
+    const { driver, session } = await makeDriver();
+    const internalPrompt = '<ultrawork_flow>secret contract</ultrawork_flow>';
+
+    driver.sendNormalUserInput(internalPrompt, { displayText: 'Ship feature X' });
+
+    expect(session.prompt).toHaveBeenCalledWith(internalPrompt);
+    expect(driver.state.transcriptEntries).toEqual([
+      expect.objectContaining({
+        kind: 'user',
+        content: 'Ship feature X',
+      }),
+    ]);
+    expect(renderTranscript(driver)).toContain('Ship feature X');
+    expect(renderTranscript(driver)).not.toContain('<ultrawork_flow>');
+    expect(renderTranscript(driver)).not.toContain('secret contract');
+  });
+
   it('queues editor input instead of prompting while a turn is already streaming', async () => {
     const { driver, session, harness } = await makeDriver();
     driver.state.appState.streamingPhase = 'waiting';
@@ -1621,6 +1640,26 @@ command = "vim"
     expect(session.prompt).not.toHaveBeenCalled();
   });
 
+  it('uses queued display text while preserving the SDK prompt', async () => {
+    const session = makeSession();
+    const { driver } = await makeDriver(session);
+    const internalPrompt = '<ultrawork_flow>secret contract</ultrawork_flow>';
+
+    driver.sendQueuedMessage(session, {
+      text: internalPrompt,
+      displayText: 'Ship feature X',
+      agentId: 'main',
+    });
+
+    expect(session.prompt).toHaveBeenCalledWith(internalPrompt);
+    expect(driver.state.transcriptEntries).toEqual([
+      expect.objectContaining({
+        kind: 'user',
+        content: 'Ship feature X',
+      }),
+    ]);
+  });
+
   it('does not persist bash input to input history', async () => {
     const { driver } = await makeDriver();
     driver.state.appState.streamingPhase = 'waiting';
@@ -1717,6 +1756,25 @@ command = "vim"
     expect(driver.state.editor.getText()).toBe('hello');
     expect(driver.state.editor.inputMode).toBe('prompt');
     expect(driver.state.appState.inputMode).toBe('prompt');
+    expect(driver.state.queuedMessages).toEqual([]);
+  });
+
+  it('recalls queued display text instead of hidden internal prompt text', async () => {
+    const { driver } = await makeDriver();
+    driver.state.appState.streamingPhase = 'waiting';
+    driver.state.queuedMessages = [
+      {
+        text: '<ultrawork_flow>secret contract</ultrawork_flow>',
+        displayText: 'Ship feature X',
+        agentId: 'main',
+      },
+    ];
+
+    const handled = driver.state.editor.onUpArrowEmpty?.();
+
+    expect(handled).toBe(true);
+    expect(driver.state.editor.getText()).toBe('Ship feature X');
+    expect(driver.state.editor.getText()).not.toContain('<ultrawork_flow>');
     expect(driver.state.queuedMessages).toEqual([]);
   });
 

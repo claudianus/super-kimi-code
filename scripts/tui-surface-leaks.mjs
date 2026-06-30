@@ -11,6 +11,10 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
     label: 'legacy Ultrawork stage copy',
     pattern: /\bUltrawork\s+plans,\s+sets goal,\s+swarms,\s+verifies\b/i,
   },
+  {
+    label: 'internal Ultrawork prompt contract',
+    pattern: /<ultrawork_flow>|<untrusted_objective>|Operating contract:/i,
+  },
   { label: 'internal Ultrawork stage list', pattern: /\bUltrawork\s+auto-runs\s+UltraPlan,\s+UltraGoal,\s+UltraSwarm\b/i },
   { label: 'Ultrawork manual command', pattern: /(?:^|\s)\/?ultrawork(?=[\s.,;:)\]]|$)/ },
   { label: 'Ultraswarm manual command', pattern: /(?:^|\s)\/?ultraswarm(?=[\s.,;:)\]]|$)/ },

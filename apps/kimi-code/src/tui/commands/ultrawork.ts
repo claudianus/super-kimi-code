@@ -136,7 +136,9 @@ async function startUltrawork(
     new UltraworkModeMarkerComponent('active', request.objective),
   );
   host.state.ui.requestRender();
-  host.sendNormalUserInput(buildUltraworkPrompt(request.objective, source));
+  host.sendNormalUserInput(buildUltraworkPrompt(request.objective, source), {
+    displayText: request.objective,
+  });
 }
 
 async function setPermissionForUltrawork(

@@ -251,8 +251,14 @@ describe('handleUltraworkCommand', () => {
       'Auto-orchestrated: UltraPlan | UltraGoal | UltraSwarm | Verify',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
-    expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('Ship feature X'));
-    expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('<ultrawork_flow>'));
+    expect(host.sendNormalUserInput).toHaveBeenCalledWith(
+      expect.stringContaining('<ultrawork_flow>'),
+      { displayText: 'Ship feature X' },
+    );
+    expect(host.sendNormalUserInput).not.toHaveBeenCalledWith(
+      expect.stringContaining('<ultrawork_flow>'),
+      { displayText: expect.stringContaining('<ultrawork_flow>') },
+    );
   });
 
   it('does not create a goal when ultra-plan setup fails', async () => {
@@ -280,7 +286,10 @@ describe('handleUltraworkCommand', () => {
       objective: 'Ship feature X',
       replace: false,
     });
-    expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('<ultrawork_flow>'));
+    expect(host.sendNormalUserInput).toHaveBeenCalledWith(
+      expect.stringContaining('<ultrawork_flow>'),
+      { displayText: 'Ship feature X' },
+    );
   });
 
   it('continues when session state is already in plan mode but app state is stale', async () => {
@@ -295,7 +304,10 @@ describe('handleUltraworkCommand', () => {
       objective: 'Ship feature X',
       replace: false,
     });
-    expect(host.sendNormalUserInput).toHaveBeenCalledWith(expect.stringContaining('<ultrawork_flow>'));
+    expect(host.sendNormalUserInput).toHaveBeenCalledWith(
+      expect.stringContaining('<ultrawork_flow>'),
+      { displayText: 'Ship feature X' },
+    );
   });
 
   it('rolls back ultrawork setup when goal creation fails', async () => {

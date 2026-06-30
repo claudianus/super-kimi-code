@@ -42,7 +42,8 @@ export class QueuePaneComponent extends Container {
     const lines: string[] = [currentTheme.fg('border', '─'.repeat(width))];
 
     for (const item of this.messages) {
-      const singleLine = item.text.replaceAll(/\s+/g, ' ').trim();
+      const displayText = item.displayText ?? item.text;
+      const singleLine = displayText.replaceAll(/\s+/g, ' ').trim();
       const prefix = `  ${SELECT_POINTER} `;
       if (item.mode === 'bash') {
         // Shell commands get a `$ ` prompt and the shell-mode hue so they read

@@ -141,7 +141,7 @@ export interface SlashCommandHost {
   showHelpPanel(args?: string): void;
   createNewSession(): Promise<void>;
   showSessionPicker(): Promise<void>;
-  sendNormalUserInput(text: string): void;
+  sendNormalUserInput(text: string, options?: { readonly displayText?: string }): void;
   sendSkillActivation(session: Session, skillName: string, skillArgs: string): void;
   readonly skillCommandMap: Map<string, string>;
 

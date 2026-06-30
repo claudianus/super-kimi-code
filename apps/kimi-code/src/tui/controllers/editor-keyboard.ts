@@ -248,7 +248,7 @@ export class EditorKeyboardController {
       if (host.state.appState.streamingPhase === 'idle' && !host.state.appState.isCompacting) return false;
       const recalled = host.recallLastQueued();
       if (recalled !== undefined) {
-        editor.setText(recalled.text);
+        editor.setText(recalled.displayText ?? recalled.text);
         // Restore the queued item's mode so a recalled `!` command runs as a
         // shell command again instead of being submitted as a normal prompt.
         const mode = recalled.mode ?? 'prompt';

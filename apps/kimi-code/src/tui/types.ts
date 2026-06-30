@@ -182,6 +182,7 @@ export interface LivePaneState {
 
 export interface QueuedMessage {
   readonly text: string;
+  readonly displayText?: string;
   readonly agentId?: string;
   readonly parts?: readonly PromptPart[];
   readonly imageAttachmentIds?: readonly number[];

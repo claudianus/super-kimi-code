@@ -232,6 +232,7 @@ function createInitialAppState(input: KimiTUIStartupInput): AppState {
 }
 
 interface SendMessageOptions {
+  readonly displayText?: string;
   readonly parts?: readonly PromptPart[];
   readonly imageAttachmentIds?: readonly number[];
   readonly hasMedia?: boolean;
@@ -1020,7 +1021,7 @@ export class KimiTUI {
     this.updateQueueDisplay();
   }
 
-  sendNormalUserInput(text: string): void {
+  sendNormalUserInput(text: string, options?: { readonly displayText?: string }): void {
     if (this.btwPanelController.sendUserInput(text)) return;
     if (this.state.appState.model.trim().length === 0) {
       this.showError(LLM_NOT_SET_MESSAGE);
@@ -1035,12 +1036,13 @@ export class KimiTUI {
     }
     if (extraction.hasMedia) {
       this.sendMessage(session, text, {
+        displayText: options?.displayText,
         hasMedia: true,
         parts: extraction.parts,
         imageAttachmentIds: extraction.imageAttachmentIds,
       });
     } else {
-      this.sendMessage(session, text);
+      this.sendMessage(session, text, { displayText: options?.displayText });
     }
     this.updateQueueDisplay();
     this.state.ui.requestRender();
@@ -1119,6 +1121,7 @@ export class KimiTUI {
   ): void {
     this.state.queuedMessages.push({
       text,
+      displayText: options?.displayText,
       agentId: this.harness.interactiveAgentId,
       parts: options?.parts,
       imageAttachmentIds:
@@ -1160,6 +1163,7 @@ export class KimiTUI {
     }
     this.harness.withInteractiveAgent(item.agentId ?? MAIN_AGENT_ID, () => {
       this.sendMessageInternal(session, item.text, {
+        displayText: item.displayText,
         parts: item.parts,
         imageAttachmentIds: item.imageAttachmentIds,
       });
@@ -1175,12 +1179,13 @@ export class KimiTUI {
       options?.imageAttachmentIds !== undefined && options.imageAttachmentIds.length > 0
         ? options.imageAttachmentIds
         : undefined;
+    const displayInput = options?.displayText ?? input;
     this.appendTranscriptEntry({
       id: nextTranscriptId(),
       kind: 'user',
       turnId: undefined,
       renderMode: 'plain',
-      content: input,
+      content: displayInput,
       imageAttachmentIds,
     });
 

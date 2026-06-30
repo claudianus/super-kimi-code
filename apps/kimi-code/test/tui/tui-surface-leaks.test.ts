@@ -34,6 +34,12 @@ describe('TUI surface leak checks', () => {
         'Describe task; Ultrawork plans, sets goal, swarms, verifies.',
       ),
     ).toContain('default startup capture exposes legacy Ultrawork stage copy');
+    expect(
+      defaultUserSurfaceLeakFailures(
+        'prompt-entry',
+        '<ultrawork_flow>\nOperating contract:\n<untrusted_objective>',
+      ),
+    ).toContain('default prompt-entry capture exposes internal Ultrawork prompt contract');
     expect(defaultUserSurfaceLeakFailures('startup', 'shift-tab to Plan mode before editing')).toContain(
       'default startup capture exposes legacy plan mode label',
     );

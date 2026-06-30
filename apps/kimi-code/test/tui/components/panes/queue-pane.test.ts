@@ -83,6 +83,20 @@ describe('QueuePaneComponent', () => {
     expect(messageLine).not.toContain('\n');
   });
 
+  it('uses display text for hidden internal prompts', () => {
+    const component = new QueuePaneComponent({
+      isCompacting: false,
+      isStreaming: true,
+      canSteerImmediately: true,
+      messages: [{ text: '<ultrawork_flow>secret contract</ultrawork_flow>', displayText: 'Ship feature X' }],
+    });
+
+    const output = stripAnsi(component.render(120).join('\n'));
+    expect(output).toContain('❯ Ship feature X');
+    expect(output).not.toContain('<ultrawork_flow>');
+    expect(output).not.toContain('secret contract');
+  });
+
   it('renders bash queued items with a $ prompt to distinguish them from text', () => {
     const component = new QueuePaneComponent({
       isCompacting: false,
