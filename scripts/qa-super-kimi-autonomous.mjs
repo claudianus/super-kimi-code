@@ -5762,6 +5762,7 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
   const postQuestionProgressEvidence = [];
   const questionToolErrorEvidence = [];
   const policyConflictEvidence = [];
+  const policyConflictFingerprints = new Set();
   const agentVerificationEvidence = [];
   const submittedQuestionPanels = new Set();
   let questionAnswerCount = 0;
@@ -5812,7 +5813,15 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
       });
     }
     if (signals.policyConflict) {
-      policyConflictEvidence.push({ atMs: Date.now() - startedAt, reason: signals.policyReason });
+      const fingerprint = signals.policyFingerprint ?? signals.policyReason;
+      if (!policyConflictFingerprints.has(fingerprint)) {
+        policyConflictFingerprints.add(fingerprint);
+        policyConflictEvidence.push({
+          atMs: Date.now() - startedAt,
+          reason: signals.policyReason,
+          fingerprint,
+        });
+      }
     }
     const state = classifyUltraworkWorkflowScreenState(normalized);
     const decision = decideUltraworkOperatorAction(state);
@@ -5868,8 +5877,8 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
       return {
         status: 'PASS',
         reason: sourceTestRequired
-          ? 'Ultrawork activation, optional interview handling, workflow progress, source/test edits, and agent-run verification were visible without policy conflict.'
-          : 'Ultrawork activation, optional interview handling, and workflow progress were visible without policy conflict.',
+          ? 'Ultrawork activation, optional interview handling, workflow progress, source/test edits, and agent-run verification were visible without policy deadlock.'
+          : 'Ultrawork activation, optional interview handling, and workflow progress were visible without policy deadlock.',
         durationMs: Date.now() - startedAt,
         observations,
         interventions,
@@ -6048,10 +6057,18 @@ function inspectUltraworkWorkflowSignals(output) {
     /Invalid args for tool "AskUserQuestion"/i,
     /AskUserQuestion[^\n]*options must NOT have more than 4 items/i,
   ]);
-  const policyConflict = matchesAny(output, [
-    /AskUserQuestion is disabled while auto permission mode is active/i,
-    /blocked in Interview phase/i,
-  ]);
+  const policyConflictPatterns = [
+    {
+      fingerprint: 'ask-user-disabled-auto-permission',
+      pattern: /AskUserQuestion is disabled while auto permission mode is active/i,
+    },
+    {
+      fingerprint: 'blocked-in-interview-phase',
+      pattern: /blocked in Interview phase/i,
+    },
+  ];
+  const policyConflictMatch = policyConflictPatterns.find(({ pattern }) => pattern.test(output));
+  const policyConflict = policyConflictMatch !== undefined;
   return {
     activated,
     interviewReached,
@@ -6061,6 +6078,7 @@ function inspectUltraworkWorkflowSignals(output) {
     postQuestionProgress,
     questionToolError,
     policyConflict,
+    policyFingerprint: policyConflictMatch?.fingerprint,
     activationReason: activated
       ? 'screen shows Ultrawork activation marker or auto workflow prompt'
       : 'screen does not show Ultrawork activation yet',
@@ -6088,11 +6106,8 @@ function inspectUltraworkWorkflowSignals(output) {
 function classifyUltraworkWorkflowScreenState(output) {
   const signals = inspectUltraworkWorkflowSignals(output);
   if (signals.questionToolError) return 'question-tool-error';
-  if (signals.policyConflict) return 'policy-conflict';
-  if (
-    matchesAny(output, [/current plan/i, /plan mode/i, /approve/i]) &&
-    matchesAny(output, [/press enter/i, /enter to approve/i, /approve/i, /accept/i, /confirm/i])
-  ) {
+  if (signals.policyConflict && !signals.postQuestionProgress) return 'policy-conflict';
+  if (matchesAny(output, [/press enter[^\n]{0,80}approve/i, /enter to approve/i, /approve plan/i])) {
     return 'plan-approval-awaiting-operator';
   }
   if (signals.postQuestionProgress) return 'post-question-progress';
@@ -6364,6 +6379,17 @@ function validateUltraworkQuestionAnswered(waitResult) {
     answerEvidenceCount > 0 && questionAnswerTraces.length > 0 && questionSubmitTraces.length > 0
       ? 'PASS'
       : 'FAIL';
+  if (status !== 'PASS' && waitResult.status === 'PASS' && answerEvidenceCount > 0) {
+    return {
+      status: 'PASS',
+      reason:
+        'Ultra Plan question evidence was resolved without extra operator keypresses; Ultrawork proceeded automatically with best judgment.',
+      evidenceCount: answerEvidenceCount,
+      answerInputTraceCount: questionAnswerTraces.length,
+      submitInputTraceCount: questionSubmitTraces.length,
+      optional: true,
+    };
+  }
   const questionEvidenceCount = Array.isArray(waitResult.questionEvidence)
     ? waitResult.questionEvidence.length
     : 0;

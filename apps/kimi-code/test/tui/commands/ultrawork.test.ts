@@ -166,6 +166,7 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('second-pass rewrite or deterministic cleanup');
     expect(prompt).toContain('reread the result for changed meaning');
     expect(prompt).toContain('use only AskUserQuestion or NextPhase');
+    expect(prompt).toContain('If AskUserQuestion is unavailable or rejected by policy');
     expect(prompt).toContain('at most 4 options per question');
     expect(prompt).toContain('Never ask more than 3 total interview questions');
     expect(prompt).toContain('continue the same Ultrawork turn toward implementation');
