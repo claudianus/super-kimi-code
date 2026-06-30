@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileMentionProvider } from '#/tui/components/editor/file-mention-provider';
 import { findBuiltInSlashCommand } from '#/tui/commands/index';
@@ -114,6 +114,19 @@ describe('FileMentionProvider', () => {
     const line = '/goal Fix the checkout docs';
     const result = await provider.getSuggestions([line], 0, '/goal '.length, { signal: ctrl() });
     expect(result).toBeNull();
+  });
+
+  it('opens @ file mentions inside slash command arguments', async () => {
+    writeFileSync(join(workDir, 'README.md'), 'readme');
+    const provider = new FileMentionProvider([GOAL_COMMAND], workDir, NO_FD);
+    const line = '/goal Fix the @checkout docs';
+    const result = await provider.getSuggestions([line], 0, '/goal Fix the @'.length, {
+      signal: ctrl(),
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.prefix).toBe('@');
+    expect(result!.items.map((item) => item.value)).toContain('@README.md');
   });
 
   it('still completes slash arguments at the end of an empty argument', async () => {
@@ -480,5 +493,110 @@ describe('FileMentionProvider', () => {
       '@sr',
     );
     expect(dir.lines[0]).toBe('hey @src/');
+  });
+
+  describe('bash-mode path completion', () => {
+    it('hides dot-prefixed path entries in bash mode', async () => {
+      mkdirSync(join(workDir, '.hidden'));
+      mkdirSync(join(workDir, 'visible'));
+      writeFileSync(join(workDir, '.dotfile'), '');
+      writeFileSync(join(workDir, 'normal.txt'), '');
+
+      const provider = new FileMentionProvider([], workDir, NO_FD, [], undefined, () => 'bash');
+      const text = `cd ${workDir}/`;
+      const result = await provider.getSuggestions([text], 0, text.length, {
+        signal: ctrl(),
+        force: true,
+      });
+
+      expect(result).not.toBeNull();
+      const labels = result!.items.map((item) => item.label);
+      expect(labels).toContain('visible/');
+      expect(labels).toContain('normal.txt');
+      expect(labels).not.toContain('.hidden/');
+      expect(labels).not.toContain('.dotfile');
+    });
+
+    it('keeps dot-prefixed path entries in prompt mode', async () => {
+      mkdirSync(join(workDir, '.hidden'));
+      writeFileSync(join(workDir, '.dotfile'), '');
+
+      const provider = new FileMentionProvider([], workDir, NO_FD);
+      const text = `cd ${workDir}/`;
+      const result = await provider.getSuggestions([text], 0, text.length, {
+        signal: ctrl(),
+        force: true,
+      });
+
+      expect(result).not.toBeNull();
+      const labels = result!.items.map((item) => item.label);
+      expect(labels).toContain('.hidden/');
+      expect(labels).toContain('.dotfile');
+    });
+
+    it('does not double a leading slash when applying a bash path completion', () => {
+      const provider = new FileMentionProvider([], workDir, NO_FD, [], undefined, () => 'bash');
+      const result = provider.applyCompletion(
+        ['/'],
+        0,
+        1,
+        { value: '/Applications/', label: 'Applications/' },
+        '/',
+      );
+
+      expect(result.lines[0]).toBe('/Applications/');
+      expect(result.cursorCol).toBe('/Applications/'.length);
+    });
+
+    it('replaces a bash path prefix without adding a trailing space', () => {
+      const provider = new FileMentionProvider([], workDir, NO_FD, [], undefined, () => 'bash');
+      const result = provider.applyCompletion(
+        ['cd /App'],
+        0,
+        7,
+        { value: '/Applications/', label: 'Applications/' },
+        '/App',
+      );
+
+      expect(result.lines[0]).toBe('cd /Applications/');
+      expect(result.cursorCol).toBe('cd /Applications/'.length);
+    });
+
+    it('suppresses slash argument completions for bash absolute paths', async () => {
+      const getArgumentCompletions = vi.fn(() => [{ value: 'list', label: 'list' }]);
+      const provider = new FileMentionProvider(
+        [{ name: 'add-dir', description: 'Add directory', getArgumentCompletions }],
+        workDir,
+        NO_FD,
+        [],
+        undefined,
+        () => 'bash',
+      );
+
+      const result = await provider.getSuggestions(['/add-dir '], 0, '/add-dir '.length, {
+        signal: ctrl(),
+        force: true,
+      });
+
+      expect(getArgumentCompletions).not.toHaveBeenCalled();
+      expect(result?.items.map((item) => item.label) ?? []).not.toContain('list');
+    });
+
+    it('keeps slash argument completions in prompt mode', async () => {
+      const getArgumentCompletions = vi.fn(() => [{ value: '/shared/', label: 'shared/' }]);
+      const provider = new FileMentionProvider(
+        [{ name: 'add-dir', description: 'Add directory', getArgumentCompletions }],
+        workDir,
+        NO_FD,
+      );
+
+      const result = await provider.getSuggestions(['/add-dir /'], 0, '/add-dir /'.length, {
+        signal: ctrl(),
+        force: false,
+      });
+
+      expect(getArgumentCompletions).toHaveBeenCalled();
+      expect(result?.items.map((item) => item.label)).toContain('shared/');
+    });
   });
 });

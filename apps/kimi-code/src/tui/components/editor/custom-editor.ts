@@ -49,6 +49,11 @@ interface AutocompleteListFactoryInternals {
   createAutocompleteList?: (prefix: string, items: SelectItem[]) => SelectList;
 }
 
+interface AutocompleteTriggerInternals {
+  tryTriggerAutocomplete: (explicitTab?: boolean) => void;
+  requestAutocomplete: (options: { force: boolean; explicitTab: boolean }) => void;
+}
+
 // Mirror pi-tui's private SLASH_COMMAND_SELECT_LIST_LAYOUT
 // (dist/components/editor.js); keep in sync when bumping pi-tui.
 const SLASH_COMMAND_SELECT_LIST_LAYOUT = {
@@ -189,6 +194,10 @@ export class CustomEditor extends Editor {
       }
       return new SelectList(items, this.getAutocompleteMaxVisible(), theme.selectList);
     };
+    const triggerInternals = this as unknown as AutocompleteTriggerInternals;
+    triggerInternals.tryTriggerAutocomplete = (explicitTab = false) => {
+      triggerInternals.requestAutocomplete({ force: this.inputMode === 'bash', explicitTab });
+    };
   }
 
   private expandPasteMarkerAtCursor(): boolean {
@@ -236,7 +245,7 @@ export class CustomEditor extends Editor {
     const firstContentIdx = 1;
     const isBash = this.inputMode === 'bash';
     const text = this.getText().trimStart();
-    if (text.startsWith('/')) {
+    if (text.startsWith('/') && !isBash) {
       // Paint only the FIRST editor content line; multi-line slash commands
       // are not a thing in practice.
       const original = lines[firstContentIdx];
@@ -276,6 +285,7 @@ export class CustomEditor extends Editor {
   }
 
   private computeArgumentHint(): string | undefined {
+    if (this.inputMode === 'bash') return undefined;
     const text = this.getText();
     const match = /^\/(\S+)( ?)$/.exec(text);
     if (match === null) return undefined;
@@ -491,10 +501,18 @@ export class CustomEditor extends Editor {
     // Reopen path / argument completion right after a `/` is typed
     // (e.g. `/add-dir /` or an `@dir/` mention).
     if (textBeforeCursor.endsWith('/')) {
-      const isSlashArgument = textBeforeCursor.startsWith('/') && textBeforeCursor.includes(' ');
       const isAtMention = extractAtPrefix(textBeforeCursor) !== null;
-      if (isSlashArgument || isAtMention) {
+      if (isAtMention) {
         trigger();
+      } else if (this.inputMode === 'bash') {
+        if (textBeforeCursor.trimStart() !== '/') {
+          editor.requestAutocomplete?.({ force: true, explicitTab: false });
+        }
+      } else {
+        const isSlashArgument = textBeforeCursor.startsWith('/') && textBeforeCursor.includes(' ');
+        if (isSlashArgument) {
+          trigger();
+        }
       }
       return;
     }
@@ -503,6 +521,7 @@ export class CustomEditor extends Editor {
     // space and closes the menu without triggering argument completion. Reopen
     // it so subcommands (e.g. `/goal ` → status/pause/…) show immediately.
     if (
+      this.inputMode !== 'bash' &&
       textBeforeCursor.endsWith(' ') &&
       textBeforeCursor.startsWith('/') &&
       textBeforeCursor.includes(' ')

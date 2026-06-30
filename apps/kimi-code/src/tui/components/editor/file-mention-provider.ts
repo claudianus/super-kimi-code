@@ -53,6 +53,7 @@ export class FileMentionProvider implements AutocompleteProvider {
     private readonly fdPath: string | null,
     additionalDirs: readonly string[] = [],
     private readonly dynamicSlashCommands?: DynamicSlashCommandProvider,
+    private readonly getInputMode: () => 'prompt' | 'bash' = () => 'prompt',
   ) {
     this.additionalDirs = additionalDirs.map((dir) => normalizePath(resolve(workDir, dir)));
     // Build an expanded list that includes alias entries so that
@@ -76,20 +77,6 @@ export class FileMentionProvider implements AutocompleteProvider {
     const currentLine = lines[cursorLine] ?? '';
     const textBeforeCursor = currentLine.slice(0, cursorCol);
 
-    if (shouldSuppressLeadingWhitespaceSlashPath(textBeforeCursor, options.force)) {
-      return null;
-    }
-
-    if (
-      shouldSuppressSlashArgumentCompletion(
-        textBeforeCursor,
-        currentLine.slice(cursorCol),
-        options.force,
-      )
-    ) {
-      return null;
-    }
-
     const atPrefix = extractAtPrefix(textBeforeCursor);
     if (atPrefix !== null) {
       if (this.fdPath === null || this.additionalDirs.length > 0) {
@@ -111,6 +98,20 @@ export class FileMentionProvider implements AutocompleteProvider {
           options.signal,
         );
       }
+    }
+
+    if (shouldSuppressLeadingWhitespaceSlashPath(textBeforeCursor, options.force)) {
+      return null;
+    }
+
+    if (
+      shouldSuppressSlashArgumentCompletion(
+        textBeforeCursor,
+        currentLine.slice(cursorCol),
+        options.force,
+      )
+    ) {
+      return null;
     }
 
     // Handle slash-command name completion ourselves so that aliases are
@@ -184,13 +185,17 @@ export class FileMentionProvider implements AutocompleteProvider {
       }
     }
 
-    const slashArgumentSuggestions = await getSlashArgumentSuggestions(this.slashCommands, textBeforeCursor);
-    if (slashArgumentSuggestions !== null) {
-      return slashArgumentSuggestions;
+    if (this.getInputMode() !== 'bash') {
+      const slashArgumentSuggestions = await getSlashArgumentSuggestions(this.slashCommands, textBeforeCursor);
+      if (slashArgumentSuggestions !== null) {
+        return slashArgumentSuggestions;
+      }
     }
 
     try {
-      return await this.inner.getSuggestions(lines, cursorLine, cursorCol, options);
+      const inner = await this.inner.getSuggestions(lines, cursorLine, cursorCol, options);
+      if (inner === null || this.getInputMode() !== 'bash') return inner;
+      return { ...inner, items: inner.items.filter((item) => !isDotPrefixedEntry(item)) };
     } catch {
       return null;
     }
@@ -203,6 +208,9 @@ export class FileMentionProvider implements AutocompleteProvider {
     item: AutocompleteItem,
     prefix: string,
   ): { lines: string[]; cursorLine: number; cursorCol: number } {
+    if (this.getInputMode() === 'bash' && prefix.startsWith('/')) {
+      return applyPathCompletion(lines, cursorLine, cursorCol, item, prefix);
+    }
     return this.inner.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
   }
 
@@ -242,6 +250,34 @@ export function extractAtPrefix(text: string): string | null {
   }
   if (text[tokenStart] !== '@') return null;
   return text.slice(tokenStart);
+}
+
+function isDotPrefixedEntry(item: AutocompleteItem): boolean {
+  const name = item.label.endsWith('/') ? item.label.slice(0, -1) : item.label;
+  return name.startsWith('.');
+}
+
+function applyPathCompletion(
+  lines: string[],
+  cursorLine: number,
+  cursorCol: number,
+  item: AutocompleteItem,
+  prefix: string,
+): { lines: string[]; cursorLine: number; cursorCol: number } {
+  const currentLine = lines[cursorLine] ?? '';
+  const beforePrefix = currentLine.slice(0, cursorCol - prefix.length);
+  const afterCursor = currentLine.slice(cursorCol);
+  const newLine = beforePrefix + item.value + afterCursor;
+  const newLines = [...lines];
+  newLines[cursorLine] = newLine;
+  const isDirectory = item.label.endsWith('/');
+  const hasTrailingQuote = item.value.endsWith('"');
+  const cursorOffset = isDirectory && hasTrailingQuote ? item.value.length - 1 : item.value.length;
+  return {
+    lines: newLines,
+    cursorLine,
+    cursorCol: beforePrefix.length + cursorOffset,
+  };
 }
 
 function getFsMentionSuggestions(

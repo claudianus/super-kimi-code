@@ -398,6 +398,7 @@ export class KimiTUI {
       this.fdPath,
       this.state.appState.additionalDirs,
       (query, signal) => this.searchSkillSlashCommands(query, signal),
+      () => this.state.appState.inputMode,
     );
     this.state.editor.setAutocompleteProvider(provider);
 
