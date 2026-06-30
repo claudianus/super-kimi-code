@@ -33,6 +33,12 @@ export interface StatusHumanWritingReadiness {
   readonly nextAction: string;
 }
 
+export interface StatusRecoveryReadiness {
+  readonly ready: boolean;
+  readonly nextAction: string;
+  readonly evidencePath?: string;
+}
+
 export interface StatusReportOptions {
   readonly version: string;
   readonly model: string;
@@ -54,6 +60,7 @@ export interface StatusReportOptions {
   readonly managedUsageError?: string;
   readonly gitStatus?: GitStatus | null;
   readonly humanWriting?: StatusHumanWritingReadiness;
+  readonly recovery?: StatusRecoveryReadiness;
 }
 
 type Colorize = (text: string) => string;
@@ -108,7 +115,6 @@ const WORKFLOW_GATE = 'task -> Ultrawork stages -> verify';
 const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
 const AUTO_GATE = 'ask if needed | plan | goal | swarm | verify';
 const AUTONOMY_GATE = 'bounded now -> headless target';
-const RECOVERY_GATE = 'resumable floor -> durable target';
 const TOOLS_GATE = 'search first; load tools on demand';
 const MEMORY_GATE = 'prefs | session recall | long-run notes';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
@@ -222,6 +228,12 @@ function formatReadinessBlockers(options: StatusReportOptions): string {
   return blockers.length === 0 ? 'none detected' : blockers.join(', ');
 }
 
+function formatRecoveryGate(options: StatusReportOptions): string {
+  return options.recovery?.ready === true
+    ? 'resumable evidence ready -> durable target'
+    : 'resumable evidence needed -> durable target';
+}
+
 function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   const writingBlocked = humanWritingBlocked(options);
   const writingRow: FieldRow = writingBlocked
@@ -233,7 +245,7 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
     { label: 'Engine', value: ENGINE_GATE },
     { label: 'Auto', value: AUTO_GATE },
     { label: 'Autonomy', value: AUTONOMY_GATE },
-    { label: 'Recovery', value: RECOVERY_GATE },
+    { label: 'Recovery', value: formatRecoveryGate(options) },
     { label: 'Tools', value: TOOLS_GATE },
     { label: 'Memory', value: MEMORY_GATE },
     formatUltraworkFlow(options),

@@ -81,7 +81,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
     expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
     expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
-    expect(output).toMatch(/Recovery\s+resumable floor -> durable target/);
+    expect(output).toMatch(/Recovery\s+resumable evidence needed -> durable target/);
     expect(output).toMatch(/Tools\s+search first; load tools on demand/);
     expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify queued/);
@@ -144,7 +144,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
     expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
     expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
-    expect(output).toMatch(/Recovery\s+resumable floor -> durable target/);
+    expect(output).toMatch(/Recovery\s+resumable evidence needed -> durable target/);
     expect(output).toMatch(/Tools\s+search first; load tools on demand/);
     expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify blocked/);
@@ -208,6 +208,30 @@ describe('status panel report lines', () => {
       expect(line.length, `${label} row should fit narrow terminals`).toBeLessThanOrEqual(72);
       expect(line).not.toContain('...');
     }
+  });
+
+  it('surfaces ready recovery evidence in the harness radar row', () => {
+    const lines = buildStatusReportLines({
+      version: '1.2.3',
+      model: 'k2',
+      workDir: '/tmp/project',
+      sessionId: 'ses-1',
+      sessionTitle: null,
+      thinking: true,
+      permissionMode: 'auto',
+      planMode: false,
+      contextUsage: 0.1,
+      contextTokens: 1000,
+      maxContextTokens: 10000,
+      availableModels: {},
+      recovery: {
+        ready: true,
+        nextAction: 'Recovery evidence ready.',
+        evidencePath: '.omo/evidence/sota/sota-gate-summary.json',
+      },
+    }).map(strip);
+
+    expect(lines.join('\n')).toMatch(/Recovery\s+resumable evidence ready -> durable target/);
   });
 
   it('keeps ready next action on Ultrawork even before plan mode is enabled', () => {

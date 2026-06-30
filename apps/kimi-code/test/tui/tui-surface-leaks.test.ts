@@ -96,7 +96,7 @@ describe('TUI surface leak checks', () => {
           'Engine        UltraPlan | UltraGoal | UltraSwarm | Verify',
           'Auto          ask if needed | plan | goal | swarm | verify',
           'Autonomy      bounded now -> headless target',
-          'Recovery      resumable floor -> durable target',
+          'Recovery      resumable evidence ready -> durable target',
           'Tools         search first; load tools on demand',
           'Memory        prefs | session recall | long-run notes',
           'Flow          ███░ 3/4 verify queued',
@@ -112,7 +112,7 @@ describe('TUI surface leak checks', () => {
       hasHarnessRadarStatusContract(
         [
           'Autonomy      bounded now -> headless target',
-          'Recovery      resumable floor -> durable target',
+          'Recovery      resumable evidence ready -> durable target',
           'Tools         search first; load tools on demand',
           'Memory        prefs | session recall | long-run notes',
         ].join('\n'),

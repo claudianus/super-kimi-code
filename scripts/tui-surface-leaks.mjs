@@ -93,7 +93,7 @@ export function hasUltraworkStatusContract(output) {
 export function hasHarnessRadarStatusContract(output) {
   return [
     /\bAutonomy\b\s+bounded now\s*->\s*headless target/i,
-    /\bRecovery\b\s+resumable floor\s*->\s*durable target/i,
+    /\bRecovery\b\s+resumable evidence (?:ready|needed)\s*->\s*durable target/i,
     /\bTools\b\s+search first;\s*load tools on demand/i,
     /\bMemory\b\s+prefs\s*\|\s*session recall\s*\|\s*long-run notes/i,
   ].every((pattern) => pattern.test(output));
