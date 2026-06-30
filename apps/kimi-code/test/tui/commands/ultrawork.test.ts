@@ -108,14 +108,15 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('Ultrawork orchestration');
     expect(prompt).toContain('UltraPlan -> UltraGoal -> UltraSwarm');
     expect(prompt).toContain('one workflow, not separate user-facing modes');
-    expect(prompt).toContain('automatically orchestrates UltraPlan, UltraGoal, UltraSwarm');
+    expect(prompt).toContain('automatically links and activates UltraPlan, UltraGoal, UltraSwarm');
+    expect(prompt).toContain('create or replace the UltraGoal, enable UltraPlan, arm UltraSwarm');
     expect(prompt).toContain('Normal task text is the preferred entry point');
     expect(prompt).toContain('/ultrawork is an advanced manual override');
     expect(prompt).toContain('UltraPlan: clarify ambiguous or large requests');
     expect(prompt).toContain('UltraGoal: keep the active goal as the durable execution contract');
     expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
-    expect(prompt).toContain('Swarm mode is armed by setup');
-    expect(prompt).toContain('proactively invoke UltraSwarm');
+    expect(prompt).toContain('UltraSwarm is armed by Ultrawork setup');
+    expect(prompt).toContain('proactively invoke specialist agents');
     expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm');
     expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
     expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages');

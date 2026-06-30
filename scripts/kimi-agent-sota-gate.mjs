@@ -204,6 +204,15 @@ const REQUIRED_ULTRAWORK_VALIDATIONS = Object.freeze([
   'ultraworkScorecard',
   'operatorTrajectory',
 ]);
+const REQUIRED_ULTRAWORK_USAGE_METRICS = Object.freeze([
+  'inputTokensApprox',
+  'outputTokensApprox',
+  'totalTokensApprox',
+  'cacheReadTokensApprox',
+  'cacheWriteTokensApprox',
+  'cacheSharePercent',
+  'remainingContextTokensApprox',
+]);
 const SECRET_PATTERNS = Object.freeze([
   /\bsk-[A-Za-z0-9_-]{8,}/,
   /\b[A-Za-z0-9_]*API_KEY\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/,
@@ -1431,6 +1440,11 @@ async function evaluateUltraworkGate(summary) {
     validationStatuses[name] = status;
     if (status !== 'PASS') failures.push(`${name} validation is ${String(status)}`);
   }
+  const usageMetrics = summary.validations?.usageTelemetryVisible?.metrics;
+  const missingUsageMetrics = missingUltraworkUsageMetricNames(usageMetrics);
+  if (missingUsageMetrics.length > 0) {
+    failures.push(`Ultrawork usage telemetry metrics are missing: ${missingUsageMetrics.join(', ')}`);
+  }
 
   const workflowWait = summary.workflow?.wait;
   if (workflowWait?.status !== 'PASS') {
@@ -1546,7 +1560,8 @@ async function evaluateUltraworkGate(summary) {
       adaptiveObservationCount: summary.validations?.adaptiveOperatorLoop?.observationCount,
       adaptiveInterventionsAttempted: summary.validations?.adaptiveOperatorLoop?.interventionsAttempted,
       usageTelemetryStatus: summary.validations?.usageTelemetryVisible?.status,
-      usageTelemetryMetrics: summary.validations?.usageTelemetryVisible?.metrics,
+      usageTelemetryMetrics: usageMetrics,
+      usageTelemetryMissingMetrics: missingUsageMetrics,
       trajectorySteps: Array.isArray(summary.operatorTrajectory?.steps)
         ? summary.operatorTrajectory.steps.map((step) => ({
             name: step.name,
@@ -1568,6 +1583,13 @@ async function evaluateUltraworkGate(summary) {
       ultraworkScorecard: summary.evaluation?.scorecard,
     },
   };
+}
+
+function missingUltraworkUsageMetricNames(metrics) {
+  return REQUIRED_ULTRAWORK_USAGE_METRICS.filter((name) => {
+    const value = metrics?.[name];
+    return typeof value !== 'number' || !Number.isFinite(value);
+  });
 }
 
 async function validateUltraworkCaptures(summary) {
