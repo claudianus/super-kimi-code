@@ -250,7 +250,7 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     { label: 'Model', value: formatModelStatus(options) },
     { label: 'Directory', value: options.workDir },
     { label: 'Permissions', value: permission },
-    { label: 'Plan mode', value: planMode ? 'on' : 'off' },
+    { label: 'Planning', value: planMode ? 'Ultrawork on' : 'Ultrawork off' },
     { label: 'Session', value: sessionId },
   ];
   if (options.gitStatus !== undefined && options.gitStatus !== null) {

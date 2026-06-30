@@ -67,7 +67,7 @@ describe('status panel report lines', () => {
     expect(output).toContain('Directory    /tmp/project');
     expect(output).toContain('Worktree     main [+12 -3 ↑1] clean');
     expect(output).toContain('Permissions  auto');
-    expect(output).toContain('Plan mode    on');
+    expect(output).toMatch(/Planning\s+Ultrawork on/);
     expect(output).toContain('Session      ses-1');
     expect(output).toContain('Title        Implement status');
     expect(output).toContain('Context window');
@@ -137,6 +137,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Screen check\s+open changed screen before finishing/);
     expect(output).toMatch(/Done gate\s+tests \+ typecheck\/lint\/build \+ clean diff \+ TUI/);
     expect(output).toMatch(/Next\s+Run \/login or \/provider first; use \/model after sign-in\./);
+    expect(output).toMatch(/Planning\s+Ultrawork off/);
   });
 
   it('keeps readiness gate values compact enough for an 80 column status panel', () => {
