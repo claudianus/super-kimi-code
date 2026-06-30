@@ -6169,14 +6169,14 @@ function inspectUltraworkWorkflowSignals(output) {
     /Tip:\s*Ultrawork\s+links\s+UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*and\s*Verify\s+automatically/i,
     /UltraPlan\s*->\s*UltraGoal\s*->\s*UltraSwarm\s*->\s*Verify/i,
     /Auto-orchestrated:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
+    /One workflow:\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm\s+auto-link/i,
     /One workflow:\s*(?:stages are chosen and linked automatically|stages and Swarm decision are linked automatically)/i,
     /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
   ]);
   const swarmDecisionVisible = matchesAny(output, [
-    /Swarm decision/i,
-    /record Swarm decision/i,
-    /Write a Swarm decision before implementation/i,
-    /\b(?:ENGAGE|DEFER)\b[\s\S]{0,120}\bSwarm\b/i,
+    /Swarm decision:\s*(?:pending\s+)?(?:ENGAGE|DEFER)(?:\s*(?:[|/]|\bor\b)\s*(?:ENGAGE|DEFER))?/i,
+    /Swarm decision\s+line\s+format[\s\S]{0,120}\bENGAGE\s*(?:[|/]|\bor\b)\s*DEFER\b/i,
+    /Write a Swarm decision before implementation[\s\S]{0,240}\bENGAGE\b[\s\S]{0,120}\bDEFER\b/i,
   ]);
   const policyConflictPatterns = [
     {
@@ -6228,8 +6228,8 @@ function inspectUltraworkWorkflowSignals(output) {
       ? 'screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow'
       : 'screen does not show the linked Ultrawork stage pipeline yet',
     swarmDecisionReason: swarmDecisionVisible
-      ? 'screen shows an auditable Swarm decision cue'
-      : 'screen does not show an auditable Swarm decision cue yet',
+      ? 'screen shows an auditable ENGAGE/DEFER Swarm decision cue'
+      : 'screen does not show an auditable ENGAGE/DEFER Swarm decision cue yet',
     policyReason: policyConflict
       ? 'screen shows auto-mode AskUserQuestion or interview tool-policy conflict'
       : 'screen does not show auto/question policy conflict',
@@ -6483,8 +6483,8 @@ function validateUltraworkSwarmDecision(waitResult) {
     status: count > 0 ? 'PASS' : 'FAIL',
     reason:
       count > 0
-        ? 'Live TUI screen shows an auditable Swarm decision cue.'
-        : 'Live TUI screen did not show an auditable Swarm decision cue.',
+        ? 'Live TUI screen shows an auditable ENGAGE/DEFER Swarm decision cue.'
+        : 'Live TUI screen did not show an auditable ENGAGE/DEFER Swarm decision cue.',
     evidenceCount: count,
   };
 }
