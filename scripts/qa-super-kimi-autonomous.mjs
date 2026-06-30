@@ -6465,6 +6465,15 @@ async function validateUltraworkUsageTelemetry(captures) {
         : 'FAIL',
     },
     {
+      name: 'cacheEfficiencyPanel',
+      status:
+        /Cache efficiency/i.test(normalized) &&
+        /\bcached input\b/i.test(normalized) &&
+        /\bNext\b/i.test(normalized)
+          ? 'PASS'
+          : 'FAIL',
+    },
+    {
       name: 'contextWindow',
       status: /Context window/i.test(normalized) && /\bRemaining\b/i.test(normalized)
         ? 'PASS'
@@ -6479,7 +6488,7 @@ async function validateUltraworkUsageTelemetry(captures) {
   return {
     status: passed ? 'PASS' : 'FAIL',
     reason: passed
-      ? 'Live /usage screen shows structured session token totals, cache read/write telemetry, and context-window remaining tokens.'
+      ? 'Live /usage screen shows structured session token totals, cache efficiency guidance, cache read/write telemetry, and context-window remaining tokens.'
       : `Live /usage screen is missing telemetry evidence: ${evidence
           .filter((item) => item.status !== 'PASS')
           .map((item) => item.name)
@@ -6561,6 +6570,9 @@ function hasCompleteUltraworkUsageMetrics(metrics) {
     metrics.cacheReadTokensApprox,
     metrics.cacheWriteTokensApprox,
     metrics.cacheSharePercent,
+    metrics.contextUsagePercent,
+    metrics.contextTokensApprox,
+    metrics.maxContextTokensApprox,
     metrics.remainingContextTokensApprox,
   ].every((value) => typeof value === 'number' && Number.isFinite(value));
 }

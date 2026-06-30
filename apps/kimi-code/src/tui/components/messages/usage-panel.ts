@@ -22,6 +22,7 @@ const SIDE_PADDING = 1;
 const BOX_OVERHEAD = LEFT_MARGIN + 2 + 2 * SIDE_PADDING;
 const CONTEXT_COMPACT_RATIO = 0.85;
 const CONTEXT_WRAP_UP_RATIO = 0.7;
+const CACHE_READY_RATIO = 0.5;
 
 type Colorize = (text: string) => string;
 
@@ -56,6 +57,10 @@ function usageNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+function usageByModel(usage: SessionUsage | undefined): Record<string, TokenUsage> {
+  return (usage as { readonly byModel?: Record<string, TokenUsage> } | undefined)?.byModel ?? {};
+}
+
 function usageInputTotal(usage: TokenUsage): number {
   return (
     usageNumber(usage.inputOther) +
@@ -69,6 +74,39 @@ function formatCacheShare(cacheRead: number, cacheWrite: number, input: number):
   return `${Math.round(((cacheRead + cacheWrite) / input) * 100)}%`;
 }
 
+function cacheEfficiencyValues(usage: SessionUsage | undefined): {
+  readonly input: number;
+  readonly cacheRead: number;
+  readonly cacheWrite: number;
+  readonly ratio: number;
+} | undefined {
+  const entries = Object.values(usageByModel(usage));
+  if (entries.length === 0) return undefined;
+
+  let input = 0;
+  let cacheRead = 0;
+  let cacheWrite = 0;
+  for (const row of entries) {
+    input += usageInputTotal(row);
+    cacheRead += usageNumber(row.inputCacheRead);
+    cacheWrite += usageNumber(row.inputCacheCreation);
+  }
+  if (input <= 0) return undefined;
+  return {
+    input,
+    cacheRead,
+    cacheWrite,
+    ratio: Math.max(0, Math.min((cacheRead + cacheWrite) / input, 1)),
+  };
+}
+
+function cacheEfficiencyNext(ratio: number, cacheRead: number, contextUsage: number): string {
+  if (safeUsageRatio(contextUsage) >= CONTEXT_COMPACT_RATIO) return 'Run /compact before long work.';
+  if (ratio >= CACHE_READY_RATIO && cacheRead > 0) return 'Continue; cache is ready for long work.';
+  if (ratio > 0) return 'Continue; cache is still warming.';
+  return 'Continue; cache warms after repeated context.';
+}
+
 function buildSessionUsageSection(
   usage: SessionUsage | undefined,
   error: string | undefined,
@@ -77,9 +115,7 @@ function buildSessionUsageSection(
   errorStyle: Colorize,
 ): string[] {
   if (error !== undefined) return [errorStyle(`  ${error}`)];
-  const byModel = (usage as { readonly byModel?: Record<string, TokenUsage> } | undefined)
-    ?.byModel;
-  const entries = Object.entries(byModel ?? {});
+  const entries = Object.entries(usageByModel(usage));
   if (entries.length === 0) {
     return [muted('  No token usage recorded yet. Send a message to start tracking.')];
   }
@@ -186,6 +222,26 @@ export function buildUsageReportLines(options: UsageReportOptions): string[] {
       errorStyle,
     ),
   ];
+
+  const cacheEfficiency = cacheEfficiencyValues(options.sessionUsage);
+  if (cacheEfficiency !== undefined) {
+    const ratio = safeUsageRatio(cacheEfficiency.ratio);
+    const bar = renderProgressBar(ratio, 20);
+    const pct = `${Math.round(ratio * 100)}% cached input`;
+    const cacheColor: ColorToken =
+      ratio >= CACHE_READY_RATIO ? 'success' : ratio > 0 ? 'warning' : 'error';
+    const barColoured = currentTheme.fg(cacheColor, bar);
+    lines.push('');
+    lines.push(accent('Cache efficiency'));
+    lines.push(`  ${barColoured}  ${value(pct)}`);
+    lines.push(`  ${muted('Read')}       ${value(`${formatTokenCount(cacheEfficiency.cacheRead)} tokens`)}`);
+    lines.push(`  ${muted('Write')}      ${value(`${formatTokenCount(cacheEfficiency.cacheWrite)} tokens`)}`);
+    lines.push(
+      `  ${muted('Next')}       ${value(
+        cacheEfficiencyNext(ratio, cacheEfficiency.cacheRead, options.contextUsage),
+      )}`,
+    );
+  }
 
   if (options.maxContextTokens > 0) {
     const ratio = safeUsageRatio(options.contextUsage);
