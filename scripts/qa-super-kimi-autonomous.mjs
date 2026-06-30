@@ -18,6 +18,10 @@ import {
   hasXpDodReadinessContract,
   shouldRequireModelSetupAction,
 } from './tui-surface-leaks.mjs';
+import {
+  evidenceSummaryCompletedAtMs,
+  isCompleteUltraworkEvidenceSummary,
+} from './kimi-sota-evidence-contract.mjs';
 
 const DEFAULT_EVIDENCE_BASE = '.omo/evidence/super-kimi-autonomous-qa-env';
 const DEFAULT_SOTA_TUI_SUMMARY_PATH =
@@ -95,12 +99,13 @@ const TUI_CAPTURE_SCENARIOS = Object.freeze([
   { name: 'clear', keys: ['Escape', '/clear', 'Enter'], description: 'Run /clear local command.' },
   {
     name: 'autocomplete',
-    keys: ['/h'],
-    description: 'Open slash-command autocomplete with a command prefix.',
+    keys: ['/', 'h', 'Tab'],
+    postInputDelayMs: 2_000,
+    description: 'Autocomplete a slash-command prefix with Tab.',
   },
   {
     name: 'prompt-entry',
-    keys: ['Escape', 'BSpace', 'visible qa prompt entry only'],
+    keys: ['Escape', 'C-u', 'visible qa prompt entry only'],
     description: 'Type prompt text without submitting it.',
   },
   { name: 'escape-cancel', keys: ['C-c'], description: 'Cancel/clear the typed prompt.' },
@@ -143,50 +148,6 @@ const TUI_REAL_WORKFLOW_SENTINEL = 'REAL_REPO_WORKFLOW_DONE';
 const TUI_REAL_WORKFLOW_TIMEOUT_MS = 180_000;
 const TUI_ULTRAWORK_WORKFLOW_TIMEOUT_MS = 480_000;
 const TUI_ULTRAWORK_MAX_QUESTION_ANSWERS = 6;
-const SOTA_ULTRAWORK_REQUIRED_VALIDATIONS = Object.freeze([
-  'tmuxPreflight',
-  'kimiCodeHomeReady',
-  'tuiReady',
-  'promptSubmitted',
-  'planModeReset',
-  'targetWorktreeToolingLinked',
-  'ultraworkActivated',
-  'linkedUltraworkStages',
-  'ultraPlanInterviewReached',
-  'questionAnswered',
-  'postQuestionProgressObserved',
-  'noQuestionToolContractError',
-  'noAutoQuestionPolicyConflict',
-  'noInvalidPhaseTransition',
-  'workspaceChanged',
-  'multiFileWorkspaceChanged',
-  'verifierUnchanged',
-  'repositorySourceTestChanged',
-  'statusLimitedToWorkflowFiles',
-  'repositoryTargetedTest',
-  'diffContainsSentinel',
-  'verificationCommand',
-  'agentVerificationObserved',
-  'screenEvidence',
-  'kimiModelReady',
-  'resultScreenLinkedUltraworkStages',
-  'usageTelemetryVisible',
-  'adaptiveOperatorLoop',
-  'ultraworkScorecard',
-  'operatorTrajectory',
-]);
-const SOTA_ULTRAWORK_REQUIRED_USAGE_METRICS = Object.freeze([
-  'inputTokensApprox',
-  'outputTokensApprox',
-  'totalTokensApprox',
-  'cacheReadTokensApprox',
-  'cacheWriteTokensApprox',
-  'cacheSharePercent',
-  'contextUsagePercent',
-  'contextTokensApprox',
-  'maxContextTokensApprox',
-  'remainingContextTokensApprox',
-]);
 const REQUIRED_TUI_CAPTURE_SCENARIOS = TUI_CAPTURE_SCENARIOS.map((scenario) => scenario.name);
 const MIN_SCREENSHOT_WIDTH = 80;
 const MIN_SCREENSHOT_HEIGHT = 40;
@@ -1296,7 +1257,7 @@ async function findLatestSotaUltraworkSummary(context) {
   for (const candidate of candidates) {
     const summary = await readJsonIfFile(candidate.path);
     if (!isUsableSotaUltraworkSummary(summary)) continue;
-    const completedAtMs = summaryCompletedAtMs(summary, candidate.modifiedAt);
+    const completedAtMs = evidenceSummaryCompletedAtMs(summary, candidate.modifiedAt);
     const next = {
       status: 'FOUND',
       source: 'auto-latest-pass',
@@ -1426,56 +1387,7 @@ function isUsableSotaWorkflowSummary(summary) {
 }
 
 function isUsableSotaUltraworkSummary(summary) {
-  if (summary?.phase !== 'tui-ultrawork-workflow' || summary.status !== 'PASS') return false;
-  if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
-  if (SOTA_ULTRAWORK_REQUIRED_VALIDATIONS.some((name) => summary.validations?.[name]?.status !== 'PASS')) {
-    return false;
-  }
-  const usageMetrics = summary.validations?.usageTelemetryVisible?.metrics;
-  if (missingSotaUltraworkUsageMetricNames(usageMetrics).length > 0) return false;
-  if (!Array.isArray(summary.workflow?.wait?.activationEvidence)) return false;
-  if (summary.workflow.wait.activationEvidence.length === 0) return false;
-  if (!Array.isArray(summary.workflow?.wait?.interviewEvidence)) return false;
-  if (summary.workflow.wait.interviewEvidence.length === 0) return false;
-  const questionBypassed = summary.validations?.questionAnswered?.optional === true;
-  if (
-    !questionBypassed &&
-    (!Array.isArray(summary.workflow?.wait?.questionAnswerEvidence) ||
-      summary.workflow.wait.questionAnswerEvidence.length === 0)
-  ) {
-    return false;
-  }
-  if (!Array.isArray(summary.workflow?.wait?.postQuestionProgressEvidence)) return false;
-  if (summary.workflow.wait.postQuestionProgressEvidence.length === 0) return false;
-  if (!Array.isArray(summary.workflow?.wait?.agentVerificationEvidence)) return false;
-  if (summary.workflow.wait.agentVerificationEvidence.length === 0) return false;
-  if (
-    Array.isArray(summary.workflow?.wait?.questionToolErrorEvidence) &&
-    summary.workflow.wait.questionToolErrorEvidence.length > 0
-  ) {
-    return false;
-  }
-  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
-  if (!Array.isArray(summary.workspace?.editFiles) || summary.workspace.editFiles.length < 2) return false;
-  if (summary.workspace?.editedFileCount < 2) return false;
-  if (summary.workspace?.diffExitCode !== 0) return false;
-  if (summary.workspace?.verificationExitCode !== 0) return false;
-  return summary.workspace?.targetedTestExitCode === 0;
-}
-
-function missingSotaUltraworkUsageMetricNames(metrics) {
-  if (metrics === undefined || metrics === null || typeof metrics !== 'object') {
-    return [...SOTA_ULTRAWORK_REQUIRED_USAGE_METRICS];
-  }
-  return SOTA_ULTRAWORK_REQUIRED_USAGE_METRICS.filter((name) => typeof metrics[name] !== 'number');
-}
-
-function summaryCompletedAtMs(summary, fallback) {
-  const completedAtMs = Date.parse(String(summary?.completedAt ?? ''));
-  if (Number.isFinite(completedAtMs)) return completedAtMs;
-  const startedAtMs = Date.parse(String(summary?.startedAt ?? ''));
-  if (Number.isFinite(startedAtMs)) return startedAtMs;
-  return fallback;
+  return isCompleteUltraworkEvidenceSummary(summary);
 }
 
 async function statFileOrUndefined(filePath) {
@@ -4560,7 +4472,7 @@ async function runTuiLaunchPhase(context) {
         cleanupOverrides.proofCommands.push(
           ...inputTrace.commands.map((record) => commandProofFromRecord(record)),
         );
-        await sleep(1_000);
+        await sleep(scenario.postInputDelayMs ?? 1_000);
       }
       summary.captures.push(await captureTmuxPane(context, tmuxSession, scenario.name));
       if (scenario.name === 'exit' && scenario.keys?.at(-1) === 'Enter') {
@@ -9158,20 +9070,18 @@ function inspectTuiCapture(scenario, output) {
     case 'autocomplete':
       if (
         !matchesAny(normalized, [
-          /\/help/i,
-          /\/clear/i,
-          /commands?/i,
-          /autocomplete/i,
-          /\bauto\b.*\bmodel\b.*\bpermission\b/i,
+          />\s*\/help\b/i,
+          />\s*\/clear\b/i,
           /\(\d+\/\d+\)/,
           />\s*\/\w+\s+\[[^\]]+\]/,
+          /\bhelp\b.*\bshow\b.*\bcommands?\b/i,
         ])
       ) {
-        failures.push('autocomplete capture does not show slash-command suggestions');
+        failures.push('autocomplete capture does not show slash-command completion or suggestion evidence');
       }
       break;
     case 'prompt-entry':
-      if (!normalized.includes(TUI_PROMPT_ENTRY_TEXT)) {
+      if (!new RegExp(`>\\s*${escapeRegExp(TUI_PROMPT_ENTRY_TEXT)}\\b`, 'i').test(normalized)) {
         failures.push(`prompt-entry capture does not reflect typed text: "${TUI_PROMPT_ENTRY_TEXT}"`);
       }
       break;

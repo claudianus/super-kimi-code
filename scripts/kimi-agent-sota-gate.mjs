@@ -12,6 +12,12 @@ import {
   hasXpDodReadinessContract,
   shouldRequireModelSetupAction,
 } from './tui-surface-leaks.mjs';
+import {
+  evidenceSummaryCompletedAtMs,
+  isCompleteUltraworkEvidenceSummary,
+  missingUltraworkUsageMetricNames,
+  ULTRAWORK_SUMMARY_REQUIRED_VALIDATIONS as REQUIRED_ULTRAWORK_VALIDATIONS,
+} from './kimi-sota-evidence-contract.mjs';
 
 const DEFAULT_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
 const DEFAULT_OUTPUT_BASE = '.omo/evidence/kimi-agent-sota-gate';
@@ -171,50 +177,6 @@ const REQUIRED_WORKFLOW_VALIDATIONS = Object.freeze([
   'kimiModelReady',
   'adaptiveOperatorLoop',
   'operatorTrajectory',
-]);
-const REQUIRED_ULTRAWORK_VALIDATIONS = Object.freeze([
-  'tmuxPreflight',
-  'kimiCodeHomeReady',
-  'tuiReady',
-  'promptSubmitted',
-  'planModeReset',
-  'targetWorktreeToolingLinked',
-  'ultraworkActivated',
-  'linkedUltraworkStages',
-  'ultraPlanInterviewReached',
-  'questionAnswered',
-  'postQuestionProgressObserved',
-  'noQuestionToolContractError',
-  'noAutoQuestionPolicyConflict',
-  'noInvalidPhaseTransition',
-  'workspaceChanged',
-  'multiFileWorkspaceChanged',
-  'verifierUnchanged',
-  'repositorySourceTestChanged',
-  'statusLimitedToWorkflowFiles',
-  'repositoryTargetedTest',
-  'diffContainsSentinel',
-  'verificationCommand',
-  'agentVerificationObserved',
-  'screenEvidence',
-  'kimiModelReady',
-  'resultScreenLinkedUltraworkStages',
-  'usageTelemetryVisible',
-  'adaptiveOperatorLoop',
-  'ultraworkScorecard',
-  'operatorTrajectory',
-]);
-const REQUIRED_ULTRAWORK_USAGE_METRICS = Object.freeze([
-  'inputTokensApprox',
-  'outputTokensApprox',
-  'totalTokensApprox',
-  'cacheReadTokensApprox',
-  'cacheWriteTokensApprox',
-  'cacheSharePercent',
-  'contextUsagePercent',
-  'contextTokensApprox',
-  'maxContextTokensApprox',
-  'remainingContextTokensApprox',
 ]);
 const MIN_ULTRAWORK_CACHE_SHARE_PERCENT = 50;
 const MAX_ULTRAWORK_CONTEXT_USAGE_PERCENT = 85;
@@ -1187,39 +1149,7 @@ function isUsableWorkflowSummary(summary) {
 }
 
 function isUsableUltraworkSummary(summary) {
-  if (summary?.phase !== 'tui-ultrawork-workflow' || summary.status !== 'PASS') return false;
-  if (summary.kimiCodeHomeMode !== 'real-user-opt-in') return false;
-  if (REQUIRED_ULTRAWORK_VALIDATIONS.some((name) => summary.validations?.[name]?.status !== 'PASS')) {
-    return false;
-  }
-  if (!Array.isArray(summary.workflow?.wait?.activationEvidence)) return false;
-  if (summary.workflow.wait.activationEvidence.length === 0) return false;
-  if (!Array.isArray(summary.workflow?.wait?.interviewEvidence)) return false;
-  if (summary.workflow.wait.interviewEvidence.length === 0) return false;
-  const questionBypassed = summary.validations?.questionAnswered?.optional === true;
-  if (
-    !questionBypassed &&
-    (!Array.isArray(summary.workflow?.wait?.questionAnswerEvidence) ||
-      summary.workflow.wait.questionAnswerEvidence.length === 0)
-  ) {
-    return false;
-  }
-  if (!Array.isArray(summary.workflow?.wait?.postQuestionProgressEvidence)) return false;
-  if (summary.workflow.wait.postQuestionProgressEvidence.length === 0) return false;
-  if (!Array.isArray(summary.captures) || !Array.isArray(summary.inputTraces)) return false;
-  if (!Array.isArray(summary.workspace?.editFiles) || summary.workspace.editFiles.length < 2) return false;
-  if (summary.workspace?.editedFileCount < 2) return false;
-  if (summary.workspace?.diffExitCode !== 0) return false;
-  if (summary.workspace?.verificationExitCode !== 0) return false;
-  return summary.workspace?.targetedTestExitCode === 0;
-}
-
-function evidenceSummaryCompletedAtMs(summary, fallback) {
-  const completedAtMs = Date.parse(String(summary?.completedAt ?? ''));
-  if (Number.isFinite(completedAtMs)) return completedAtMs;
-  const startedAtMs = Date.parse(String(summary?.startedAt ?? ''));
-  if (Number.isFinite(startedAtMs)) return startedAtMs;
-  return fallback;
+  return isCompleteUltraworkEvidenceSummary(summary);
 }
 
 function latestEvidenceReason(kind) {
@@ -1616,13 +1546,6 @@ async function evaluateUltraworkGate(summary) {
       ultraworkScorecard: summary.evaluation?.scorecard,
     },
   };
-}
-
-function missingUltraworkUsageMetricNames(metrics) {
-  return REQUIRED_ULTRAWORK_USAGE_METRICS.filter((name) => {
-    const value = metrics?.[name];
-    return typeof value !== 'number' || !Number.isFinite(value);
-  });
 }
 
 function evaluateUltraworkUsageEfficiency(metrics, missingMetrics) {
