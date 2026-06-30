@@ -105,6 +105,7 @@ function formatWorktreeStatus(status: GitStatus): string {
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
 const WORKFLOW_GATE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
+const AUTO_GATE = 'Fuzzy -> Plan | Clear -> Goal | Risk -> Swarm | Verify';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
 const WRITING_GATE = 'human voice lanes; detectors advisory-only';
@@ -175,6 +176,7 @@ function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   return [
     { label: 'Checks', value: READINESS_CHECKS },
     { label: 'Workflow', value: WORKFLOW_GATE },
+    { label: 'Auto', value: AUTO_GATE },
     { label: 'Stages', value: formatUltraworkStageStatus(options) },
     { label: 'Scope', value: SCOPE_GATE },
     { label: 'Coverage', value: COVERAGE_GATE },

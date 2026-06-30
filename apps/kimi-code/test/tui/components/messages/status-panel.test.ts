@@ -77,6 +77,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
     expect(output).toMatch(/Workflow\s+UltraPlan -> UltraGoal -> UltraSwarm -> Verify/);
+    expect(output).toMatch(/Auto\s+Fuzzy -> Plan \| Clear -> Goal \| Risk -> Swarm \| Verify/);
     expect(output).toMatch(/Stages\s+Plan on \| Goal active \| Swarm armed \| Verify queued/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
@@ -128,6 +129,7 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
     expect(output).toMatch(/Workflow\s+UltraPlan -> UltraGoal -> UltraSwarm -> Verify/);
+    expect(output).toMatch(/Auto\s+Fuzzy -> Plan \| Clear -> Goal \| Risk -> Swarm \| Verify/);
     expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm standby \| Verify blocked/);
     expect(output).toMatch(/Scope\s+small focused diff; no broad refactor/);
     expect(output).toMatch(/Coverage\s+test public behavior changes/);
@@ -158,7 +160,17 @@ describe('status panel report lines', () => {
       },
     }).map(strip);
 
-    const readinessLabels = ['Checks', 'Workflow', 'Stages', 'Scope', 'Coverage', 'Writing', 'Screen check', 'Done gate'];
+    const readinessLabels = [
+      'Checks',
+      'Workflow',
+      'Auto',
+      'Stages',
+      'Scope',
+      'Coverage',
+      'Writing',
+      'Screen check',
+      'Done gate',
+    ];
     for (const label of readinessLabels) {
       const line = lines.find((candidate) => candidate.includes(label));
       expect(line, `${label} row`).toBeDefined();
