@@ -66,7 +66,13 @@ describe('UsagePanelComponent', () => {
 
     expect(lines).toContain('Session usage');
     expect(lines).toContain('  No token usage recorded yet. Send a message to start tracking.');
-    expect(lines).not.toContain('Cache efficiency');
+    expect(lines).toContain('  session  input 0  output 0  total 0');
+    expect(lines).toContain('  session cache  read 0  write 0  share 0%');
+    expect(lines).toContain('Cache efficiency');
+    expect(lines.join('\n')).toContain('0% cached input');
+    expect(lines.join('\n')).toMatch(/Read\s+0 tokens/);
+    expect(lines.join('\n')).toMatch(/Write\s+0 tokens/);
+    expect(lines.join('\n')).toMatch(/Next\s+Continue; cache warms after repeated context\./);
     expect(lines.join('\n')).toMatch(/Remaining\s+10\.0k tokens/);
     expect(lines.join('\n')).toMatch(/Next\s+Continue; plenty of room for long work\./);
   });

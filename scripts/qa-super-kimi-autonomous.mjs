@@ -6623,7 +6623,7 @@ async function validateUltraworkUsageTelemetry(captures) {
 function extractUltraworkUsageMetrics(text) {
   const metrics = {};
   const textLine = cleanUsageTelemetryLine(text);
-  const modelPattern = String.raw`([A-Za-z0-9_.@-]+\/[A-Za-z0-9_.@/-]+)`;
+  const modelPattern = String.raw`([A-Za-z0-9_.@/-]+)`;
 
   const sessionMatch = textLine.match(
     new RegExp(

@@ -79,9 +79,16 @@ function cacheEfficiencyValues(usage: SessionUsage | undefined): {
   readonly cacheRead: number;
   readonly cacheWrite: number;
   readonly ratio: number;
-} | undefined {
+} {
   const entries = Object.values(usageByModel(usage));
-  if (entries.length === 0) return undefined;
+  if (entries.length === 0) {
+    return {
+      input: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      ratio: 0,
+    };
+  }
 
   let input = 0;
   let cacheRead = 0;
@@ -91,7 +98,14 @@ function cacheEfficiencyValues(usage: SessionUsage | undefined): {
     cacheRead += usageNumber(row.inputCacheRead);
     cacheWrite += usageNumber(row.inputCacheCreation);
   }
-  if (input <= 0) return undefined;
+  if (input <= 0) {
+    return {
+      input,
+      cacheRead,
+      cacheWrite,
+      ratio: 0,
+    };
+  }
   return {
     input,
     cacheRead,
@@ -117,7 +131,15 @@ function buildSessionUsageSection(
   if (error !== undefined) return [errorStyle(`  ${error}`)];
   const entries = Object.entries(usageByModel(usage));
   if (entries.length === 0) {
-    return [muted('  No token usage recorded yet. Send a message to start tracking.')];
+    return [
+      muted('  No token usage recorded yet. Send a message to start tracking.'),
+      `  ${muted('session')}  input ${value(formatTokenCount(0))}  output ${value(
+        formatTokenCount(0),
+      )}  total ${value(formatTokenCount(0))}`,
+      `  ${muted('session cache')}  read ${value(formatTokenCount(0))}  write ${value(
+        formatTokenCount(0),
+      )}  share ${value(formatCacheShare(0, 0, 0))}`,
+    ];
   }
 
   const lines: string[] = [];
@@ -224,24 +246,22 @@ export function buildUsageReportLines(options: UsageReportOptions): string[] {
   ];
 
   const cacheEfficiency = cacheEfficiencyValues(options.sessionUsage);
-  if (cacheEfficiency !== undefined) {
-    const ratio = safeUsageRatio(cacheEfficiency.ratio);
-    const bar = renderProgressBar(ratio, 20);
-    const pct = `${Math.round(ratio * 100)}% cached input`;
-    const cacheColor: ColorToken =
-      ratio >= CACHE_READY_RATIO ? 'success' : ratio > 0 ? 'warning' : 'error';
-    const barColoured = currentTheme.fg(cacheColor, bar);
-    lines.push('');
-    lines.push(accent('Cache efficiency'));
-    lines.push(`  ${barColoured}  ${value(pct)}`);
-    lines.push(`  ${muted('Read')}       ${value(`${formatTokenCount(cacheEfficiency.cacheRead)} tokens`)}`);
-    lines.push(`  ${muted('Write')}      ${value(`${formatTokenCount(cacheEfficiency.cacheWrite)} tokens`)}`);
-    lines.push(
-      `  ${muted('Next')}       ${value(
-        cacheEfficiencyNext(ratio, cacheEfficiency.cacheRead, options.contextUsage),
-      )}`,
-    );
-  }
+  const cacheRatio = safeUsageRatio(cacheEfficiency.ratio);
+  const cacheBar = renderProgressBar(cacheRatio, 20);
+  const cachePct = `${Math.round(cacheRatio * 100)}% cached input`;
+  const cacheColor: ColorToken =
+    cacheRatio >= CACHE_READY_RATIO ? 'success' : cacheRatio > 0 ? 'warning' : 'error';
+  const cacheBarColoured = currentTheme.fg(cacheColor, cacheBar);
+  lines.push('');
+  lines.push(accent('Cache efficiency'));
+  lines.push(`  ${cacheBarColoured}  ${value(cachePct)}`);
+  lines.push(`  ${muted('Read')}       ${value(`${formatTokenCount(cacheEfficiency.cacheRead)} tokens`)}`);
+  lines.push(`  ${muted('Write')}      ${value(`${formatTokenCount(cacheEfficiency.cacheWrite)} tokens`)}`);
+  lines.push(
+    `  ${muted('Next')}       ${value(
+      cacheEfficiencyNext(cacheRatio, cacheEfficiency.cacheRead, options.contextUsage),
+    )}`,
+  );
 
   if (options.maxContextTokens > 0) {
     const ratio = safeUsageRatio(options.contextUsage);
