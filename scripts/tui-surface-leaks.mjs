@@ -7,6 +7,10 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
   { label: 'advanced-tagged primary help command', pattern: /\bhelp\s+\[advanced\]\s+—\s+Show available commands/i },
   { label: 'legacy plan mode label', pattern: /\bPlan mode\b/i },
   { label: 'legacy planning status row', pattern: /\bPlanning\s+Ultrawork\s+(?:on|off)\b/i },
+  {
+    label: 'legacy Ultrawork stage copy',
+    pattern: /\bUltrawork\s+plans,\s+sets goal,\s+swarms,\s+verifies\b/i,
+  },
   { label: 'internal Ultrawork stage list', pattern: /\bUltrawork\s+auto-runs\s+UltraPlan,\s+UltraGoal,\s+UltraSwarm\b/i },
   { label: 'Ultrawork manual command', pattern: /(?:^|\s)\/?ultrawork(?=[\s.,;:)\]]|$)/ },
   { label: 'Ultraswarm manual command', pattern: /(?:^|\s)\/?ultraswarm(?=[\s.,;:)\]]|$)/ },

@@ -124,8 +124,9 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork plans, sets goal, swarms, verifies',
+      'next: describe task; Ultrawork plans, tracks goal, gets help, verifies',
     );
+    expect(strip(line2 ?? '')).not.toContain('Ultrawork plans, sets goal, swarms, verifies');
   });
 
   it('renders transient hints on the context line', () => {
@@ -144,8 +145,9 @@ describe('FooterComponent — context NaN resilience', () => {
     const [, line2] = footer.render(120);
 
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork plans, sets goal, swarms, verifies',
+      'next: describe task; Ultrawork plans, tracks goal, gets help, verifies',
     );
+    expect(strip(line2 ?? '')).not.toContain('Ultrawork plans, sets goal, swarms, verifies');
     expect(strip(line2 ?? '')).toContain('context: 0.0%');
   });
 

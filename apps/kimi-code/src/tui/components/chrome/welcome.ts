@@ -10,7 +10,7 @@ import chalk from 'chalk';
 import type { AppState } from '#/tui/types';
 import { currentTheme } from '#/tui/theme';
 
-const LOGGED_IN_PROMPT = 'Describe task; Ultrawork plans, sets goal, swarms, verifies.';
+const LOGGED_IN_PROMPT = 'Describe task; Ultrawork plans, tracks goal, gets help, verifies.';
 
 export class WelcomeComponent implements Component {
   private state: AppState;

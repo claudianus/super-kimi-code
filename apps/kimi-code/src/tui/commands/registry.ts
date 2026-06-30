@@ -227,7 +227,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     name: 'ultrawork',
     aliases: ['uw'],
     hiddenAliases: ['ultragoal', 'ug', 'ultraswarm', 'us'],
-    description: 'Force Ultrawork; plans, sets goal, swarms, verifies',
+    description: 'Force Ultrawork; plans, tracks goal, gets help, verifies',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[replace] <objective>',

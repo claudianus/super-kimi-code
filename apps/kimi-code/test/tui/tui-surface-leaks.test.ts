@@ -10,7 +10,7 @@ import {
 
 describe('TUI surface leak checks', () => {
   it('allows Ultrawork brand copy while still blocking manual slash commands', () => {
-    const brandCopy = 'Describe task; Ultrawork plans, tracks the goal, gets help, and verifies.';
+    const brandCopy = 'Describe task; Ultrawork plans, tracks goal, gets help, verifies.';
 
     expect(defaultUserSurfaceLeakFailures('help', brandCopy)).toEqual([]);
     expect(defaultUserSurfaceLeakFailures('status', brandCopy)).toEqual([]);
@@ -28,6 +28,12 @@ describe('TUI surface leak checks', () => {
     expect(defaultUserSurfaceLeakFailures('status', 'Planning     Ultrawork on')).toContain(
       'default status capture exposes legacy planning status row',
     );
+    expect(
+      defaultUserSurfaceLeakFailures(
+        'startup',
+        'Describe task; Ultrawork plans, sets goal, swarms, verifies.',
+      ),
+    ).toContain('default startup capture exposes legacy Ultrawork stage copy');
     expect(defaultUserSurfaceLeakFailures('startup', 'shift-tab to Plan mode before editing')).toContain(
       'default startup capture exposes legacy plan mode label',
     );
@@ -48,7 +54,7 @@ describe('TUI surface leak checks', () => {
       'Coverage      test public behavior changes',
       'Screen check  open changed screen before finishing',
       'Done gate     tests + typecheck/lint/build + clean diff + TUI',
-      'next: describe task; Ultrawork plans, sets goal, swarms, verifies',
+      'next: describe task; Ultrawork plans, tracks goal, gets help, verifies',
     ].join('\n');
     const setupScreen = [
       'Model: not set',
