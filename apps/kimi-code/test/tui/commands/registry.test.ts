@@ -11,6 +11,7 @@ import {
   sortSlashCommands,
   swarmArgumentCompletions,
   thinkingArgumentCompletions,
+  thinkingArgumentCompletionsForModel,
   type KimiSlashCommand,
 } from '#/tui/commands/index';
 import { describe, expect, it } from 'vitest';
@@ -171,6 +172,32 @@ describe('built-in slash command registry', () => {
     expect(values('m')).toEqual(['medium', 'max']);
     expect(values('max')).toBeNull();
     expect(values('very high')).toBeNull();
+  });
+
+  it('filters thinking completions through active model effort metadata', () => {
+    const values = (
+      prefix: string,
+      model: Parameters<typeof thinkingArgumentCompletionsForModel>[1],
+    ): string[] | null => {
+      const items = thinkingArgumentCompletionsForModel(prefix, model);
+      return items === null ? null : items.map((item) => item.value);
+    };
+
+    expect(values('', {
+      capabilities: ['thinking'],
+      supportEfforts: ['low', 'medium'],
+    })).toEqual(['off', 'on', 'low', 'medium']);
+    expect(values('h', {
+      capabilities: ['thinking'],
+      supportEfforts: ['low', 'medium'],
+    })).toBeNull();
+    expect(values('', {
+      capabilities: ['always_thinking'],
+      supportEfforts: ['low', 'medium'],
+    })).toEqual(['on', 'low', 'medium']);
+    expect(values('', {
+      capabilities: ['tool_use'],
+    })).toEqual(['off']);
   });
 
   it('describes long-work controls as Ultrawork steering surfaces', () => {

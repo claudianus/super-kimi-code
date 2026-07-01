@@ -41,6 +41,7 @@ import {
   setExperimentalFeatures,
   slashCommandsForHelp,
   sortSlashCommands,
+  thinkingArgumentCompletionsForModel,
   type KimiSlashCommand,
   type SlashCommandHelpMode,
   type SkillListSession,
@@ -386,7 +387,12 @@ export class KimiTUI {
       ...primaryCommands,
       ...advancedCommands,
     ].map((cmd) => {
-      const completer = cmd.completeArgs;
+      const completer = cmd.name === 'thinking'
+        ? (prefix: string) => thinkingArgumentCompletionsForModel(
+            prefix,
+            this.state.appState.availableModels[this.state.appState.model],
+          )
+        : cmd.completeArgs;
       return {
         name: cmd.name,
         aliases: cmd.aliases,

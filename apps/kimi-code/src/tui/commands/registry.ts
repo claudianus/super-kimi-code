@@ -36,6 +36,12 @@ const THINKING_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'max', description: 'Use maximum thinking effort' },
 ];
 
+export interface ThinkingCompletionModel {
+  readonly capabilities?: readonly string[];
+  readonly adaptiveThinking?: boolean;
+  readonly supportEfforts?: readonly string[];
+}
+
 const PLAN_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'on', description: 'Enable Ultrawork planning override' },
   { value: 'off', description: 'Disable Ultrawork planning override' },
@@ -85,6 +91,38 @@ export function swarmArgumentCompletions(argumentPrefix: string): AutocompleteIt
 
 export function thinkingArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
   return completeLeadingArg(THINKING_ARG_COMPLETIONS, argumentPrefix);
+}
+
+export function thinkingArgumentCompletionsForModel(
+  argumentPrefix: string,
+  model: ThinkingCompletionModel | undefined,
+): AutocompleteItem[] | null {
+  const completions = thinkingCompletionSpecsForModel(model);
+  return completeLeadingArg(completions, argumentPrefix);
+}
+
+function thinkingCompletionSpecsForModel(
+  model: ThinkingCompletionModel | undefined,
+): readonly ArgCompletionSpec[] {
+  if (model === undefined) return THINKING_ARG_COMPLETIONS;
+  const caps = new Set((model.capabilities ?? []).map((cap) => cap.trim().toLowerCase()));
+  const alwaysThinking = caps.has('always_thinking');
+  const supportsThinking =
+    alwaysThinking || caps.has('thinking') || model.adaptiveThinking === true;
+  if (!supportsThinking) {
+    return THINKING_ARG_COMPLETIONS.filter((item) => item.value === 'off');
+  }
+
+  const supportEfforts = model.supportEfforts?.map((effort) => effort.trim().toLowerCase());
+  const supported =
+    supportEfforts === undefined || supportEfforts.length === 0
+      ? undefined
+      : new Set(supportEfforts);
+  return THINKING_ARG_COMPLETIONS.filter((item) => {
+    if (item.value === 'off') return !alwaysThinking;
+    if (item.value === 'on') return true;
+    return supported === undefined || supported.has(item.value);
+  });
 }
 
 export function planArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
