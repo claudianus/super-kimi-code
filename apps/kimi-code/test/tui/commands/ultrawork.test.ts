@@ -219,7 +219,7 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('reread the result for changed meaning');
     expect(prompt).toContain('use only AskUserQuestion or NextPhase');
     expect(prompt).toContain('If AskUserQuestion is unavailable or rejected by policy');
-    expect(prompt).toContain('at most 4 options per question');
+    expect(prompt).toContain('omit options for open-ended answers');
     expect(prompt).toContain('Do not cap the interview by an arbitrary question count');
     expect(prompt).toContain('continue the same Ultrawork turn toward a complete plan');
     expect(prompt).toContain('call NextPhase before any search, read, edit, shell, or skill tool');

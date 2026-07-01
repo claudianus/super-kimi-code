@@ -15,6 +15,7 @@ Overusing this tool interrupts the user's flow. Only use it when the user's inpu
 - Use multi_select to allow multiple answers to be selected for a question
 - Keep option labels concise (1-5 words), use descriptions for trade-offs and details
 - Each question should usually have 2-4 meaningful, distinct options; use one option only for explicit confirmation
+- For open-ended questions, omit `options`; the built-in "Other" answer lets the user type custom text
 - You can ask 1-4 questions at a time; group related questions to minimize interruptions
 - If you recommend a specific option, list it first and append "(Recommended)" to its label
 - The result is JSON with an `answers` object whose keys identify each answered question; if `answers` is empty and a `note` says the user dismissed it, they declined to answer — proceed with your best judgment and do not re-ask the same question

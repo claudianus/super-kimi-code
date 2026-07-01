@@ -50,6 +50,7 @@ describe('builtin tool input JSON Schema', () => {
     // and must therefore stay optional in the model-facing schema.
     expect(required).not.toContain('background');
     expect(required).not.toContain('header');
+    expect(required).not.toContain('options');
     expect(required).not.toContain('multi_select');
     expect(required).not.toContain('description');
   });
@@ -79,6 +80,30 @@ describe('builtin tool input JSON Schema', () => {
     // A misspelled / hallucinated argument must surface as an invalid-args
     // error rather than being silently accepted and dropped.
     expect(validateToolArgs(validator, { questions: [question], bogus: true })).not.toBeNull();
+  });
+
+  it('accepts AskUserQuestion calls without explicit options through runtime validation', () => {
+    const tool = askUserQuestionTool();
+    const validator = compileToolArgsValidator(tool.parameters);
+
+    expect(validateToolArgs(validator, { questions: [{ question: 'What scope?' }] })).toBeNull();
+  });
+
+  it('accepts AskUserQuestion calls with more than four options through runtime validation', () => {
+    const tool = askUserQuestionTool();
+    const validator = compileToolArgsValidator(tool.parameters);
+    const question = {
+      question: 'Which scope?',
+      options: [
+        { label: 'Tiny', description: '' },
+        { label: 'Classic', description: '' },
+        { label: 'Full', description: '' },
+        { label: 'Mobile', description: '' },
+        { label: 'Custom', description: '' },
+      ],
+    };
+
+    expect(validateToolArgs(validator, { questions: [question] })).toBeNull();
   });
 
   it('rejects an unknown nested argument through runtime validation', () => {

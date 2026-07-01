@@ -46,10 +46,9 @@ const QuestionItemSchema = z.object({
     .describe("Short category tag (max 12 chars, e.g. 'Auth', 'Style')."),
   options: z
     .array(QuestionOptionSchema)
-    .min(1)
-    .max(4)
+    .default([])
     .describe(
-      "1-4 meaningful, distinct options. Prefer 2-4 for real choices; use 1 only for explicit confirmation. Do NOT include an 'Other' option — the system adds one automatically.",
+      "Meaningful, distinct options. Prefer 2-4 for real choices; use 1 only for explicit confirmation. For open-ended questions, omit options and let the built-in Other/custom answer handle free text. Do NOT include an 'Other' option — the system adds one automatically.",
     ),
   multi_select: z
     .boolean()
@@ -61,9 +60,19 @@ export interface AskUserQuestionInput {
   background?: boolean;
   questions: Array<{
     question: string;
-    header: string;
-    options: Array<{ label: string; description: string }>;
-    multi_select: boolean;
+    header?: string | undefined;
+    options?: Array<{ label: string; description?: string | undefined }> | undefined;
+    multi_select?: boolean | undefined;
+  }>;
+}
+
+interface NormalizedAskUserQuestionInput {
+  readonly background?: boolean | undefined;
+  readonly questions: Array<{
+    readonly question: string;
+    readonly header: string;
+    readonly options: Array<{ readonly label: string; readonly description: string }>;
+    readonly multi_select: boolean;
   }>;
 }
 
@@ -105,18 +114,19 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
   }
 
   resolveExecution(args: AskUserQuestionInput): ToolExecution {
-    const isBackground = args.background === true;
+    const normalizedArgs = normalizeAskUserQuestionInput(args);
+    const isBackground = normalizedArgs.background === true;
     return {
       description: isBackground
-        ? `Starting background question: ${questionDescription(args.questions)}`
+        ? `Starting background question: ${questionDescription(normalizedArgs.questions)}`
         : 'Asking user questions',
       approvalRule: this.name,
-      execute: (ctx) => this.execution(args, ctx),
+      execute: (ctx) => this.execution(normalizedArgs, ctx),
     };
   }
 
   private async execution(
-    args: AskUserQuestionInput,
+    args: NormalizedAskUserQuestionInput,
     {
       toolCallId,
       signal,
@@ -135,7 +145,7 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
   }
 
   private async executeQuestion(
-    args: AskUserQuestionInput,
+    args: NormalizedAskUserQuestionInput,
     {
       toolCallId,
       signal,
@@ -191,7 +201,7 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
   }
 
   private executeInBackground(
-    args: AskUserQuestionInput,
+    args: NormalizedAskUserQuestionInput,
     {
       toolCallId,
       signal,
@@ -240,7 +250,7 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
   }
 
   private recordUltraInterviewAnswers(
-    questions: AskUserQuestionInput['questions'],
+    questions: NormalizedAskUserQuestionInput['questions'],
     answers: QuestionAnswers,
   ): void {
     const planMode = (this.agent as Partial<Pick<Agent, 'planMode'>>).planMode;
@@ -251,6 +261,21 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
       // Recording interview context must not turn a valid user answer into a dismissal.
     }
   }
+}
+
+function normalizeAskUserQuestionInput(args: AskUserQuestionInput): NormalizedAskUserQuestionInput {
+  return {
+    background: args.background === true ? true : undefined,
+    questions: args.questions.map((question) => ({
+      question: question.question,
+      header: question.header ?? '',
+      options: (question.options ?? []).map((option) => ({
+        label: option.label,
+        description: option.description ?? '',
+      })),
+      multi_select: question.multi_select ?? false,
+    })),
+  };
 }
 
 function dismissedQuestionResult(): ExecutableToolResult {
@@ -269,7 +294,7 @@ function numericTurnId(turnId: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function questionDescription(questions: AskUserQuestionInput['questions']): string {
+function questionDescription(questions: NormalizedAskUserQuestionInput['questions']): string {
   const first = questions[0]?.question.trim();
   const label = first === undefined || first.length === 0 ? 'Ask user question' : first;
   if (questions.length <= 1) return label;

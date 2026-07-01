@@ -217,7 +217,7 @@ export function buildUltraworkPrompt(
     '- Interview the user when the future UltraGoal cannot yet be judged true or false, or when a missing decision blocks correctness; otherwise record the safe assumption in the plan.',
     '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',
     '- If AskUserQuestion is unavailable or rejected by policy, do not fabricate closure; write the unresolved gap into the plan and keep NextPhase blocked until the goal is verifiable.',
-    '- When using AskUserQuestion, ask 1-3 focused questions and provide at most 4 options per question.',
+    '- When using AskUserQuestion, ask 1-3 focused questions. Prefer 2-4 options for discrete choices; omit options for open-ended answers instead of inventing choices.',
     '- Do not cap the interview by an arbitrary question count. Continue until the UltraGoal objective, non-goals, acceptance criteria, verification plan, failure modes, and runtime context are resolved or explicitly blocked.',
     '- After an AskUserQuestion response, continue the same Ultrawork turn toward a complete plan; do not implement until the plan is approved and UltraGoal exists.',
     '- After the final needed AskUserQuestion response, call NextPhase before any search, read, edit, shell, or skill tool.',

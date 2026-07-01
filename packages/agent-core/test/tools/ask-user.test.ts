@@ -87,10 +87,23 @@ describe('AskUserQuestionTool', () => {
     expect(
       AskUserQuestionInputSchema.safeParse(
         input({
-          options: [],
+          options: undefined,
         }),
       ).success,
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      AskUserQuestionInputSchema.safeParse(
+        input({
+          options: [
+            { label: 'Tiny', description: 'Minimal scope' },
+            { label: 'Arcade', description: 'Classic scope' },
+            { label: 'Full', description: 'Full game scope' },
+            { label: 'Mobile', description: 'Touch controls' },
+            { label: 'Custom', description: 'Custom requirements' },
+          ],
+        }),
+      ).success,
+    ).toBe(true);
   });
 
   it('describes the no-Other rule on options and the Recommended hint on label', () => {
@@ -112,6 +125,7 @@ describe('AskUserQuestionTool', () => {
 
     const optionsSchema = params.properties.questions.items.properties.options;
     expect(optionsSchema.description).toContain('Prefer 2-4 for real choices');
+    expect(optionsSchema.description).toContain('omit options');
     expect(optionsSchema.description).toContain("Do NOT include an 'Other' option");
     expect(optionsSchema.description).toContain('the system adds one automatically');
 
@@ -169,6 +183,66 @@ describe('AskUserQuestionTool', () => {
       });
     },
   );
+
+  it('normalizes open-ended questions without explicit options', async () => {
+    const { tool, requestQuestion } = makeTool({
+      requestQuestion: async () => ({
+        answers: { 'What features define full version?': 'enemy waves and scoring' },
+        method: 'enter',
+      }),
+    });
+
+    const result = await executeTool(tool, {
+      turnId: '0',
+      toolCallId: 'call_open_question',
+      args: {
+        questions: [
+          {
+            question: 'What features define full version?',
+          },
+        ],
+      },
+      signal,
+    });
+
+    expect(result.isError).toBe(false);
+    expect(requestQuestion).toHaveBeenCalledWith(
+      {
+        turnId: 0,
+        toolCallId: 'call_open_question',
+        questions: [
+          {
+            question: 'What features define full version?',
+            header: '',
+            options: [],
+            multiSelect: false,
+          },
+        ],
+      },
+      { signal },
+    );
+  });
+
+  it('passes through more than four options instead of rejecting the question', async () => {
+    const { tool, requestQuestion } = makeTool();
+    const options = [
+      { label: 'Tiny', description: 'Minimal scope' },
+      { label: 'Classic', description: 'Arcade baseline' },
+      { label: 'Full', description: 'Full game loop' },
+      { label: 'Mobile', description: 'Touch controls' },
+      { label: 'Custom', description: 'Custom answer' },
+    ];
+
+    const result = await executeTool(tool, {
+      turnId: '0',
+      toolCallId: 'call_many_options',
+      args: input({ options }),
+      signal,
+    });
+
+    expect(result.isError).toBe(false);
+    expect(requestQuestion.mock.calls[0]?.[0].questions[0]?.options).toEqual(options);
+  });
 
   it('tracks the structured question answer method without leaking it into output', async () => {
     const { tool, telemetryTrack } = makeTool({
