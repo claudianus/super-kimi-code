@@ -34,6 +34,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1209`: route malformed tool-call JSON through schema validation for clearer retry guidance.
 - Upstream `#1129`, `#1156`: use model `maxOutputSize` and a 128k default cap for compaction output budgets.
 - Upstream `#1170`, `#1186` selective: route managed Kimi Code Anthropic-protocol model aliases through the Anthropic beta Messages API.
+- Upstream `#1203` selective: track when Glob/Grep search tools use a non-system ripgrep fallback.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -61,6 +62,7 @@ Super Kimi adaptation:
 - Kept the tool-call transcript invariant intact while making malformed JSON arguments fall back to `{}` and produce the same schema-driven invalid-args feedback as other bad tool inputs.
 - Preserved Super Kimi's compaction strategy while capping compaction completion budgets with alias `maxOutputSize` first, then a safe 128k default for known large-context models, leaving unknown-context and explicit env opt-out behavior intact.
 - Kept the managed Kimi provider surface intact while storing only the needed `protocol: anthropic` alias metadata, preserving Kimi OAuth/base URLs, forwarding Kimi identity headers, and routing those aliases through Anthropic beta transport with session metadata.
+- Kept the existing ripgrep-powered search tools and added telemetry only at the fallback boundary so Super Kimi can diagnose slow or missing search binaries without changing tool output.
 
 ## Next Candidate Queue
 

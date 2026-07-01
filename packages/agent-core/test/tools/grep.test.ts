@@ -7,6 +7,7 @@ import { type GrepInput, GrepInputSchema, GrepTool } from '../../src/tools/built
 import { SENSITIVE_DOT_VARIANT_SUFFIXES } from '../../src/tools/policies/sensitive';
 import { ensureRgPath } from '../../src/tools/support/rg-locator';
 import type { WorkspaceConfig } from '../../src/tools/support/workspace';
+import { recordingTelemetry, type TelemetryRecord } from '../fixtures/telemetry';
 import { createFakeKaos, toolContentString } from './fixtures/fake-kaos';
 import { executeTool } from './fixtures/execute-tool';
 
@@ -1389,6 +1390,26 @@ describe('GrepTool', () => {
 
     expect(result).toEqual({ isError: true, output: 'rg unavailable: download failed' });
     expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('tracks when grep uses a non-system ripgrep fallback', async () => {
+    vi.mocked(ensureRgPath).mockResolvedValueOnce({
+      path: '/mock/rg',
+      source: 'share-bin-downloaded',
+    });
+    const records: TelemetryRecord[] = [];
+    const exec = vi.fn().mockResolvedValue(processWithOutput('/workspace/src/a.ts\n'));
+    const tool = new GrepTool(createFakeKaos({ exec }), workspace, recordingTelemetry(records));
+
+    const result = await executeTool(tool, context({ pattern: 'hit' }));
+
+    expect(result.isError).not.toBe(true);
+    expect(records).toEqual([
+      {
+        event: 'grep_tool_rg_fallback',
+        properties: { source: 'share-bin-downloaded', outcome: 'resolved' },
+      },
+    ]);
   });
 
   it('returns an install hint when spawning the resolved ripgrep path hits ENOENT', async () => {
