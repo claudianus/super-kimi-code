@@ -42,6 +42,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1132` selective: preserve and expose model-declared thinking effort metadata without changing Super Kimi's thinking-mode semantics.
 - Upstream `#1207` selective: surface model catalog readiness in `/status` without adding a separate internal QA command.
 - Upstream `#1132` selective: add a TUI `/thinking` command for session-only thinking effort control.
+- Upstream `#1228` selective: write per-step model timing fields into structured diagnostic logs.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -76,6 +77,7 @@ Super Kimi adaptation:
 - Kept Super Kimi's boolean thinking UX intact while carrying `support_efforts` and `default_effort` through managed Kimi/Open Platform refresh, config aliases, protocol model catalog responses, and TUI model selection data.
 - Kept the model-catalog status surface TUI-first by adding a compact `/status` readiness row for visible model aliases, configured providers, and the active provider.
 - Preserved the existing model picker/default-thinking behavior while exposing the already-supported runtime effort levels through `/thinking off|on|low|medium|high|xhigh|max`, with model-declared effort validation and clearer `/status` effort labels.
+- Preserved the existing live TUI timing events while adding the upstream structured `llm response` log payload for first-token, request-build, server decode, client consume, and output-token diagnostics.
 
 ## Next Candidate Queue
 

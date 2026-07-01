@@ -191,6 +191,8 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
     ...stepEndProviderDiagnostics(response, effectiveStopReason),
   });
 
+  logStepTiming(log, turnId, currentStep, response);
+
   let stopTurnAfterStep = stopTurnAfterUsage;
   if (hooks?.afterStep !== undefined) {
     try {
@@ -213,6 +215,29 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
     stopReason:
       stopTurnAfterStep && effectiveStopReason === 'tool_use' ? 'end_turn' : effectiveStopReason,
   };
+}
+
+function logStepTiming(
+  log: Logger | undefined,
+  turnId: string,
+  step: number,
+  response: LLMChatResponse,
+): void {
+  if (log === undefined) return;
+  const timing = response.streamTiming;
+  if (timing === undefined) return;
+  log.info('llm response', {
+    turnStep: `${turnId}/${String(step)}`,
+    ttftMs: timing.firstTokenLatencyMs,
+    ...(timing.requestBuildMs !== undefined ? { requestBuildMs: timing.requestBuildMs } : {}),
+    ...(timing.serverFirstTokenMs !== undefined
+      ? { serverFirstTokenMs: timing.serverFirstTokenMs }
+      : {}),
+    streamDurationMs: timing.streamDurationMs,
+    ...(timing.serverDecodeMs !== undefined ? { serverDecodeMs: timing.serverDecodeMs } : {}),
+    ...(timing.clientConsumeMs !== undefined ? { clientConsumeMs: timing.clientConsumeMs } : {}),
+    outputTokens: response.usage.output,
+  });
 }
 
 function deriveStepStopReason(response: LLMChatResponse): LoopStepStopReason {

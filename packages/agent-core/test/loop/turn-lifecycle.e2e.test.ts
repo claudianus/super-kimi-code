@@ -12,6 +12,7 @@ import { inputTotal } from '@moonshot-ai/kosong';
 import { describe, expect, it } from 'vitest';
 
 import { ErrorCodes, KimiError } from '../../src/errors';
+import type { Logger, LogPayload } from '../../src/logging';
 import {
   makeEndTurnResponse,
   makeMaxTokensResponse,
@@ -22,6 +23,12 @@ import {
 } from './fixtures/fake-llm';
 import { runTurn, runTurnExpectingThrow } from './fixtures/helpers';
 import { EchoTool } from './fixtures/tools';
+
+interface CapturedLogEntry {
+  readonly level: 'error' | 'warn' | 'info' | 'debug';
+  readonly message: string;
+  readonly payload?: LogPayload;
+}
 
 describe('runTurn — turn lifecycle', () => {
   it('returns end_turn after a single non-tool step', async () => {
@@ -85,6 +92,45 @@ describe('runTurn — turn lifecycle', () => {
       inputCacheCreation: 0,
     });
     expect(sink.count('turn.interrupted')).toBe(0);
+  });
+
+  it('logs structured provider timing when stream stats are available', async () => {
+    const { logger, entries } = captureLogs();
+
+    await runTurn({
+      turnId: 'turn-timing',
+      log: logger,
+      responses: [
+        {
+          ...makeEndTurnResponse('hello', { inputOther: 3, output: 11 }),
+          streamTiming: {
+            firstTokenLatencyMs: 50,
+            requestBuildMs: 7,
+            serverFirstTokenMs: 43,
+            streamDurationMs: 120,
+            serverDecodeMs: 80,
+            clientConsumeMs: 40,
+          },
+        },
+      ],
+    });
+
+    expect(entries).toEqual([
+      {
+        level: 'info',
+        message: 'llm response',
+        payload: {
+          turnStep: 'turn-timing/1',
+          ttftMs: 50,
+          requestBuildMs: 7,
+          serverFirstTokenMs: 43,
+          streamDurationMs: 120,
+          serverDecodeMs: 80,
+          clientConsumeMs: 40,
+          outputTokens: 11,
+        },
+      },
+    ]);
   });
 
   it('preserves provider terminal diagnostics when no tool calls are present', async () => {
@@ -235,3 +281,23 @@ describe('runTurn — turn lifecycle', () => {
     expect(result.usage.inputCacheCreation).toBe(22);
   });
 });
+
+function captureLogs(): { readonly logger: Logger; readonly entries: CapturedLogEntry[] } {
+  const entries: CapturedLogEntry[] = [];
+  const logger: Logger = {
+    error: (message, payload) => {
+      entries.push({ level: 'error', message, payload });
+    },
+    warn: (message, payload) => {
+      entries.push({ level: 'warn', message, payload });
+    },
+    info: (message, payload) => {
+      entries.push({ level: 'info', message, payload });
+    },
+    debug: (message, payload) => {
+      entries.push({ level: 'debug', message, payload });
+    },
+    createChild: () => logger,
+  };
+  return { logger, entries };
+}
