@@ -4,8 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { handlePlanCommand, handleThemeCommand } from '#/tui/commands/config';
-import type { SlashCommandHost } from '#/tui/commands/dispatch';
+import { handlePlanCommand, handleThemeCommand, handleThinkingCommand } from '#/tui/commands/config';
+import { dispatchInput, type SlashCommandHost } from '#/tui/commands/dispatch';
 
 function makeHost(options: { planMode?: boolean; planPath?: string | undefined } = {}) {
   const session = {
@@ -49,6 +49,51 @@ function makeThemeHost() {
     track: vi.fn(),
   };
   return host as unknown as SlashCommandHost & typeof host;
+}
+
+function makeThinkingHost(
+  options: {
+    model?: string;
+    capabilities?: string[];
+    supportEfforts?: string[];
+    hasSession?: boolean;
+  } = {},
+) {
+  const appState = {
+    model: options.model ?? 'k2',
+    thinking: false,
+    streamingPhase: 'idle',
+    isCompacting: false,
+    availableModels: {
+      k2: {
+        provider: 'managed:kimi-code',
+        model: 'kimi-k2',
+        maxContextSize: 100,
+        capabilities: options.capabilities ?? ['thinking'],
+        supportEfforts: options.supportEfforts,
+      },
+    },
+  };
+  const session = {
+    setThinking: vi.fn(async () => {}),
+  };
+  const host = {
+    session: options.hasSession === false ? undefined : session,
+    state: {
+      appState,
+    },
+    setAppState: vi.fn((patch: Record<string, unknown>) => Object.assign(appState, patch)),
+    skillCommandMap: new Map<string, string>(),
+    pluginCommandMap: new Map<string, string>(),
+    showError: vi.fn(),
+    showStatus: vi.fn(),
+    sendNormalUserInput: vi.fn(),
+    track: vi.fn(),
+  };
+  return {
+    host: host as unknown as SlashCommandHost & typeof host,
+    session,
+  };
 }
 
 async function withTempHome<T>(run: () => Promise<T>): Promise<T> {
@@ -126,5 +171,72 @@ describe('handleThemeCommand', () => {
       expect(host.applyTheme).not.toHaveBeenCalled();
       expect(host.state.appState.theme).toBe('auto');
     });
+  });
+});
+
+describe('handleThinkingCommand', () => {
+  it('shows the current thinking state when called without args', async () => {
+    const { host, session } = makeThinkingHost({ supportEfforts: ['low', 'high', 'max'] });
+
+    await handleThinkingCommand(host, '');
+
+    expect(session.setThinking).not.toHaveBeenCalled();
+    expect(host.showStatus).toHaveBeenCalledWith(
+      'Thinking is off. Supported efforts: low, high, max.',
+    );
+  });
+
+  it('sets an explicit thinking effort for the active session', async () => {
+    const { host, session } = makeThinkingHost({ supportEfforts: ['low', 'high', 'max'] });
+
+    await handleThinkingCommand(host, 'max');
+
+    expect(session.setThinking).toHaveBeenCalledWith('max');
+    expect(host.setAppState).toHaveBeenCalledWith({ thinking: true });
+    expect(host.track).toHaveBeenCalledWith('thinking_toggle', {
+      enabled: true,
+      level: 'max',
+    });
+    expect(host.showStatus).toHaveBeenCalledWith('Thinking set to max.', 'success');
+  });
+
+  it('dispatches /thinking through the slash command path', async () => {
+    const { host, session } = makeThinkingHost({ supportEfforts: ['low', 'high'] });
+
+    dispatchInput(host, '/thinking high');
+
+    await vi.waitFor(() => {
+      expect(session.setThinking).toHaveBeenCalledWith('high');
+    });
+  });
+
+  it('turns thinking off without requiring effort metadata', async () => {
+    const { host, session } = makeThinkingHost({ capabilities: ['tool_use'] });
+
+    await handleThinkingCommand(host, 'off');
+
+    expect(session.setThinking).toHaveBeenCalledWith('off');
+    expect(host.setAppState).toHaveBeenCalledWith({ thinking: false });
+    expect(host.showError).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported efforts declared by the active model', async () => {
+    const { host, session } = makeThinkingHost({ supportEfforts: ['low', 'high'] });
+
+    await handleThinkingCommand(host, 'max');
+
+    expect(session.setThinking).not.toHaveBeenCalled();
+    expect(host.showError).toHaveBeenCalledWith(
+      'Current model supports thinking efforts: low, high.',
+    );
+  });
+
+  it('rejects thinking on models that declare no thinking support', async () => {
+    const { host, session } = makeThinkingHost({ capabilities: ['tool_use'] });
+
+    await handleThinkingCommand(host, 'high');
+
+    expect(session.setThinking).not.toHaveBeenCalled();
+    expect(host.showError).toHaveBeenCalledWith('Current model does not support thinking.');
   });
 });

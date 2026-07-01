@@ -21,6 +21,7 @@ export {
   handleModelCommand,
   handlePlanCommand,
   handleThemeCommand,
+  handleThinkingCommand,
   handleYoloCommand,
   showExperimentsPanel,
   showModelPicker,

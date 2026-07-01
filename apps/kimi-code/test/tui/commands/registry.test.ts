@@ -10,6 +10,7 @@ import {
   slashCommandsForHelp,
   sortSlashCommands,
   swarmArgumentCompletions,
+  thinkingArgumentCompletions,
   type KimiSlashCommand,
 } from '#/tui/commands/index';
 import { describe, expect, it } from 'vitest';
@@ -52,6 +53,8 @@ describe('built-in slash command registry', () => {
     expect(findBuiltInSlashCommand('code')).toBeUndefined();
     expect(findBuiltInSlashCommand('mcp')?.name).toBe('mcp');
     expect(findBuiltInSlashCommand('status')?.name).toBe('status');
+    expect(findBuiltInSlashCommand('thinking')?.name).toBe('thinking');
+    expect(findBuiltInSlashCommand('think')?.name).toBe('thinking');
     expect(findBuiltInSlashCommand('usage')?.aliases).not.toContain('status');
     expect(findBuiltInSlashCommand('web')).toBeUndefined();
     expect(findBuiltInSlashCommand('unknown')).toBeUndefined();
@@ -146,7 +149,28 @@ describe('built-in slash command registry', () => {
       (command) => command.name,
     );
 
-    expect(primaryNames.slice(0, 6)).toEqual(['auto', 'model', 'status', 'usage', 'yolo', 'provider']);
+    expect(primaryNames.slice(0, 7)).toEqual([
+      'auto',
+      'model',
+      'status',
+      'thinking',
+      'usage',
+      'yolo',
+      'provider',
+    ]);
+  });
+
+  it('offers thinking effort argument completions', () => {
+    const values = (prefix: string): string[] | null => {
+      const items = thinkingArgumentCompletions(prefix);
+      return items === null ? null : items.map((item) => item.value);
+    };
+
+    expect(values('')).toEqual(['off', 'on', 'low', 'medium', 'high', 'xhigh', 'max']);
+    expect(values('h')).toEqual(['high']);
+    expect(values('m')).toEqual(['medium', 'max']);
+    expect(values('max')).toBeNull();
+    expect(values('very high')).toBeNull();
   });
 
   it('describes long-work controls as Ultrawork steering surfaces', () => {
@@ -299,6 +323,7 @@ describe('built-in slash command registry', () => {
         'settings',
         'status',
         'theme',
+        'thinking',
         'title',
         'undo',
         'usage',

@@ -26,6 +26,16 @@ const SWARM_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'off', description: 'Turn team mode off' },
 ];
 
+const THINKING_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
+  { value: 'off', description: 'Disable thinking' },
+  { value: 'on', description: 'Enable the default effort' },
+  { value: 'low', description: 'Use low thinking effort' },
+  { value: 'medium', description: 'Use medium thinking effort' },
+  { value: 'high', description: 'Use high thinking effort' },
+  { value: 'xhigh', description: 'Use extra-high thinking effort' },
+  { value: 'max', description: 'Use maximum thinking effort' },
+];
+
 const PLAN_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'on', description: 'Enable Ultrawork planning override' },
   { value: 'off', description: 'Disable Ultrawork planning override' },
@@ -71,6 +81,10 @@ export function goalArgumentCompletions(argumentPrefix: string): AutocompleteIte
 /** Argument autocompletion for the `/swarm` command (subcommands). */
 export function swarmArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
   return completeLeadingArg(SWARM_ARG_COMPLETIONS, argumentPrefix);
+}
+
+export function thinkingArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
+  return completeLeadingArg(THINKING_ARG_COMPLETIONS, argumentPrefix);
 }
 
 export function planArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
@@ -240,6 +254,15 @@ export const BUILTIN_SLASH_COMMANDS = [
     description: 'Switch LLM model',
     priority: 100,
     availability: 'always',
+  },
+  {
+    name: 'thinking',
+    aliases: ['think'],
+    description: 'Set thinking effort for the current session',
+    priority: 100,
+    argumentHint: '[off|on|low|medium|high|xhigh|max]',
+    completeArgs: thinkingArgumentCompletions,
+    availability: 'idle-only',
   },
   {
     name: 'provider',

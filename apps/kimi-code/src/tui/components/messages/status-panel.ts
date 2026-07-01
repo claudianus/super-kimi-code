@@ -80,9 +80,7 @@ function formatModelStatus(options: StatusReportOptions): string {
   const model = options.status?.model ?? options.model;
   if (model.trim().length === 0) return 'not set';
 
-  const thinking = (options.status?.thinkingLevel ?? (options.thinking ? 'on' : 'off')) === 'off'
-    ? 'off'
-    : 'on';
+  const thinking = options.status?.thinkingLevel ?? (options.thinking ? 'on' : 'off');
   return `${displayModelName(model, options.availableModels)} (thinking ${thinking})`;
 }
 

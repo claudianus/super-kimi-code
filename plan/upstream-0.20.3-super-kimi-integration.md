@@ -41,6 +41,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1207` selective: start a server-side provider model catalog refresh scheduler with config and environment controls.
 - Upstream `#1132` selective: preserve and expose model-declared thinking effort metadata without changing Super Kimi's thinking-mode semantics.
 - Upstream `#1207` selective: surface model catalog readiness in `/status` without adding a separate internal QA command.
+- Upstream `#1132` selective: add a TUI `/thinking` command for session-only thinking effort control.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -74,9 +75,10 @@ Super Kimi adaptation:
 - Added the server auto-refresh scheduler without taking the web UI store/status pieces: long-running Super Kimi daemons now refresh provider model catalogs on startup and on a configurable interval, while failures stay logged and non-fatal.
 - Kept Super Kimi's boolean thinking UX intact while carrying `support_efforts` and `default_effort` through managed Kimi/Open Platform refresh, config aliases, protocol model catalog responses, and TUI model selection data.
 - Kept the model-catalog status surface TUI-first by adding a compact `/status` readiness row for visible model aliases, configured providers, and the active provider.
+- Preserved the existing model picker/default-thinking behavior while exposing the already-supported runtime effort levels through `/thinking off|on|low|medium|high|xhigh|max`, with model-declared effort validation and clearer `/status` effort labels.
 
 ## Next Candidate Queue
 
 - `#1214` compaction strategy remainder: potential token-efficiency win, but large behavioral surface.
-- `#1132` thinking config/model effort overhaul: metadata carrier pieces are integrated; defer any default-thinking semantic rewrite or effort selector UI until it can be designed around Super Kimi's UltraWork UX.
+- `#1132` thinking config/model effort overhaul: metadata carrier pieces and session-level effort command are integrated; defer any default-thinking semantic rewrite or model-picker effort selector UI until it can be designed around Super Kimi's UltraWork UX.
 - `#1207` remainder: optional richer freshness timestamps if the server API grows real last-refresh metadata; do not invent freshness claims from config-only state.

@@ -1,5 +1,6 @@
 import type {
   ExperimentalFeatureState,
+  ModelAlias,
   PermissionMode,
   Session,
 } from '@moonshot-ai/kimi-code-sdk';
@@ -17,7 +18,7 @@ import { UpdatePreferenceSelectorComponent } from '../components/dialogs/update-
 import { saveTuiConfig } from '../config';
 import type { ThemeName } from '#/tui/theme';
 import { currentTheme, isBuiltInTheme, lightColors, loadCustomThemeMerged } from '#/tui/theme';
-import { NO_ACTIVE_SESSION_MESSAGE } from '../constant/kimi-tui';
+import { LLM_NOT_SET_MESSAGE, NO_ACTIVE_SESSION_MESSAGE } from '../constant/kimi-tui';
 import { formatErrorMessage } from '../utils/event-payload';
 import { showUsage } from './info';
 import { setExperimentalFeatures } from './experimental-flags';
@@ -28,6 +29,8 @@ import type { SlashCommandHost } from './dispatch';
 // ---------------------------------------------------------------------------
 
 const MODEL_PICKER_REFRESH_TIMEOUT_MS = 2_000;
+const THINKING_LEVELS = ['off', 'on', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 export async function handlePlanCommand(host: SlashCommandHost, args: string): Promise<void> {
   const session = host.session;
@@ -58,6 +61,100 @@ export async function handlePlanCommand(host: SlashCommandHost, args: string): P
   }
 
   await applyPlanMode(host, session, enabled, ultra);
+}
+
+export async function handleThinkingCommand(host: SlashCommandHost, args: string): Promise<void> {
+  const raw = args.trim();
+  if (raw.length === 0) {
+    host.showStatus(formatThinkingStatus(host));
+    return;
+  }
+
+  const level = normalizeThinkingLevel(args);
+  if (level === undefined) {
+    host.showError(
+      `Unknown thinking level: ${args.trim() || '(empty)'}. Use ${formatThinkingLevels()}.`,
+    );
+    return;
+  }
+
+  const modelAlias = host.state.appState.model.trim();
+  if (modelAlias.length === 0) {
+    host.showError(LLM_NOT_SET_MESSAGE);
+    return;
+  }
+
+  const model = host.state.appState.availableModels[modelAlias];
+  const validationError = validateThinkingLevelForModel(level, model);
+  if (validationError !== undefined) {
+    host.showError(validationError);
+    return;
+  }
+
+  const session = host.session;
+  if (session === undefined) {
+    host.showError(NO_ACTIVE_SESSION_MESSAGE);
+    return;
+  }
+
+  try {
+    await session.setThinking(level);
+  } catch (error) {
+    host.showError(`Failed to set thinking: ${formatErrorMessage(error)}`);
+    return;
+  }
+
+  const enabled = level !== 'off';
+  host.setAppState({ thinking: enabled });
+  host.track('thinking_toggle', { enabled, level });
+  host.showStatus(`Thinking set to ${level}.`, 'success');
+}
+
+function normalizeThinkingLevel(args: string): ThinkingLevel | undefined {
+  const normalized = args.trim().toLowerCase();
+  return THINKING_LEVELS.includes(normalized as ThinkingLevel)
+    ? (normalized as ThinkingLevel)
+    : undefined;
+}
+
+function validateThinkingLevelForModel(
+  level: ThinkingLevel,
+  model: ModelAlias | undefined,
+): string | undefined {
+  if (model === undefined) return undefined;
+  const caps = model.capabilities ?? [];
+  const alwaysThinking = caps.includes('always_thinking');
+  const supportsThinking =
+    alwaysThinking || caps.includes('thinking') || model.adaptiveThinking === true;
+
+  if (level === 'off') {
+    return alwaysThinking ? 'Current model requires thinking.' : undefined;
+  }
+  if (!supportsThinking) return 'Current model does not support thinking.';
+
+  const supportEfforts = model.supportEfforts;
+  if (supportEfforts !== undefined && level !== 'on') {
+    const supported = new Set(supportEfforts.map((effort) => effort.trim().toLowerCase()));
+    if (!supported.has(level)) {
+      return `Current model supports thinking efforts: ${supportEfforts.join(', ')}.`;
+    }
+  }
+  return undefined;
+}
+
+function formatThinkingLevels(): string {
+  return THINKING_LEVELS.join(', ');
+}
+
+function formatThinkingStatus(host: SlashCommandHost): string {
+  const modelAlias = host.state.appState.model.trim();
+  const model = host.state.appState.availableModels[modelAlias];
+  const status = host.state.appState.thinking ? 'on' : 'off';
+  const supportEfforts = model?.supportEfforts;
+  if (supportEfforts !== undefined && supportEfforts.length > 0) {
+    return `Thinking is ${status}. Supported efforts: ${supportEfforts.join(', ')}.`;
+  }
+  return `Thinking is ${status}. Use /thinking ${formatThinkingLevels()}.`;
 }
 
 async function applyPlanMode(host: SlashCommandHost, session: Session, enabled: boolean, ultra = false): Promise<void> {
