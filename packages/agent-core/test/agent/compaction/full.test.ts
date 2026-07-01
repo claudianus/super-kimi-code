@@ -24,6 +24,7 @@ import { FLAG_DEFINITIONS, MASTER_ENV } from '../../../src/flags';
 import { HookEngine, type HookEngineTriggerArgs } from '../../../src/session/hooks';
 import { estimateTokensForMessages } from '../../../src/utils/tokens';
 import { recordingTelemetry, type TelemetryRecord } from '../../fixtures/telemetry';
+import { agentTask, waitForTerminal } from '../background/helpers';
 import type { TestAgentContext, TestAgentOptions } from '../harness/agent';
 import { testAgent } from '../harness/agent';
 
@@ -416,6 +417,43 @@ describe('FullCompaction', () => {
       ]
     `);
     await ctx.expectResumeMatches();
+  });
+
+  it('re-surfaces active background tasks after manual compaction', async () => {
+    const ctx = testAgent();
+    ctx.configure({
+      provider: CATALOGUED_PROVIDER,
+      modelCapabilities: CATALOGUED_MODEL_CAPABILITIES,
+    });
+    ctx.appendExchange(1, 'old user one', 'old assistant one', 20);
+    ctx.appendExchange(2, 'recent user two', 'recent assistant two', 80);
+    const taskCompletion = createControlledPromise<{ result: string }>();
+    const taskId = ctx.agent.background.registerTask(
+      agentTask(taskCompletion, 'Run long QA', {
+        agentId: 'agent-worker',
+        subagentType: 'coder',
+      }),
+    );
+    const completed = ctx.once('compaction.completed');
+
+    ctx.mockNextResponse({ type: 'text', text: 'Compacted summary.' });
+    await ctx.rpc.beginCompaction({});
+    await completed;
+
+    const reminder = ctx.compactHistory().find((entry) =>
+      entry.text.includes('active_background_tasks'),
+    );
+    expect(reminder).toMatchObject({ role: 'user' });
+    expect(reminder?.text).toContain('Do not start duplicates');
+    expect(reminder?.text).toContain('TaskOutput');
+    expect(reminder?.text).toContain('TaskList');
+    expect(reminder?.text).toContain('TaskStop');
+    expect(reminder?.text).toContain(`task_id: ${taskId}`);
+    expect(reminder?.text).toContain('agent_id: agent-worker');
+    expect(reminder?.text).toContain('subagent_type: coder');
+
+    taskCompletion.resolve({ result: 'done' });
+    await waitForTerminal(ctx.agent.background, taskId);
   });
 
   it('writes structured Super Kimi memory and result metadata by default', async () => {

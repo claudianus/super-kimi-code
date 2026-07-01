@@ -1,4 +1,5 @@
 import type { Agent } from '..';
+import { formatTaskList } from '#/tools/background/task-list';
 import { GoalInjector } from './goal';
 import type { DynamicInjector } from './injector';
 import { MemoryInjector } from './memory';
@@ -6,6 +7,9 @@ import { PermissionModeInjector } from './permission-mode';
 import { PluginSessionStartInjector } from './plugin-session-start';
 import { PlanModeInjector } from './plan-mode';
 import { TodoListReminderInjector } from './todo-list';
+
+const ACTIVE_BACKGROUND_TASK_GUIDANCE =
+  "The conversation was compacted, so the earlier messages that started these background tasks are gone, but the tasks are still running from before. Do not start duplicates. Use TaskOutput to fetch a task's result, TaskList to list them, and TaskStop to cancel one.";
 
 export class InjectionManager {
   private readonly injectors: DynamicInjector[];
@@ -42,6 +46,11 @@ export class InjectionManager {
     await this.activeGoalInjector()?.inject();
   }
 
+  async injectAfterCompaction(): Promise<void> {
+    await this.injectGoal();
+    this.injectActiveBackgroundTasks();
+  }
+
   onContextClear(): void {
     for (const injector of this.lifecycleInjectors()) {
       injector.onContextClear();
@@ -72,5 +81,14 @@ export class InjectionManager {
 
   private activeGoalInjector(): GoalInjector | null {
     return this.goalInjector;
+  }
+
+  private injectActiveBackgroundTasks(): void {
+    const tasks = this.agent.background.list(true);
+    if (tasks.length === 0) return;
+    this.agent.context.appendSystemReminder(
+      `${ACTIVE_BACKGROUND_TASK_GUIDANCE}\n\n${formatTaskList(tasks, true)}`,
+      { kind: 'injection', variant: 'background_task_status' },
+    );
   }
 }

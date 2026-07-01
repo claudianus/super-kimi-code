@@ -371,7 +371,7 @@ export class FullCompaction {
       if (finalQualityWarnings.length > 0) {
         finalResult.qualityWarnings = [...new Set(finalQualityWarnings)];
       }
-      await this.agent.injection.injectGoal();
+      await this.agent.injection.injectAfterCompaction();
       this.triggerPostCompactHook(data, finalResult);
       this.markCompleted();
       this.agent.emitEvent({ type: 'compaction.completed', result: finalResult });
