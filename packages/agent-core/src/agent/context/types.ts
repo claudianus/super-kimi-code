@@ -100,6 +100,39 @@ export type PromptOrigin =
   | HookResultOrigin
   | RetryOrigin;
 
+export type UserPromptDisposition = 'keep' | 'drop';
+
+export function userPromptDisposition(origin: PromptOrigin | undefined): UserPromptDisposition {
+  if (origin === undefined) return 'keep';
+  switch (origin.kind) {
+    case 'user':
+      return 'keep';
+    case 'skill_activation':
+      return origin.trigger === 'user-slash' ? 'keep' : 'drop';
+    case 'plugin_command':
+      return origin.trigger === 'user-slash' ? 'keep' : 'drop';
+    case 'injection':
+    case 'shell_command':
+    case 'compaction_summary':
+    case 'system_trigger':
+    case 'background_task':
+    case 'cron_job':
+    case 'cron_missed':
+    case 'hook_result':
+    case 'retry':
+      return 'drop';
+    default: {
+      const _exhaustive: never = origin;
+      void _exhaustive;
+      return 'drop';
+    }
+  }
+}
+
+export function isRealUserPromptOrigin(origin: PromptOrigin | undefined): boolean {
+  return userPromptDisposition(origin) === 'keep';
+}
+
 export type ContextMessage = Message & {
   readonly origin?: PromptOrigin | undefined;
   readonly isError?: boolean;

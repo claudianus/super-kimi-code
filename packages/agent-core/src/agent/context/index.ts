@@ -13,6 +13,7 @@ import {
   trimTrailingOpenToolExchange,
 } from './projector';
 import {
+  isRealUserPromptOrigin,
   USER_PROMPT_ORIGIN,
   type AgentContextData,
   type ContextMessage,
@@ -540,16 +541,7 @@ function isEmptyOutputText(output: string): boolean {
 }
 
 function isRealUserPrompt(message: ContextMessage): boolean {
-  if (message.role !== 'user') return false;
-  const origin = message.origin;
-  if (origin === undefined || origin.kind === 'user') return true;
-  if (origin.kind === 'skill_activation') {
-    return origin.trigger === 'user-slash';
-  }
-  if (origin.kind === 'plugin_command') {
-    return origin.trigger === 'user-slash';
-  }
-  return false;
+  return message.role === 'user' && isRealUserPromptOrigin(message.origin);
 }
 
 function formatUndoUnavailableMessage(

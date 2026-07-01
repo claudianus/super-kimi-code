@@ -1,4 +1,4 @@
-import type { ContextMessage } from '#/agent/context';
+import { isRealUserPromptOrigin, type ContextMessage } from '../context/types';
 
 import { DynamicInjector } from './injector';
 
@@ -48,7 +48,7 @@ function latestUserPrompt(
     const message = history[index];
     if (message === undefined) continue;
     if (message.role !== 'user') continue;
-    if (message.origin?.kind !== 'user' && message.origin?.kind !== 'skill_activation') continue;
+    if (!isRealUserPromptOrigin(message.origin)) continue;
     const text = message.content
       .map((part) => (part.type === 'text' ? part.text : ''))
       .filter((partText) => partText.trim().length > 0)

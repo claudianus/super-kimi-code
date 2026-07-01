@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DynamicInjector } from '../../../src/agent/injection/injector';
 import { InjectionManager } from '../../../src/agent/injection/manager';
+import { MemoryInjector } from '../../../src/agent/injection/memory';
 import { TodoListReminderInjector } from '../../../src/agent/injection/todo-list';
+import type { AgentMemoryRuntime } from '../../../src/memory';
 import { testAgent } from '../harness/agent';
 
 class RecordingInjector extends DynamicInjector {
@@ -39,6 +41,25 @@ class BoomInjector extends DynamicInjector {
 
 function installInjectors(manager: InjectionManager, injectors: DynamicInjector[]): void {
   (manager as unknown as { injectors: DynamicInjector[] }).injectors = injectors;
+}
+
+function installMemory(
+  agent: ReturnType<typeof testAgent>['agent'],
+  getInjection = vi.fn<AgentMemoryRuntime['getInjection']>().mockResolvedValue(undefined),
+): AgentMemoryRuntime {
+  const memory: AgentMemoryRuntime = {
+    isEnabled: () => true,
+    search: vi.fn().mockResolvedValue([]),
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn().mockResolvedValue(undefined),
+    remember: vi.fn(),
+    update: vi.fn(),
+    forget: vi.fn().mockResolvedValue(false),
+    getInjection,
+    recordTurn: vi.fn().mockResolvedValue([]),
+  };
+  (agent as unknown as { memory: AgentMemoryRuntime }).memory = memory;
+  return memory;
 }
 
 describe('InjectionManager.onContextCompacted', () => {
@@ -110,5 +131,44 @@ describe('InjectionManager registration', () => {
     const injectors = (ctx.agent.injection as unknown as { injectors: DynamicInjector[] }).injectors;
 
     expect(injectors.some((injector) => injector instanceof TodoListReminderInjector)).toBe(true);
+  });
+});
+
+describe('MemoryInjector', () => {
+  it('ignores model-triggered skill activations when selecting a recall query', async () => {
+    const ctx = testAgent();
+    ctx.configure();
+    const memory = installMemory(ctx.agent);
+
+    ctx.agent.context.appendUserMessage([{ type: 'text', text: 'Real user prompt' }]);
+    ctx.agent.context.appendSystemReminder('Loaded nested skill body.', {
+      kind: 'skill_activation',
+      activationId: 'activation',
+      skillName: 'nested-skill',
+      trigger: 'model-tool',
+    });
+
+    await new MemoryInjector(ctx.agent).inject();
+
+    expect(memory.getInjection).toHaveBeenCalledWith('Real user prompt');
+  });
+
+  it('uses user slash plugin commands as recall queries', async () => {
+    const ctx = testAgent();
+    ctx.configure();
+    const memory = installMemory(ctx.agent);
+
+    ctx.agent.context.appendUserMessage([{ type: 'text', text: 'Older user prompt' }]);
+    ctx.agent.context.appendUserMessage([{ type: 'text', text: 'Plugin slash request' }], {
+      kind: 'plugin_command',
+      activationId: 'activation',
+      pluginId: 'plugin',
+      commandName: 'command',
+      trigger: 'user-slash',
+    });
+
+    await new MemoryInjector(ctx.agent).inject();
+
+    expect(memory.getInjection).toHaveBeenCalledWith('Plugin slash request');
   });
 });
