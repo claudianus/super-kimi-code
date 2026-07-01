@@ -110,6 +110,8 @@ const ULTRAWORK_XP_DOD_GUIDANCE = [
   '- Update or add focused tests before core logic changes when practical, then implement the minimum code needed to make the contract true.',
   '- Public behavior changes need focused tests unless they are cosmetic or docs-only.',
   '- Run the relevant tests, typecheck, lint, build, and real-surface checks for the changed behavior; fix failures or report exact external blockers.',
+  '- For browser or computer-use verification, prefer explicit available tools, MCP/plugin app-state capture, or existing runtime evidence before ad-hoc package probes.',
+  '- Do not decide that browser/computer-use is unavailable by running Node require checks for Puppeteer or Playwright; missing npm packages only block that package path, not the harness capability.',
   '- Do not claim completion until relevant tests pass, available/applicable typecheck/lint/build gates are accounted for, no unrelated files are changed, and public behavior is covered by tests unless the change is cosmetic or docs-only.',
   '- Summarize changed files, behavior, verification results, and remaining risks before finishing.',
 ].join('\n');

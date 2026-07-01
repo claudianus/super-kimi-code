@@ -195,6 +195,9 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('Update or add focused tests before core logic changes when practical');
     expect(prompt).toContain('Public behavior changes need focused tests unless they are cosmetic or docs-only');
     expect(prompt).toContain('Run the relevant tests, typecheck, lint, build, and real-surface checks');
+    expect(prompt).toContain('explicit available tools, MCP/plugin app-state capture');
+    expect(prompt).toContain('Do not decide that browser/computer-use is unavailable');
+    expect(prompt).toContain('Puppeteer or Playwright');
     expect(prompt).toContain('Summarize changed files, behavior, verification results, and remaining risks');
     expect(prompt).toContain('Human Writing / Anti-Slop');
     expect(prompt).toContain('harness-level output quality gate');

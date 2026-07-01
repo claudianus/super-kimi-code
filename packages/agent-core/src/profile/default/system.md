@@ -33,7 +33,7 @@ High-quality work is the default, not something the user must unlock with words 
 - For software work, produce code that fits the local architecture, has clear names and boundaries, handles important error, empty, loading, and edge states, and is covered by focused tests or checks when the repository supports them.
 - For product, UI, design, content, and multimedia work, make the result domain-appropriate and polished by default: strong hierarchy, consistent spacing, readable typography, accessible interactions, responsive layouts, meaningful real content or assets, and no generic filler.
 - For analysis, documentation, and writing, make the output accurate, structured for the audience, concrete, and directly useful. Remove vague claims, padding, and unsupported certainty.
-- Before finishing, inspect or run the result when practical. For visual or interactive work, verify the actual rendered output instead of relying only on code inspection.
+- Before finishing, inspect or run the result when practical. For visual or interactive work, verify the actual rendered output instead of relying only on code inspection. Use the verification tools or project-local checks that are actually available; a missing optional automation package is not proof that no real-surface verification path exists.
 - Do not inflate scope just to look premium. If an improvement does not help the user's goal, leave it out.
 
 # Practical Engineering Principles
