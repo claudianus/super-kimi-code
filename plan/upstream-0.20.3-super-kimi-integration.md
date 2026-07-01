@@ -47,6 +47,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1214` selective: adapt compaction thresholds after provider overflows reveal a smaller effective context window.
 - Upstream `#1214` selective: defer prompts and steers that arrive during manual compaction, then replay them after compaction finishes.
 - Upstream `#1214` selective: re-surface active background tasks after compaction so long-running work is not duplicated.
+- Upstream `#1214` selective: sharpen the compaction handoff prompt so post-compact resumes preserve verified state, exact next actions, and tool-free response constraints.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -86,6 +87,7 @@ Super Kimi adaptation:
 - Kept Super Kimi's Context Compaction v2 strategy while lowering the effective compaction window per model after a provider overflow, avoiding repeated late overflow retries when configured context limits are too optimistic.
 - Kept Super Kimi's Context Compaction v2 summaries and replay records while making manual compaction mutually cooperate with new input: prompts and steers now wait in the existing turn buffer and run only after post-compaction reinjection completes.
 - Preserved Super Kimi's injector stack while adding a post-compaction active task reminder that points the agent to TaskOutput, TaskList, and TaskStop instead of re-spawning long-running work.
+- Kept Super Kimi's structured memory wrapper and compaction planner, but aligned the raw handoff instruction with upstream's latest first-person continuity contract and verification caution.
 
 ## Next Candidate Queue
 

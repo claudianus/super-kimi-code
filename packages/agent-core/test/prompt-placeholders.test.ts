@@ -85,8 +85,10 @@ describe('prompt placeholders', () => {
       'utf-8',
     );
     expect(content).toContain('first-person handoff note');
-    expect(content).toContain('latest user request, quoted verbatim');
-    expect(content).toContain('never verified');
+    expect(content).toContain('Quote the latest user request');
+    expect(content).toContain('assistant message, tool call, and tool result');
+    expect(content).toContain('not verified');
+    expect(content).toContain('Do not call tools');
     expect(content).toContain('{{ customInstruction }}');
   });
 });
