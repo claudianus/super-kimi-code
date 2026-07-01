@@ -137,7 +137,7 @@ export class TurnFlow {
       input,
       origin,
     });
-    if (this.activeTurn) {
+    if (this.activeTurn || this.agent.fullCompaction.isCompacting) {
       this.steerBuffer.push({ input, origin });
       return null;
     }
@@ -158,6 +158,11 @@ export class TurnFlow {
           { details: { turnId: this.turnId } },
         ),
       });
+      return null;
+    }
+
+    if (this.agent.fullCompaction.isCompacting) {
+      this.steerBuffer.push({ input, origin });
       return null;
     }
 
@@ -287,6 +292,16 @@ export class TurnFlow {
     }
     steers.length = 0;
     return true;
+  }
+
+  onCompactionFinished(): void {
+    if (this.steerBuffer.length === 0) return;
+    if (this.activeTurn !== null) {
+      this.flushSteerBuffer();
+      return;
+    }
+    const next = this.steerBuffer.shift()!;
+    this.launch(next.input, next.origin);
   }
 
   finishResume(): void {

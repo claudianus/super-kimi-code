@@ -184,6 +184,7 @@ export class FullCompaction {
     this.compacting.abortController.abort();
     this.compacting = null;
     this.agent.emitEvent({ type: 'compaction.cancelled' });
+    this.agent.turn.onCompactionFinished();
   }
 
   markCompleted() {
@@ -370,10 +371,11 @@ export class FullCompaction {
       if (finalQualityWarnings.length > 0) {
         finalResult.qualityWarnings = [...new Set(finalQualityWarnings)];
       }
-      this.markCompleted();
-      this.agent.emitEvent({ type: 'compaction.completed', result: finalResult });
       await this.agent.injection.injectGoal();
       this.triggerPostCompactHook(data, finalResult);
+      this.markCompleted();
+      this.agent.emitEvent({ type: 'compaction.completed', result: finalResult });
+      this.agent.turn.onCompactionFinished();
     } catch (error) {
       if (isAbortError(error)) return;
       const blockedByTurn = this.compacting?.blockedByTurn === true;

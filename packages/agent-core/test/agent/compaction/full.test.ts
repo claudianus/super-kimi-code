@@ -327,6 +327,97 @@ describe('FullCompaction', () => {
     await ctx.expectResumeMatches();
   });
 
+  it('defers prompts that arrive during manual compaction until compaction finishes', async () => {
+    const compactionStarted = createControlledPromise<void>();
+    const releaseCompaction = createControlledPromise<void>();
+    const inputs: string[][] = [];
+    let callCount = 0;
+    const generate: GenerateFn = async (_provider, _system, _tools, history, callbacks) => {
+      callCount += 1;
+      inputs.push(inputHistorySnapshot(history));
+      if (callCount === 1) {
+        compactionStarted.resolve();
+        await releaseCompaction;
+        return textResult('Manual compacted summary.');
+      }
+      await callbacks?.onMessagePart?.({
+        type: 'text',
+        text: 'Deferred prompt answered.',
+      });
+      return textResult('Deferred prompt answered.');
+    };
+    const ctx = testAgent({ generate });
+    ctx.configure({
+      provider: CATALOGUED_PROVIDER,
+      modelCapabilities: CATALOGUED_MODEL_CAPABILITIES,
+    });
+    ctx.appendExchange(1, 'old user one', 'old assistant one', 20);
+    ctx.appendExchange(2, 'recent user two', 'recent assistant two', 80);
+    ctx.newEvents();
+
+    const completed = ctx.once('compaction.completed');
+    const turnEnded = ctx.once('turn.ended');
+    await ctx.rpc.beginCompaction({});
+    await compactionStarted;
+
+    const turnId = ctx.agent.turn.prompt([{ type: 'text', text: 'Run after compaction' }]);
+    releaseCompaction.resolve();
+    await completed;
+    await turnEnded;
+
+    const events = ctx.newEvents();
+    expect(turnId).toBeNull();
+    expect(callCount).toBe(2);
+    expect(eventIndex(events, 'turn.started')).toBeGreaterThan(
+      eventIndex(events, 'compaction.completed'),
+    );
+    expect(inputs).toMatchInlineSnapshot(`
+      [
+        [
+          "user: old user one",
+          "assistant: old assistant one",
+          "user: recent user two",
+          "assistant: recent assistant two",
+          "user: <compaction-instruction>",
+        ],
+        [
+          "assistant: # Super Kimi Context Compaction v2 Memory
+
+      ## Resume Preflight
+      - current_goal: Continue the active user task from the compacted state.
+      - last_known_state: Use the retained recent messages plus the structured memory below before taking the next action.
+      - next_action: Inspect the retained recent context, then continue the pending implementation or verification step.
+
+      ## Structured Working Memory
+      current_goal:
+      - Continue the active user task from the compacted state.
+      last_known_state:
+      - 4 old messages were compacted; 0 estimated tokens remain in the recent live context.
+      decisions:
+      - None captured during compaction.
+      files_touched:
+      - None captured during compaction.
+      failed_attempts:
+      - None captured during compaction.
+      open_questions:
+      - None captured during compaction.
+      next_actions:
+      - None captured during compaction.
+      raw_refs:
+      - user[0-0] tokens=4
+      - assistant[1-1] tokens=8
+      - user[2-2] tokens=5
+      - assistant[3-3] tokens=8
+
+      ## Compacted Narrative
+      Manual compacted summary.",
+          "user: Run after compaction",
+        ],
+      ]
+    `);
+    await ctx.expectResumeMatches();
+  });
+
   it('writes structured Super Kimi memory and result metadata by default', async () => {
     const records: TelemetryRecord[] = [];
     const ctx = testAgent({ telemetry: recordingTelemetry(records) });
