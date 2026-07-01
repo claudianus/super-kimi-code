@@ -5,7 +5,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const DEFAULT_INPUT_URL = 'https://raw.githubusercontent.com/RyanAlberts/best-of-Agent-Harnesses/main/harnesses.json';
-const DEFAULT_OUTPUT_PATH = '.omo/bench/harness-radar.json';
+const DEFAULT_OUTPUT_PATH = '.super-kimi/bench/harness-radar.json';
 const TERMINAL_USE_CASE = 'I want a turnkey coding agent today';
 const TOOL_DISCOVERY_USE_CASE = 'I want to plug hundreds to thousands of tools without context bloat';
 const EVALUATION_USE_CASE = 'I want to evaluate or benchmark agents';

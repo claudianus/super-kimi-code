@@ -5,7 +5,7 @@ import type { MemoryRecord, MemorySearchResult, MemoryStats } from '@moonshot-ai
 
 import type { SlashCommandHost } from './dispatch';
 
-const DEFAULT_MEMORY_EVIDENCE_ROOT = '.omo/evidence';
+const DEFAULT_MEMORY_EVIDENCE_ROOT = '.super-kimi/evidence';
 const MAX_EVIDENCE_DEPTH = 5;
 const MAX_EVIDENCE_FILES = 200;
 const MAX_EVIDENCE_READ_BYTES = 32_000;
@@ -503,10 +503,10 @@ function nextMemoryReadinessAction(snapshot: MemoryReadinessSnapshot): string {
   if (snapshot.query.length === 0) return 'Run /memory readiness <query> to verify recall retrieval.';
   if (snapshot.searchError !== undefined) return 'Fix recall search, then rerun /memory readiness <query>.';
   if ((snapshot.searchResults?.length ?? 0) === 0) return 'Add or refine durable memories for this query.';
-  if (!snapshot.evidence.llmWiki.ready) return 'Add llm-wiki or durable-memory evidence under .omo/evidence.';
-  if (!snapshot.evidence.knowledgeMap.ready) return 'Capture Kimi Knowledge Map evidence under .omo/evidence.';
-  if (!snapshot.evidence.browserUse.ready) return 'Capture browser-use evidence under .omo/evidence.';
-  if (!snapshot.evidence.computerUse.ready) return 'Capture computer-use evidence under .omo/evidence.';
+  if (!snapshot.evidence.llmWiki.ready) return 'Add llm-wiki or durable-memory evidence under .super-kimi/evidence.';
+  if (!snapshot.evidence.knowledgeMap.ready) return 'Capture Kimi Knowledge Map evidence under .super-kimi/evidence.';
+  if (!snapshot.evidence.browserUse.ready) return 'Capture browser-use evidence under .super-kimi/evidence.';
+  if (!snapshot.evidence.computerUse.ready) return 'Capture computer-use evidence under .super-kimi/evidence.';
   return 'Ready: run the harness with current recall and evidence.';
 }
 

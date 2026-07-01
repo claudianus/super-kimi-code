@@ -313,7 +313,7 @@ describe('status panel report lines', () => {
       recovery: {
         ready: true,
         nextAction: 'Recovery evidence ready.',
-        evidencePath: '.omo/evidence/sota/sota-gate-summary.json',
+        evidencePath: '.super-kimi/evidence/sota/sota-gate-summary.json',
       },
     }).map(strip);
 

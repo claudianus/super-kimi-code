@@ -100,10 +100,10 @@ describe('resolveSlashCommandInput', () => {
       name: 'preflight',
       args: '',
     });
-    expect(resolve('/pf .omo/evidence/bench')).toMatchObject({
+    expect(resolve('/pf .super-kimi/evidence/bench')).toMatchObject({
       kind: 'builtin',
       name: 'preflight',
-      args: '.omo/evidence/bench',
+      args: '.super-kimi/evidence/bench',
     });
     expect(resolve('/experiments')).toMatchObject({
       kind: 'builtin',

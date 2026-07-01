@@ -8,7 +8,7 @@
     "refreshedAt": "2026-07-01",
     "refreshScript": "node scripts/kimi-harness-radar-refresh.mjs",
     "changeSummary": {
-      "comparedWith": ".omo/bench/harness-radar.json",
+      "comparedWith": ".super-kimi/bench/harness-radar.json",
       "totalAdded": 0,
       "totalRemoved": 0,
       "patterns": []

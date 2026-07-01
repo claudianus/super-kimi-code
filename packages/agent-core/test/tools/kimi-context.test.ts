@@ -152,7 +152,7 @@ describe('KimiContextTool', () => {
   it('keeps automatic query scans focused on source instead of workflow artifacts', async () => {
     const tool = new KimiContextTool(
       makeKaos({
-        '/workspace/.omo/evidence/task-8-tool-real-surface.ts': [
+        '/workspace/.super-kimi/evidence/task-8-tool-real-surface.ts': [
           'export function KimiContextEvidence() {',
           '  return "KimiContext KimiContext KimiContext KimiContext";',
           '}',
@@ -172,7 +172,7 @@ describe('KimiContextTool', () => {
 
     expect(result.isError).toBeFalsy();
     expect(output).toContain('packages/agent-core/src/tools/builtin/context/kimi-context.ts');
-    expect(output).not.toContain('.omo/evidence');
+    expect(output).not.toContain('.super-kimi/evidence');
     expect(output).not.toContain('.changeset');
   });
 });

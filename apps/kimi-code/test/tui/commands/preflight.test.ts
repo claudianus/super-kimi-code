@@ -19,7 +19,7 @@ describe('preflight slash command status surface', () => {
   it('unifies bench, memory, recall, and runtime evidence readiness', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -41,29 +41,29 @@ describe('preflight slash command status surface', () => {
           },
         ],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+            sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
             summary: 'evidence found',
           },
           knowledgeMap: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+            sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
             summary: 'evidence found',
           },
           browserUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/browser-use.json',
+            sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
             summary: 'evidence found',
           },
           computerUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+            sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
             summary: 'evidence found',
           },
           warnings: [],
@@ -72,9 +72,9 @@ describe('preflight slash command status surface', () => {
       freshness: preflightFreshness('fresh'),
       loopRun: {
         status: 'BLOCKED',
-        evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
-        evidenceRoot: '.omo/evidence/kimi-agent-bench/latest',
-        rerunCommand: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .omo/evidence/kimi-agent-bench/latest',
+        evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
+        evidenceRoot: '.super-kimi/evidence/kimi-agent-bench/latest',
+        rerunCommand: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .super-kimi/evidence/kimi-agent-bench/latest',
         completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
         stopReason: 'quarantine_pending',
         bestScore: 1,
@@ -118,9 +118,9 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Next  Ready: run the next bounded Ultrawork loop from this preflight.');
     expect(text).toContain('Loop cue  run_next_loop; refresh_due unknown');
     expect(text).toContain('Loop command  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2');
-    expect(text).toContain('Loop evidence  .omo/evidence/kimi-agent-bench');
-    expect(text).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .omo/evidence/kimi-agent-bench/latest');
-    expect(text).toContain('Loop inspect  .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
+    expect(text).toContain('Loop evidence  .super-kimi/evidence/kimi-agent-bench');
+    expect(text).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .super-kimi/evidence/kimi-agent-bench/latest');
+    expect(text).toContain('Loop inspect  .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
     expect(text).toContain('Loop budget  2 iters; 10m; stop ceiling/no_delta');
     expect(text).toContain('Loop last  BLOCKED; score 1.00; stop quarantine_pending; iter 1/2');
     expect(text).toContain('Loop scope  scored 1/2; pass 1; q 1; blocked 0; failed 0');
@@ -138,7 +138,7 @@ describe('preflight slash command status surface', () => {
   it('reruns stale loop evidence before acting on a recorded proposal', () => {
     const status = buildPreflightStatus(readyPreflightInput({
       status: 'PASS',
-      evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
+      evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
       completedAt: new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString(),
       stopReason: 'max_iterations_reached',
       bestScore: 0.75,
@@ -165,7 +165,7 @@ describe('preflight slash command status surface', () => {
   it('keeps legacy loop summaries without scope counts compatible', () => {
     const status = buildPreflightStatus(readyPreflightInput({
       status: 'PASS',
-      evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
+      evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
       completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
       stopReason: 'score_ceiling_reached',
       bestScore: 1,
@@ -181,26 +181,26 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Loop scope  unknown');
     expect(text).toContain('Loop guard  none');
     expect(text).toContain('Loop files  none');
-    expect(text).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .omo/evidence/kimi-agent-bench/latest');
-    expect(text).toContain('Loop inspect  .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
+    expect(text).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .super-kimi/evidence/kimi-agent-bench/latest');
+    expect(text).toContain('Loop inspect  .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
     expect(text).toContain('Loop next  implement_proposal_then_rerun_loop');
   });
 
   it('degrades honestly without claiming readiness and redacts secret-looking text', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/malformed/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/malformed/summary.json',
         status: 'UNAVAILABLE',
         noSecret: false,
         nextAction: 'Run node scripts/kimi-agent-bench.mjs, then open /bench again.',
-        warnings: ['No bench evidence found at /repo/.omo/evidence/malformed/summary.json'],
+        warnings: ['No bench evidence found at /repo/.super-kimi/evidence/malformed/summary.json'],
       },
       memory: {
         stats: memoryStats({ total: 0, active: 0 }),
         query: 'api_key=secret-value KIMI_MODEL_API_KEY sk-proj-1234567890abcdef',
         searchResults: [],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: false,
             matchCount: 0,
@@ -221,13 +221,13 @@ describe('preflight slash command status surface', () => {
             matchCount: 0,
             summary: 'No computer-use evidence found.',
           },
-          warnings: ['Malformed evidence ignored: /repo/.omo/evidence/browser-use.json'],
+          warnings: ['Malformed evidence ignored: /repo/.super-kimi/evidence/browser-use.json'],
         },
       },
       freshness: preflightFreshness('missing'),
       refreshRun: {
         status: 'BLOCKED',
-        evidencePath: '.omo/evidence/super-kimi-preflight-refresh',
+        evidencePath: '.super-kimi/evidence/super-kimi-preflight-refresh',
         durationMs: 742,
         completedAt: new Date(Date.now() - 10 * 1000).toISOString(),
         bench: refreshBench(),
@@ -241,7 +241,7 @@ describe('preflight slash command status surface', () => {
           {
             channel: 'browserUse',
             state: 'fresh',
-            sourcePath: '.omo/evidence/lint-clean-tui-launch-smoke/tui/summary.json',
+            sourcePath: '.super-kimi/evidence/lint-clean-tui-launch-smoke/tui/summary.json',
           },
         ],
         missingChannels: ['llmWiki', 'knowledgeMap', 'browserUse', 'computerUse'],
@@ -266,7 +266,7 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Next  Run node scripts/kimi-agent-bench.mjs, then open /bench again.');
     expect(text).toContain('Loop cue  refresh_now; refresh_due 23h');
     expect(text).toContain('Loop command  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Loop evidence  .omo/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
+    expect(text).toContain('Loop evidence  .super-kimi/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
     expect(text).toContain('Loop budget  refresh once; no bench iteration');
     expect(text).toContain('Loop last  missing; run Loop command');
     expect(text).toContain('Loop scope  missing; run Loop command');
@@ -278,9 +278,9 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Loop next  run_loop_first');
     expect(text).toContain('Refresh  benchmark evidence unavailable');
     expect(text).toContain('Refresh command  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Refresh evidence  .omo/evidence/super-kimi-preflight-refresh');
-    expect(text).toContain('Refresh runtime  .omo/evidence/preflight-readiness');
-    expect(text).not.toContain('--runtime-evidence-root .omo/evidence/preflight-readiness');
+    expect(text).toContain('Refresh evidence  .super-kimi/evidence/super-kimi-preflight-refresh');
+    expect(text).toContain('Refresh runtime  .super-kimi/evidence/preflight-readiness');
+    expect(text).not.toContain('--runtime-evidence-root .super-kimi/evidence/preflight-readiness');
     expect(text).toContain('Refresh last  BLOCKED; elapsed 742ms; missing llmWiki,knowledgeMap,browserUse,computerUse');
     expect(text).toContain('Refresh age  fresh; 0m; due 23h');
     expect(text).toContain('Refresh bench  score 1.00; passRate 100%; tasks 1/1 passed; q 1; cost 2ms; tok 53; cmd 1');
@@ -290,9 +290,9 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain(
       'Refresh candidate action  recapture 1 candidate',
     );
-    expect(text).toContain('Refresh candidate target  .omo/evidence/preflight-readiness');
+    expect(text).toContain('Refresh candidate target  .super-kimi/evidence/preflight-readiness');
     expect(text).toContain('Refresh candidate rerun  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Refresh last evidence  .omo/evidence/super-kimi-preflight-refresh');
+    expect(text).toContain('Refresh last evidence  .super-kimi/evidence/super-kimi-preflight-refresh');
     expect(text).not.toContain('Refresh verify');
     expect(text).toContain('Warning  memory: Malformed evidence ignored');
     expect(text).not.toContain('secret-value');
@@ -303,7 +303,7 @@ describe('preflight slash command status surface', () => {
   it('gives a copyable memory command when preflight recall has no durable context', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -319,7 +319,7 @@ describe('preflight slash command status surface', () => {
         query: 'super kimi harness knowledge-map browser-use computer-use llm-wiki readiness',
         searchResults: [],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: false,
             matchCount: 0,
@@ -353,7 +353,7 @@ describe('preflight slash command status surface', () => {
 
     const noRecallStatus = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -369,29 +369,29 @@ describe('preflight slash command status surface', () => {
         query: 'custom recall target',
         searchResults: [],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+            sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
             summary: 'evidence found',
           },
           knowledgeMap: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+            sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
             summary: 'evidence found',
           },
           browserUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/browser-use.json',
+            sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
             summary: 'evidence found',
           },
           computerUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+            sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
             summary: 'evidence found',
           },
           warnings: [],
@@ -409,7 +409,7 @@ describe('preflight slash command status surface', () => {
   it('points missing runtime evidence at the preflight readiness evidence root', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -431,7 +431,7 @@ describe('preflight slash command status surface', () => {
           },
         ],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: false,
             matchCount: 0,
@@ -460,14 +460,14 @@ describe('preflight slash command status surface', () => {
     const text = buildPreflightLines(status).join('\n');
 
     expect(text).toContain(
-      'Next  Capture llm-wiki/durable-memory evidence under .omo/evidence/preflight-readiness, then run Refresh command below.',
+      'Next  Capture llm-wiki/durable-memory evidence under .super-kimi/evidence/preflight-readiness, then run Refresh command below.',
     );
   });
 
   it('blocks otherwise ready preflight state when evidence is stale', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -489,29 +489,29 @@ describe('preflight slash command status surface', () => {
           },
         ],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+            sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
             summary: 'evidence found',
           },
           knowledgeMap: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+            sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
             summary: 'evidence found',
           },
           browserUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/browser-use.json',
+            sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
             summary: 'evidence found',
           },
           computerUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+            sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
             summary: 'evidence found',
           },
           warnings: [],
@@ -520,7 +520,7 @@ describe('preflight slash command status surface', () => {
       freshness: preflightFreshness('stale'),
       refreshRun: {
         status: 'PASS',
-        evidencePath: '.omo/evidence/super-kimi-preflight-refresh',
+        evidencePath: '.super-kimi/evidence/super-kimi-preflight-refresh',
         durationMs: 1500,
         completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         bench: refreshBench(),
@@ -544,7 +544,7 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Next  Run the Refresh commands below, recapture runtime evidence, then rerun /preflight.');
     expect(text).toMatch(/Loop cue  refresh_now; expired (24h|1d)/);
     expect(text).toContain('Loop command  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Loop evidence  .omo/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
+    expect(text).toContain('Loop evidence  .super-kimi/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
     expect(text).toContain('Loop budget  refresh once; no bench iteration');
     expect(text).toContain('Loop last  missing; run Loop command');
     expect(text).toContain('Loop scope  missing; run Loop command');
@@ -556,21 +556,21 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Loop next  run_loop_first');
     expect(text).toContain('Refresh  evidence stale or missing');
     expect(text).toContain('Refresh command  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Refresh evidence  .omo/evidence/super-kimi-preflight-refresh');
-    expect(text).toContain('Refresh runtime  .omo/evidence/preflight-readiness');
-    expect(text).not.toContain('--runtime-evidence-root .omo/evidence/preflight-readiness');
+    expect(text).toContain('Refresh evidence  .super-kimi/evidence/super-kimi-preflight-refresh');
+    expect(text).toContain('Refresh runtime  .super-kimi/evidence/preflight-readiness');
+    expect(text).not.toContain('--runtime-evidence-root .super-kimi/evidence/preflight-readiness');
     expect(text).toContain('Refresh last  PASS; elapsed 1.5s; runtime ok');
     expect(text).toMatch(/Refresh age  stale; 2d; expired (24h|1d)/);
     expect(text).toContain('Refresh bench  score 1.00; passRate 100%; tasks 1/1 passed; q 1; cost 2ms; tok 53; cmd 1');
     expect(text).toContain('Refresh gates  5/5; blocked none; next ready');
-    expect(text).toContain('Refresh last evidence  .omo/evidence/super-kimi-preflight-refresh');
+    expect(text).toContain('Refresh last evidence  .super-kimi/evidence/super-kimi-preflight-refresh');
     expect(text).not.toContain('Refresh verify');
   });
 
   it('keeps older refresh summaries without readiness gates compatible', () => {
     const status = buildPreflightStatus({
       bench: {
-        sourcePath: '/repo/.omo/evidence/bench/summary.json',
+        sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
         status: 'PASS',
         score: 1,
         passRate: 1,
@@ -592,29 +592,29 @@ describe('preflight slash command status surface', () => {
           },
         ],
         evidence: {
-          sourceRoot: '/repo/.omo/evidence',
+          sourceRoot: '/repo/.super-kimi/evidence',
           llmWiki: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+            sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
             summary: 'evidence found',
           },
           knowledgeMap: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+            sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
             summary: 'evidence found',
           },
           browserUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/browser-use.json',
+            sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
             summary: 'evidence found',
           },
           computerUse: {
             ready: true,
             matchCount: 1,
-            sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+            sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
             summary: 'evidence found',
           },
           warnings: [],
@@ -623,7 +623,7 @@ describe('preflight slash command status surface', () => {
       freshness: preflightFreshness('fresh'),
       refreshRun: {
         status: 'PASS',
-        evidencePath: '.omo/evidence/super-kimi-preflight-refresh',
+        evidencePath: '.super-kimi/evidence/super-kimi-preflight-refresh',
         durationMs: 61,
         bench: refreshBench(),
         runtimeCandidates: [],
@@ -635,7 +635,7 @@ describe('preflight slash command status surface', () => {
     expect(text).toContain('Refresh last  PASS; elapsed 61ms; runtime ok');
     expect(text).toContain('Loop cue  review_refresh_summary; age unknown');
     expect(text).toContain('Loop command  node scripts/kimi-preflight-refresh.mjs');
-    expect(text).toContain('Loop evidence  .omo/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
+    expect(text).toContain('Loop evidence  .super-kimi/evidence/super-kimi-preflight-refresh (bench + runtime audit)');
     expect(text).toContain('Loop budget  refresh once; no bench iteration');
     expect(text).toContain('Loop last  missing; run Loop command');
     expect(text).toContain('Loop scope  missing; run Loop command');
@@ -695,7 +695,7 @@ describe('preflight slash command status surface', () => {
       const status = buildPreflightStatus({
         ...readyPreflightInput({
           status: 'PASS',
-          evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
+          evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
         }),
         humanWriting,
       });
@@ -705,7 +705,7 @@ describe('preflight slash command status surface', () => {
       expect(humanWriting.ready).toBe(true);
       expect(text).toContain('Ready gates  9/9; blocked none');
       expect(text).toContain('Human writing  ready; anti-slop advisory-only');
-      expect(text).toContain('Human writing source  apps/kimi-code/src/tui/commands/ultrawork-contract.ts; .omo/bench/sota-criteria.json');
+      expect(text).toContain('Human writing source  apps/kimi-code/src/tui/commands/ultrawork-contract.ts; .super-kimi/bench/sota-criteria.json');
       expect(text).toContain('Next  Ready: run the next bounded Ultrawork loop from this preflight.');
     } finally {
       rmSync(workDir, { recursive: true, force: true });
@@ -724,7 +724,7 @@ describe('preflight slash command status surface', () => {
       const status = buildPreflightStatus({
         ...readyPreflightInput({
           status: 'PASS',
-          evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
+          evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
         }),
         humanWriting,
       });
@@ -745,7 +745,7 @@ describe('preflight slash command status surface', () => {
   it('handles malformed refresh summary as a warning instead of crashing preflight', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-preflight-refresh-'));
     try {
-      const refreshRoot = join(workDir, '.omo/evidence/super-kimi-preflight-refresh');
+      const refreshRoot = join(workDir, '.super-kimi/evidence/super-kimi-preflight-refresh');
       mkdirSync(refreshRoot, { recursive: true });
       writeFileSync(join(refreshRoot, 'summary.json'), '{not-json', 'utf8');
 
@@ -760,7 +760,7 @@ describe('preflight slash command status surface', () => {
   it('loads structured readiness gates from the latest refresh summary', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-preflight-refresh-gates-'));
     try {
-      const refreshRoot = join(workDir, '.omo/evidence/super-kimi-preflight-refresh');
+      const refreshRoot = join(workDir, '.super-kimi/evidence/super-kimi-preflight-refresh');
       mkdirSync(refreshRoot, { recursive: true });
       writeFileSync(join(refreshRoot, 'summary.json'), JSON.stringify({
         status: 'BLOCKED',
@@ -783,7 +783,7 @@ describe('preflight slash command status surface', () => {
         runtimeEvidenceCandidates: {
           browserUse: {
             state: 'fresh',
-            sourcePath: join(workDir, '.omo/evidence/browser-use/summary.json'),
+            sourcePath: join(workDir, '.super-kimi/evidence/browser-use/summary.json'),
           },
         },
       }), 'utf8');
@@ -799,7 +799,7 @@ describe('preflight slash command status surface', () => {
         {
           channel: 'browserUse',
           state: 'fresh',
-          sourcePath: '.omo/evidence/browser-use/summary.json',
+          sourcePath: '.super-kimi/evidence/browser-use/summary.json',
         },
       ]);
     } finally {
@@ -810,7 +810,7 @@ describe('preflight slash command status surface', () => {
   it('loads the latest bounded loop summary for preflight', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-preflight-loop-'));
     try {
-      const loopRoot = join(workDir, '.omo/evidence/kimi-agent-bench/latest');
+      const loopRoot = join(workDir, '.super-kimi/evidence/kimi-agent-bench/latest');
       mkdirSync(loopRoot, { recursive: true });
       writeFileSync(join(loopRoot, 'loop-summary.json'), JSON.stringify({
         benchmark: 'super-kimi-agent-bench-loop',
@@ -819,8 +819,8 @@ describe('preflight slash command status surface', () => {
         bestScore: 1,
         maxIterations: 2,
         rerun: {
-          command: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .omo/evidence/kimi-agent-bench/latest',
-          evidenceRoot: '.omo/evidence/kimi-agent-bench/latest',
+          command: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .super-kimi/evidence/kimi-agent-bench/latest',
+          evidenceRoot: '.super-kimi/evidence/kimi-agent-bench/latest',
         },
         iterations: [
           {
@@ -855,9 +855,9 @@ describe('preflight slash command status surface', () => {
       const loopRun = loadPreflightLoopRun(workDir);
       expect(loopRun).toMatchObject({
         status: 'BLOCKED',
-        evidencePath: '.omo/evidence/kimi-agent-bench/latest/loop-summary.json',
-        evidenceRoot: '.omo/evidence/kimi-agent-bench/latest',
-        rerunCommand: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .omo/evidence/kimi-agent-bench/latest',
+        evidencePath: '.super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json',
+        evidenceRoot: '.super-kimi/evidence/kimi-agent-bench/latest',
+        rerunCommand: 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2 --evidence-root .super-kimi/evidence/kimi-agent-bench/latest',
         stopReason: 'quarantine_pending',
         bestScore: 1,
         firstScore: 1,
@@ -883,7 +883,7 @@ describe('preflight slash command status surface', () => {
   it('treats unreadable bounded loop summaries as warnings', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-preflight-loop-bad-'));
     try {
-      const loopRoot = join(workDir, '.omo/evidence/kimi-agent-bench/latest');
+      const loopRoot = join(workDir, '.super-kimi/evidence/kimi-agent-bench/latest');
       mkdirSync(loopRoot, { recursive: true });
       writeFileSync(join(loopRoot, 'loop-summary.json'), '{not-json', 'utf8');
 
@@ -893,7 +893,7 @@ describe('preflight slash command status surface', () => {
 
       const status = buildPreflightStatus({
         bench: {
-          sourcePath: '/repo/.omo/evidence/bench/summary.json',
+          sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
           status: 'PASS',
           score: 1,
           passRate: 1,
@@ -915,29 +915,29 @@ describe('preflight slash command status surface', () => {
             },
           ],
           evidence: {
-            sourceRoot: '/repo/.omo/evidence/preflight-readiness',
+            sourceRoot: '/repo/.super-kimi/evidence/preflight-readiness',
             llmWiki: {
               ready: true,
               matchCount: 1,
-              sourcePath: '/repo/.omo/evidence/llm-wiki.json',
+              sourcePath: '/repo/.super-kimi/evidence/llm-wiki.json',
               summary: 'evidence found',
             },
             knowledgeMap: {
               ready: true,
               matchCount: 1,
-              sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+              sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
               summary: 'evidence found',
             },
             browserUse: {
               ready: true,
               matchCount: 1,
-              sourcePath: '/repo/.omo/evidence/browser-use.json',
+              sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
               summary: 'evidence found',
             },
             computerUse: {
               ready: true,
               matchCount: 1,
-              sourcePath: '/repo/.omo/evidence/computer-use.json',
+              sourcePath: '/repo/.super-kimi/evidence/computer-use.json',
               summary: 'evidence found',
             },
             warnings: [],
@@ -947,14 +947,14 @@ describe('preflight slash command status surface', () => {
         loopRun,
       });
       const text = buildPreflightLines(status).join('\n');
-      expect(text).toContain('Loop delta  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop rerun  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop inspect  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop scope  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop guard  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop files  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop age  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
-      expect(text).toContain('Loop next  inspect_loop_summary .omo/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop delta  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop rerun  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop inspect  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop scope  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop guard  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop files  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop age  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
+      expect(text).toContain('Loop next  inspect_loop_summary .super-kimi/evidence/kimi-agent-bench/latest/loop-summary.json');
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -1007,7 +1007,7 @@ function readyPreflightInput(
 ): Parameters<typeof buildPreflightStatus>[0] {
   return {
     bench: {
-      sourcePath: '/repo/.omo/evidence/bench/summary.json',
+      sourcePath: '/repo/.super-kimi/evidence/bench/summary.json',
       status: 'PASS',
       score: 1,
       passRate: 1,
@@ -1029,29 +1029,29 @@ function readyPreflightInput(
         },
       ],
       evidence: {
-        sourceRoot: '/repo/.omo/evidence',
+        sourceRoot: '/repo/.super-kimi/evidence',
         llmWiki: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+          sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
           summary: 'evidence found',
         },
         knowledgeMap: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+          sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
           summary: 'evidence found',
         },
         browserUse: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/browser-use.json',
+          sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
           summary: 'evidence found',
         },
         computerUse: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+          sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
           summary: 'evidence found',
         },
         warnings: [],
@@ -1067,7 +1067,7 @@ function preflightFreshness(state: 'fresh' | 'missing' | 'stale'): PreflightFres
   const signal = {
     state,
     ageMs,
-    sourcePath: state === 'missing' ? undefined : '/repo/.omo/evidence/source.json',
+    sourcePath: state === 'missing' ? undefined : '/repo/.super-kimi/evidence/source.json',
   };
   return {
     ready: state === 'fresh',
@@ -1085,7 +1085,7 @@ function writeHumanWritingFixture(
   fixture: { readonly contract: string; readonly humanWriting: readonly string[] },
 ) {
   const contractDir = join(workDir, 'apps/kimi-code/src/tui/commands');
-  const criteriaDir = join(workDir, '.omo/bench');
+  const criteriaDir = join(workDir, '.super-kimi/bench');
   mkdirSync(contractDir, { recursive: true });
   mkdirSync(criteriaDir, { recursive: true });
   writeFileSync(join(contractDir, 'ultrawork-contract.ts'), fixture.contract, 'utf8');

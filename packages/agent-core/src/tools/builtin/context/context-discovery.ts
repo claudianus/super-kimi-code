@@ -30,7 +30,7 @@ const CODE_EXTENSIONS = new Set([
 const EXPLICIT_TEXT_EXTENSIONS = new Set(['.md', '.json', '.yaml', '.yml']);
 const EXCLUDED_SEGMENTS = new Set([
   '.git',
-  '.omo',
+  '.super-kimi',
   '.changeset',
   'node_modules',
   'dist',

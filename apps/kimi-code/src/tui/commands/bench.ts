@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import type { SlashCommandHost } from './dispatch';
 import { quoteShellArg } from '../../utils/shell-quote';
 
-const DEFAULT_BENCH_ROOT = '.omo/evidence/super-kimi-provider-bench/final-quality-gate';
+const DEFAULT_BENCH_ROOT = '.super-kimi/evidence/super-kimi-provider-bench/final-quality-gate';
 const CANDIDATE_JSON_NAMES = new Set([
   'summary.json',
   'loop-summary.json',

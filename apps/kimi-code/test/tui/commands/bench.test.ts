@@ -12,7 +12,7 @@ import {
 describe('bench slash command status surface', () => {
   it('builds a concise redacted status transcript from gate evidence', () => {
     const lines = buildBenchStatusLines({
-      sourcePath: '/repo/.omo/evidence/gate-summary.json',
+      sourcePath: '/repo/.super-kimi/evidence/gate-summary.json',
       status: 'APPROVE',
       score: 1,
       passRate: 1,
@@ -24,7 +24,7 @@ describe('bench slash command status surface', () => {
           violations: ['wallMs 44 > 1', 'commands 2 > 0'],
         },
       ],
-      budgetInspect: '/repo/.omo/evidence/run/tasks/seed.budget-overrun.v1/result.json',
+      budgetInspect: '/repo/.super-kimi/evidence/run/tasks/seed.budget-overrun.v1/result.json',
       budgetRerun: 'node scripts/kimi-agent-bench.mjs --suite seed --runner fixture',
       holdout: 'active',
       providerBlock: 'blocked_missing_env: KIMI_MODEL_API_KEY',
@@ -40,7 +40,7 @@ describe('bench slash command status surface', () => {
     expect(lines.join('\n')).toContain('Budget  FAIL; exceeded 2');
     expect(lines.join('\n')).toContain('Budget top  seed.budget-overrun.v1');
     expect(lines.join('\n')).toContain('Budget detail  wallMs 44 > 1; commands 2 > 0');
-    expect(lines.join('\n')).toContain('Budget inspect  /repo/.omo/evidence/run/tasks/seed.budget-overrun.v1/result.json');
+    expect(lines.join('\n')).toContain('Budget inspect  /repo/.super-kimi/evidence/run/tasks/seed.budget-overrun.v1/result.json');
     expect(lines.join('\n')).toContain('Budget rerun  node scripts/kimi-agent-bench.mjs --suite seed --runner fixture');
     expect(lines.join('\n')).toContain('Provider  blocked_missing_env: [REDACTED_ENV]');
     expect(lines.join('\n')).toContain('Secrets  redaction PASS; no secret-looking strings displayed');
@@ -52,7 +52,7 @@ describe('bench slash command status surface', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-test');
     const evidenceRoot = join(
       workDir,
-      '.omo/evidence/super-kimi-provider-bench/final-quality-gate',
+      '.super-kimi/evidence/super-kimi-provider-bench/final-quality-gate',
     );
     mkdirSync(join(evidenceRoot, 'older-provider'), { recursive: true });
     mkdirSync(join(evidenceRoot, 'newer-loop'), { recursive: true });
@@ -81,7 +81,7 @@ describe('bench slash command status surface', () => {
     expect(status.passRate).toBe(0.8);
     expect(status.nextAction).toBe('Keep fixtures redacted.');
     expect(status.sourceDisplayPath).toBe(
-      '.omo/evidence/super-kimi-provider-bench/final-quality-gate/newer-loop/loop-summary.json',
+      '.super-kimi/evidence/super-kimi-provider-bench/final-quality-gate/newer-loop/loop-summary.json',
     );
   });
 
@@ -109,7 +109,7 @@ describe('bench slash command status surface', () => {
 
   it('surfaces bounded loop trend and rerun context from loop summaries', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-loop-trend-test');
-    const evidenceRoot = join(workDir, '.omo/evidence/loop-trend');
+    const evidenceRoot = join(workDir, '.super-kimi/evidence/loop-trend');
     mkdirSync(evidenceRoot, { recursive: true });
     writeFileSync(
       join(evidenceRoot, 'loop-summary.json'),
@@ -128,13 +128,13 @@ describe('bench slash command status surface', () => {
         },
         rerun: {
           command:
-            'node scripts/kimi-agent-bench.mjs --loop --task-dir .omo/bench/tasks --suite seed --runner fixture --max-total-ms 600000 --max-iterations 2 --evidence-root .omo/evidence/loop-trend',
+            'node scripts/kimi-agent-bench.mjs --loop --task-dir .super-kimi/bench/tasks --suite seed --runner fixture --max-total-ms 600000 --max-iterations 2 --evidence-root .super-kimi/evidence/loop-trend',
           argv: [
             'node',
             'scripts/kimi-agent-bench.mjs',
             '--loop',
             '--task-dir',
-            '.omo/bench/tasks',
+            '.super-kimi/bench/tasks',
             '--suite',
             'seed',
             '--runner',
@@ -144,7 +144,7 @@ describe('bench slash command status surface', () => {
             '--max-iterations',
             '2',
             '--evidence-root',
-            '.omo/evidence/loop-trend',
+            '.super-kimi/evidence/loop-trend',
           ],
         },
         iterations: [
@@ -177,8 +177,8 @@ describe('bench slash command status surface', () => {
                   status: 'FAIL',
                   taxonomy: ['check_failed'],
                   reason: 'Check failed: expected config mode.',
-                  action: 'cat .omo/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
-                  displayPath: '.omo/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
+                  action: 'cat .super-kimi/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
+                  displayPath: '.super-kimi/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
                   resultPath: join(evidenceRoot, 'iterations/02/tasks/seed.fix-target.v1/result.json'),
                 },
               ],
@@ -189,7 +189,7 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const status = loadBenchStatus(workDir, '.omo/evidence/loop-trend');
+    const status = loadBenchStatus(workDir, '.super-kimi/evidence/loop-trend');
     const text = buildBenchStatusLines(status).join('\n');
 
     expect(text).toContain('Loop trend  iter 2; score 0.50 -> 0.80 (+0.30); best 0.80');
@@ -197,28 +197,28 @@ describe('bench slash command status surface', () => {
     expect(text).toContain('Loop focus  FAIL seed.fix-target.v1 (check_failed); top check_failed x1');
     expect(text).toContain('Loop reason  Check failed: expected config mode.');
     expect(text).toContain(
-      'Loop action  cat .omo/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
+      'Loop action  cat .super-kimi/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
     );
     expect(text).toContain(
-      'Loop inspect  .omo/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
+      'Loop inspect  .super-kimi/evidence/loop-trend/iterations/02/tasks/seed.fix-target.v1/result.json',
     );
     expect(text).toContain('Loop cost  wall 4.5s/10m; tasks 3/4; failed 1; blocked 0');
     expect(text).toContain('Loop guard  bounded true; maxIter 2; codeChanges false');
     expect(text).toContain('Loop stop  no_score_delta');
     expect(text).toContain(
-      'Loop rerun  node scripts/kimi-agent-bench.mjs --loop --task-dir .omo/bench/tasks --suite seed --runner fixture --max-total-ms 600000 --max-iterations 2 --evidence-root .omo/evidence/loop-trend',
+      'Loop rerun  node scripts/kimi-agent-bench.mjs --loop --task-dir .super-kimi/bench/tasks --suite seed --runner fixture --max-total-ms 600000 --max-iterations 2 --evidence-root .super-kimi/evidence/loop-trend',
     );
     expect(text).toContain(
-      'Loop replay  node scripts/kimi-agent-bench.mjs --replay-summary .omo/evidence/loop-trend/loop-summary.json --evidence-root .omo/evidence/loop-trend/replay',
+      'Loop replay  node scripts/kimi-agent-bench.mjs --replay-summary .super-kimi/evidence/loop-trend/loop-summary.json --evidence-root .super-kimi/evidence/loop-trend/replay',
     );
     expect(text).toContain('Next  Tighten the next budget-sensitive task.');
-    expect(text).toContain('Source  .omo/evidence/loop-trend/loop-summary.json');
+    expect(text).toContain('Source  .super-kimi/evidence/loop-trend/loop-summary.json');
     expect(text).not.toContain(`Source  ${workDir}`);
   });
 
   it('shows replay only for local loop summaries with structured rerun argv', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-loop-replay-test');
-    const legacyRoot = join(workDir, '.omo/evidence/legacy-loop');
+    const legacyRoot = join(workDir, '.super-kimi/evidence/legacy-loop');
     const externalRoot = join(process.cwd(), 'node_modules', '.tmp-bench-loop-replay-external-test');
     mkdirSync(legacyRoot, { recursive: true });
     mkdirSync(externalRoot, { recursive: true });
@@ -227,7 +227,7 @@ describe('bench slash command status surface', () => {
       status: 'PASS',
       bestScore: 1,
       rerun: {
-        command: 'node scripts/kimi-agent-bench.mjs --loop --evidence-root .omo/evidence/loop',
+        command: 'node scripts/kimi-agent-bench.mjs --loop --evidence-root .super-kimi/evidence/loop',
       },
       iterations: [{ status: 'PASS', score: 1, passRate: 1 }],
     };
@@ -243,10 +243,10 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const legacyText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/legacy-loop')).join('\n');
+    const legacyText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/legacy-loop')).join('\n');
     const externalText = buildBenchStatusLines(loadBenchStatus(workDir, externalRoot)).join('\n');
 
-    expect(legacyText).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --evidence-root .omo/evidence/loop');
+    expect(legacyText).toContain('Loop rerun  node scripts/kimi-agent-bench.mjs --loop --evidence-root .super-kimi/evidence/loop');
     expect(legacyText).not.toContain('Loop replay');
     expect(externalText).toContain(`Source  ${join(externalRoot, 'loop-summary.json')}`);
     expect(externalText).not.toContain('Loop replay');
@@ -254,7 +254,7 @@ describe('bench slash command status surface', () => {
 
   it('quotes local replay paths that need shell escaping', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-loop-replay-quote-test');
-    const specialRoot = join(workDir, '.omo/evidence', "loop replay's path");
+    const specialRoot = join(workDir, '.super-kimi/evidence', "loop replay's path");
     mkdirSync(specialRoot, { recursive: true });
     writeFileSync(
       join(specialRoot, 'loop-summary.json'),
@@ -263,24 +263,24 @@ describe('bench slash command status surface', () => {
         status: 'PASS',
         bestScore: 1,
         rerun: {
-          command: 'node scripts/kimi-agent-bench.mjs --loop --evidence-root .omo/evidence/loop',
+          command: 'node scripts/kimi-agent-bench.mjs --loop --evidence-root .super-kimi/evidence/loop',
           argv: ['node', 'scripts/kimi-agent-bench.mjs', '--loop', '--evidence-root', 'old'],
         },
         iterations: [{ status: 'PASS', score: 1, passRate: 1 }],
       }),
     );
 
-    const text = buildBenchStatusLines(loadBenchStatus(workDir, ".omo/evidence/loop replay's path")).join('\n');
+    const text = buildBenchStatusLines(loadBenchStatus(workDir, ".super-kimi/evidence/loop replay's path")).join('\n');
 
     expect(text).toContain(
-      "Loop replay  node scripts/kimi-agent-bench.mjs --replay-summary '.omo/evidence/loop replay'\\''s path/loop-summary.json' --evidence-root '.omo/evidence/loop replay'\\''s path/replay'",
+      "Loop replay  node scripts/kimi-agent-bench.mjs --replay-summary '.super-kimi/evidence/loop replay'\\''s path/loop-summary.json' --evidence-root '.super-kimi/evidence/loop replay'\\''s path/replay'",
     );
   });
 
   it('surfaces replay wrapper evidence before child loop summaries', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-replay-wrapper-test');
-    const replayRoot = join(workDir, '.omo/evidence/replay-root');
-    const sourceRoot = join(workDir, '.omo/evidence/source-loop');
+    const replayRoot = join(workDir, '.super-kimi/evidence/replay-root');
+    const sourceRoot = join(workDir, '.super-kimi/evidence/source-loop');
     mkdirSync(replayRoot, { recursive: true });
     mkdirSync(sourceRoot, { recursive: true });
     const childLoopSummary = {
@@ -305,28 +305,28 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const text = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/replay-root')).join('\n');
+    const text = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/replay-root')).join('\n');
 
     expect(text).toContain('Holdout  loop replay wrapper');
     expect(text).toContain('Replay  child PASS; exit 0; rootOnly true; shellParsing false; timeout false');
     expect(text).toContain(
       'Replay verdict  trusted; child PASS; exit 0; rootOnly true; shellParsing false; timeout false',
     );
-    expect(text).toContain('Replay source  .omo/evidence/source-loop/loop-summary.json');
-    expect(text).toContain('Replay evidence  .omo/evidence/replay-root');
-    expect(text).toContain('Replay inspect  cat .omo/evidence/replay-root/loop-summary.json');
-    expect(text).toContain('Replay log  cat .omo/evidence/replay-root/commands.jsonl');
+    expect(text).toContain('Replay source  .super-kimi/evidence/source-loop/loop-summary.json');
+    expect(text).toContain('Replay evidence  .super-kimi/evidence/replay-root');
+    expect(text).toContain('Replay inspect  cat .super-kimi/evidence/replay-root/loop-summary.json');
+    expect(text).toContain('Replay log  cat .super-kimi/evidence/replay-root/commands.jsonl');
     expect(text).toContain(
-      'Replay diff  diff -u .omo/evidence/source-loop/loop-summary.json .omo/evidence/replay-root/loop-summary.json',
+      'Replay diff  diff -u .super-kimi/evidence/source-loop/loop-summary.json .super-kimi/evidence/replay-root/loop-summary.json',
     );
     expect(text).toContain('Next  Replay verified; inspect child loop result PASS before the next improvement.');
-    expect(text).toContain('Source  .omo/evidence/replay-root/replay-summary.json');
-    expect(text).not.toContain('Source  .omo/evidence/replay-root/loop-summary.json');
+    expect(text).toContain('Source  .super-kimi/evidence/replay-root/replay-summary.json');
+    expect(text).not.toContain('Source  .super-kimi/evidence/replay-root/loop-summary.json');
   });
 
   it('classifies unsafe replay wrappers before trusting them', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-replay-verdict-test');
-    const root = join(workDir, '.omo/evidence/replay-verdict');
+    const root = join(workDir, '.super-kimi/evidence/replay-verdict');
     mkdirSync(root, { recursive: true });
     const childPass = {
       benchmark: 'super-kimi-agent-bench-loop',
@@ -356,7 +356,7 @@ describe('bench slash command status surface', () => {
         replayedLoopSummary: childPass,
         ...value,
       }));
-      return `.omo/evidence/replay-verdict/${name}`;
+      return `.super-kimi/evidence/replay-verdict/${name}`;
     }
 
     const shellParsingText = buildBenchStatusLines(loadBenchStatus(workDir, writeReplay('shell-parsing', {
@@ -401,8 +401,8 @@ describe('bench slash command status surface', () => {
 
   it('quotes replay inspect actions that need shell escaping', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-replay-action-quote-test');
-    const replayRoot = join(workDir, '.omo/evidence', "replay root's path");
-    const sourceRoot = join(workDir, '.omo/evidence/source-loop');
+    const replayRoot = join(workDir, '.super-kimi/evidence', "replay root's path");
+    const sourceRoot = join(workDir, '.super-kimi/evidence/source-loop');
     mkdirSync(replayRoot, { recursive: true });
     mkdirSync(sourceRoot, { recursive: true });
     const childLoopSummary = {
@@ -426,23 +426,23 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const text = buildBenchStatusLines(loadBenchStatus(workDir, ".omo/evidence/replay root's path")).join('\n');
+    const text = buildBenchStatusLines(loadBenchStatus(workDir, ".super-kimi/evidence/replay root's path")).join('\n');
 
     expect(text).toContain(
-      "Replay inspect  cat '.omo/evidence/replay root'\\''s path/loop-summary.json'",
+      "Replay inspect  cat '.super-kimi/evidence/replay root'\\''s path/loop-summary.json'",
     );
     expect(text).toContain(
-      "Replay log  cat '.omo/evidence/replay root'\\''s path/commands.jsonl'",
+      "Replay log  cat '.super-kimi/evidence/replay root'\\''s path/commands.jsonl'",
     );
     expect(text).toContain(
-      "Replay diff  diff -u .omo/evidence/source-loop/loop-summary.json '.omo/evidence/replay root'\\''s path/loop-summary.json'",
+      "Replay diff  diff -u .super-kimi/evidence/source-loop/loop-summary.json '.super-kimi/evidence/replay root'\\''s path/loop-summary.json'",
     );
   });
 
   it('hides replay diff actions when either compare side is missing', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-replay-diff-missing-test');
-    const missingSourceRoot = join(workDir, '.omo/evidence/missing-source');
-    const missingEvidenceRoot = join(workDir, '.omo/evidence/missing-evidence');
+    const missingSourceRoot = join(workDir, '.super-kimi/evidence/missing-source');
+    const missingEvidenceRoot = join(workDir, '.super-kimi/evidence/missing-evidence');
     mkdirSync(missingSourceRoot, { recursive: true });
     mkdirSync(missingEvidenceRoot, { recursive: true });
     const childLoopSummary = {
@@ -473,13 +473,13 @@ describe('bench slash command status surface', () => {
         childTimedOut: false,
         onlyEvidenceRootChanged: true,
         shellParsing: false,
-        sourceSummaryPath: join(workDir, '.omo/evidence/source-loop/loop-summary.json'),
+        sourceSummaryPath: join(workDir, '.super-kimi/evidence/source-loop/loop-summary.json'),
         replayedLoopSummary: childLoopSummary,
       }),
     );
 
-    const missingSourceText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/missing-source')).join('\n');
-    const missingEvidenceText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/missing-evidence')).join('\n');
+    const missingSourceText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/missing-source')).join('\n');
+    const missingEvidenceText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/missing-evidence')).join('\n');
 
     expect(missingSourceText).not.toContain('Replay diff');
     expect(missingEvidenceText).not.toContain('Replay diff');
@@ -487,9 +487,9 @@ describe('bench slash command status surface', () => {
 
   it('keeps clean and malformed loop focus evidence honest', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-loop-focus-edge-test');
-    const cleanRoot = join(workDir, '.omo/evidence/clean-loop');
-    const malformedRoot = join(workDir, '.omo/evidence/malformed-loop');
-    const secretRoot = join(workDir, '.omo/evidence/secret-loop');
+    const cleanRoot = join(workDir, '.super-kimi/evidence/clean-loop');
+    const malformedRoot = join(workDir, '.super-kimi/evidence/malformed-loop');
+    const secretRoot = join(workDir, '.super-kimi/evidence/secret-loop');
     mkdirSync(cleanRoot, { recursive: true });
     mkdirSync(malformedRoot, { recursive: true });
     mkdirSync(secretRoot, { recursive: true });
@@ -552,9 +552,9 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const cleanText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/clean-loop')).join('\n');
-    const malformedText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/malformed-loop')).join('\n');
-    const secretText = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/secret-loop')).join('\n');
+    const cleanText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/clean-loop')).join('\n');
+    const malformedText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/malformed-loop')).join('\n');
+    const secretText = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/secret-loop')).join('\n');
 
     expect(cleanText).not.toContain('Loop focus');
     expect(cleanText).not.toContain('Loop reason');
@@ -577,7 +577,7 @@ describe('bench slash command status surface', () => {
 
   it('falls back to resultPath for older loop focus summaries', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-loop-focus-fallback-test');
-    const evidenceRoot = join(workDir, '.omo/evidence/old-loop');
+    const evidenceRoot = join(workDir, '.super-kimi/evidence/old-loop');
     const resultPath = join(evidenceRoot, 'tasks/seed.legacy.v1/result.json');
     mkdirSync(evidenceRoot, { recursive: true });
     writeFileSync(
@@ -606,14 +606,14 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const text = buildBenchStatusLines(loadBenchStatus(workDir, '.omo/evidence/old-loop')).join('\n');
+    const text = buildBenchStatusLines(loadBenchStatus(workDir, '.super-kimi/evidence/old-loop')).join('\n');
 
     expect(text).toContain(`Loop inspect  ${resultPath}`);
   });
 
   it('loads actionable budget violation details from bench summary evidence', () => {
     const workDir = join(process.cwd(), 'node_modules', '.tmp-bench-budget-test');
-    const evidenceRoot = join(workDir, '.omo/evidence/budget-fail');
+    const evidenceRoot = join(workDir, '.super-kimi/evidence/budget-fail');
     mkdirSync(evidenceRoot, { recursive: true });
     writeFileSync(
       join(evidenceRoot, 'summary.json'),
@@ -622,7 +622,7 @@ describe('bench slash command status surface', () => {
         status: 'FAIL',
         completedAt: '2026-06-29T00:00:00.000Z',
         evidenceRoot,
-        taskDir: '/repo/.omo/bench/tasks',
+        taskDir: '/repo/.super-kimi/bench/tasks',
         suite: 'seed',
         runner: 'fixture',
         metrics: { score: 0, passRate: 0 },
@@ -639,7 +639,7 @@ describe('bench slash command status surface', () => {
       }),
     );
 
-    const status = loadBenchStatus(workDir, '.omo/evidence/budget-fail');
+    const status = loadBenchStatus(workDir, '.super-kimi/evidence/budget-fail');
     const text = buildBenchStatusLines(status).join('\n');
 
     expect(text).toContain('Budget  FAIL; exceeded 1');
@@ -647,7 +647,7 @@ describe('bench slash command status surface', () => {
     expect(text).toContain('Budget detail  wallMs 44 > 1; commands 2 > 0');
     expect(text).toContain(`Budget inspect  ${join(evidenceRoot, 'tasks/seed.budget-overrun.v1/result.json')}`);
     expect(text).toContain(
-      `Budget rerun  node scripts/kimi-agent-bench.mjs --task-dir /repo/.omo/bench/tasks --suite seed --runner fixture --evidence-root ${evidenceRoot}`,
+      `Budget rerun  node scripts/kimi-agent-bench.mjs --task-dir /repo/.super-kimi/bench/tasks --suite seed --runner fixture --evidence-root ${evidenceRoot}`,
     );
     expect(text).not.toContain('Loop trend');
     expect(text).not.toContain('Loop reason');

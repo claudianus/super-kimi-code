@@ -267,12 +267,12 @@ describe('harness radar gate', () => {
       ],
     }, {
       previousRadar,
-      previousLabel: '.omo/bench/harness-radar.json',
+      previousLabel: '.super-kimi/bench/harness-radar.json',
       refreshedAt: '2026-07-01',
     });
 
     expect(radar.source.changeSummary).toEqual({
-      comparedWith: '.omo/bench/harness-radar.json',
+      comparedWith: '.super-kimi/bench/harness-radar.json',
       totalAdded: 2,
       totalRemoved: 2,
       patterns: [

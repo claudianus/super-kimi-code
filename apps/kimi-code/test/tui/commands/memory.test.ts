@@ -25,29 +25,29 @@ describe('memory readiness slash command builders', () => {
         },
       ],
       evidence: {
-        sourceRoot: '/repo/.omo/evidence',
+        sourceRoot: '/repo/.super-kimi/evidence',
         llmWiki: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/llm-wiki.md',
+          sourcePath: '/repo/.super-kimi/evidence/llm-wiki.md',
           summary: 'evidence found',
         },
         knowledgeMap: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/kimi-knowledge-map.json',
+          sourcePath: '/repo/.super-kimi/evidence/kimi-knowledge-map.json',
           summary: 'evidence found',
         },
         browserUse: {
           ready: true,
           matchCount: 2,
-          sourcePath: '/repo/.omo/evidence/browser-use.json',
+          sourcePath: '/repo/.super-kimi/evidence/browser-use.json',
           summary: 'evidence found',
         },
         computerUse: {
           ready: true,
           matchCount: 1,
-          sourcePath: '/repo/.omo/evidence/computer-use-state.json',
+          sourcePath: '/repo/.super-kimi/evidence/computer-use-state.json',
           summary: 'evidence found',
         },
         warnings: [],
@@ -91,7 +91,7 @@ describe('memory readiness slash command builders', () => {
   it('loads browser-use, computer-use, knowledge-map, and llm-wiki evidence from local files', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-memory-readiness-evidence-'));
     try {
-      const evidenceDir = join(workDir, '.omo/evidence/g006');
+      const evidenceDir = join(workDir, '.super-kimi/evidence/g006');
       mkdirSync(evidenceDir, { recursive: true });
       writeFileSync(join(evidenceDir, 'llm-wiki.md'), 'llm-wiki durable memory readiness PASS');
       writeFileSync(
@@ -122,7 +122,7 @@ describe('memory readiness slash command builders', () => {
   it('does not treat research notes as browser or computer-use runtime evidence', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-memory-readiness-research-'));
     try {
-      const evidenceDir = join(workDir, '.omo/evidence/super-kimi-g006-memory-readiness');
+      const evidenceDir = join(workDir, '.super-kimi/evidence/super-kimi-g006-memory-readiness');
       mkdirSync(evidenceDir, { recursive: true });
       writeFileSync(
         join(evidenceDir, 'research-adoption-matrix.md'),
@@ -143,7 +143,7 @@ describe('memory readiness slash command builders', () => {
   it('ignores malformed json evidence instead of claiming readiness', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-memory-readiness-malformed-'));
     try {
-      const evidenceDir = join(workDir, '.omo/evidence/g006');
+      const evidenceDir = join(workDir, '.super-kimi/evidence/g006');
       mkdirSync(evidenceDir, { recursive: true });
       writeFileSync(join(evidenceDir, 'browser-use.json'), '{"tool":"browser-use",');
 
@@ -159,7 +159,7 @@ describe('memory readiness slash command builders', () => {
   it('summarizes malformed evidence warnings so readiness panels stay scannable', () => {
     const workDir = mkdtempSync(join(tmpdir(), 'kimi-memory-readiness-warning-summary-'));
     try {
-      const evidenceDir = join(workDir, '.omo/evidence/g006');
+      const evidenceDir = join(workDir, '.super-kimi/evidence/g006');
       mkdirSync(evidenceDir, { recursive: true });
       for (let index = 0; index < 5; index += 1) {
         writeFileSync(join(evidenceDir, `bad-${index}.json`), '{"status":"PASS",');

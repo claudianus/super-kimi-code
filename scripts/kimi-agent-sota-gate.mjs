@@ -26,10 +26,10 @@ import {
   ultraworkQuestionValidation,
 } from './kimi-sota-evidence-contract.mjs';
 
-const DEFAULT_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
-const DEFAULT_HARNESS_RADAR_PATH = '.omo/bench/harness-radar.json';
-const DEFAULT_OUTPUT_BASE = '.omo/evidence/kimi-agent-sota-gate';
-const DEFAULT_EVIDENCE_ROOT = '.omo/evidence';
+const DEFAULT_CRITERIA_PATH = '.super-kimi/bench/sota-criteria.json';
+const DEFAULT_HARNESS_RADAR_PATH = '.super-kimi/bench/harness-radar.json';
+const DEFAULT_OUTPUT_BASE = '.super-kimi/evidence/kimi-agent-sota-gate';
+const DEFAULT_EVIDENCE_ROOT = '.super-kimi/evidence';
 const SOTA_SUMMARY_FILENAME = 'sota-gate-summary.json';
 const AUTO_BASELINE_SCAN_LIMIT = 20_000;
 const LATEST_PASS_INPUT = 'latest-pass';
@@ -2006,7 +2006,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
       'repair-real-tui-workflow-proof',
       'The real TUI workflow gate did not prove direct coding, real repository source/test change, screen-state classification, agent-run verification, diff review, and targeted test verification together.',
       workflowGate.observed,
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-real-workflow --use-real-kimi-home --evidence-root .omo/evidence/<real-workflow-repair>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-real-workflow --use-real-kimi-home --evidence-root .super-kimi/evidence/<real-workflow-repair>',
     );
   }
 
@@ -2017,7 +2017,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'repair-required-live-tui-scenarios',
           'One or more required TUI scenarios did not produce passing screen and input evidence.',
           { scenarios: scenarioNames(penalty.detail) },
-          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .omo/evidence/<live-tui-after-fix>',
+          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .super-kimi/evidence/<live-tui-after-fix>',
         );
         break;
       case 'screen-observation':
@@ -2025,7 +2025,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'repair-screen-observation',
           'The gate could not recognize real Kimi TUI content in one or more captured screens.',
           { scenarios: scenarioNames(penalty.detail) },
-          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .omo/evidence/<screen-observation-after-fix>',
+          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .super-kimi/evidence/<screen-observation-after-fix>',
         );
         break;
       case 'input-trace':
@@ -2033,7 +2033,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'repair-keyboard-input-trace',
           'A required TUI scenario is missing ordered keyboard input proof, so the run is too close to blind output checking.',
           { scenarios: scenarioNames(penalty.detail) },
-          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .omo/evidence/<input-trace-after-fix>',
+          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .super-kimi/evidence/<input-trace-after-fix>',
         );
         break;
       case 'exit-cleanup':
@@ -2041,7 +2041,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           'repair-exit-cleanup',
           'The TUI session did not prove that /exit closed the live terminal session cleanly.',
           penalty.detail,
-          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .omo/evidence/<exit-cleanup-after-fix>',
+          'node scripts/qa-super-kimi-autonomous.mjs --phase tui-launch --evidence-root .super-kimi/evidence/<exit-cleanup-after-fix>',
         );
         break;
       case 'duration':
@@ -2076,14 +2076,14 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
         workflowGate: workflowGate.status,
         requiredNextGate: 'ultrawork-source-test-verification-workflow',
       },
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-after>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .super-kimi/evidence/<ultrawork-workflow-after>',
     );
   } else if (ultraworkGate.status !== 'PASS') {
     addAction(
       'repair-dedicated-ultrawork-workflow-gate',
       'The dedicated Ultrawork workflow did not prove natural-language auto activation, question answering, bounded source/test edits, agent-run verification, targeted tests, and no auto/question policy deadlock together.',
       ultraworkGate.observed,
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-workflow-repair>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .super-kimi/evidence/<ultrawork-workflow-repair>',
     );
   }
 
@@ -2128,7 +2128,7 @@ function recommendTuiNextActions(tuiGate, tuiUxDeltaGate, workflowGate, ultrawor
           .filter((scenario) => scenario.status === 'PASS')
           .map((scenario) => scenario.scenario),
       },
-      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .omo/evidence/<ultrawork-full-cycle-after>',
+      'node scripts/qa-super-kimi-autonomous.mjs --phase tui-ultrawork-workflow --use-real-kimi-home --evidence-root .super-kimi/evidence/<ultrawork-full-cycle-after>',
     );
   }
 

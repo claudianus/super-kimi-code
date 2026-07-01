@@ -12,7 +12,7 @@ interface ObservedTarget {
 }
 
 const criteria = JSON.parse(
-  readFileSync(new URL('../../../../.omo/bench/sota-criteria.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../../../.super-kimi/bench/sota-criteria.json', import.meta.url), 'utf8'),
 );
 
 describe('frontier benchmark targets', () => {

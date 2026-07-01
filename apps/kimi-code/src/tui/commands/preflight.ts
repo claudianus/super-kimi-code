@@ -14,15 +14,15 @@ import {
 const DEFAULT_PREFLIGHT_RECALL_QUERY = 'super kimi harness knowledge-map browser-use computer-use llm-wiki readiness';
 const PREFLIGHT_RECALL_MEMORY_SUBJECT = 'preflight-readiness';
 const PREFLIGHT_FRESHNESS_WINDOW_MS = 24 * 60 * 60 * 1000;
-const PREFLIGHT_REFRESH_EVIDENCE_ROOT = '.omo/evidence/super-kimi-preflight-refresh';
-const PREFLIGHT_RUNTIME_EVIDENCE_ROOT = '.omo/evidence/preflight-readiness';
+const PREFLIGHT_REFRESH_EVIDENCE_ROOT = '.super-kimi/evidence/super-kimi-preflight-refresh';
+const PREFLIGHT_RUNTIME_EVIDENCE_ROOT = '.super-kimi/evidence/preflight-readiness';
 const PREFLIGHT_REFRESH_COMMAND = 'node scripts/kimi-preflight-refresh.mjs';
 const PREFLIGHT_BENCH_LOOP_COMMAND = 'node scripts/kimi-agent-bench.mjs --loop --max-iterations 2';
-const PREFLIGHT_BENCH_LOOP_EVIDENCE_ROOT = '.omo/evidence/kimi-agent-bench';
+const PREFLIGHT_BENCH_LOOP_EVIDENCE_ROOT = '.super-kimi/evidence/kimi-agent-bench';
 const PREFLIGHT_BENCH_LOOP_MAX_ITERATIONS = 2;
 const PREFLIGHT_BENCH_LOOP_MAX_TOTAL_MS = 600_000;
 const PREFLIGHT_ULTRAWORK_CONTRACT_PATH = 'apps/kimi-code/src/tui/commands/ultrawork-contract.ts';
-const PREFLIGHT_SOTA_CRITERIA_PATH = '.omo/bench/sota-criteria.json';
+const PREFLIGHT_SOTA_CRITERIA_PATH = '.super-kimi/bench/sota-criteria.json';
 const HUMAN_WRITING_CONTRACT_PHRASES = [
   'Human Writing / Anti-Slop',
   'harness-level output quality gate',

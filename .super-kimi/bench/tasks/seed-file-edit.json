@@ -28,7 +28,7 @@
     }
   ],
   "contamination": {
-    "blockedFiles": ["answers/solution.txt", ".omo/evidence/stale-pass.json"]
+    "blockedFiles": ["answers/solution.txt", ".super-kimi/evidence/stale-pass.json"]
   },
   "checks": [
     {

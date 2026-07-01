@@ -115,7 +115,7 @@ interface SotaRecoveryCandidate {
   readonly mtimeMs: number;
 }
 
-const SOTA_EVIDENCE_ROOT = '.omo/evidence';
+const SOTA_EVIDENCE_ROOT = '.super-kimi/evidence';
 const SOTA_SUMMARY_FILENAME = 'sota-gate-summary.json';
 const SOTA_RECOVERY_SCAN_MAX_DEPTH = 5;
 const SOTA_RECOVERY_SCAN_LIMIT = 2_000;

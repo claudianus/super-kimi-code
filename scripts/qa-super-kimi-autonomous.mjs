@@ -29,13 +29,13 @@ import {
 } from './kimi-sota-evidence-contract.mjs';
 import { captureRetryPolicyForScenario } from './kimi-tui-capture-retry-policy.mjs';
 
-const DEFAULT_EVIDENCE_BASE = '.omo/evidence/super-kimi-autonomous-qa-env';
+const DEFAULT_EVIDENCE_BASE = '.super-kimi/evidence/super-kimi-autonomous-qa-env';
 const DEFAULT_SOTA_TUI_SUMMARY_PATH =
-  '.omo/evidence/kimi-agent-bench/system-suite/tui-launch-tmux/tui/summary.json';
+  '.super-kimi/evidence/kimi-agent-bench/system-suite/tui-launch-tmux/tui/summary.json';
 const DEFAULT_SOTA_WORKFLOW_SUMMARY_PATH =
-  '.omo/evidence/super-kimi-autonomous-qa-env/tui-real-workflow/tui-real-workflow.json';
+  '.super-kimi/evidence/super-kimi-autonomous-qa-env/tui-real-workflow/tui-real-workflow.json';
 const DEFAULT_SOTA_ULTRAWORK_SUMMARY_PATH =
-  '.omo/evidence/super-kimi-autonomous-qa-env/tui-ultrawork-workflow/tui-ultrawork-workflow.json';
+  '.super-kimi/evidence/super-kimi-autonomous-qa-env/tui-ultrawork-workflow/tui-ultrawork-workflow.json';
 const SOTA_TUI_SUMMARY_SCAN_LIMIT = 2_000;
 const REQUIRED_NODE_VERSION = '24.15.0';
 const REQUIRED_PNPM_VERSION = '10.33.0';
@@ -1003,9 +1003,9 @@ async function runSotaGatePhase(context) {
   const args = [
     'scripts/kimi-agent-sota-gate.mjs',
     '--system-summary',
-    '.omo/evidence/super-kimi-autonomous-qa-env/bench-system-with-live-tui/bench/system-summary.json',
+    '.super-kimi/evidence/super-kimi-autonomous-qa-env/bench-system-with-live-tui/bench/system-summary.json',
     '--loop-summary',
-    '.omo/evidence/super-kimi-autonomous-qa-env/bench-system-loop-with-live-tui/bench/system-loop-summary.json',
+    '.super-kimi/evidence/super-kimi-autonomous-qa-env/bench-system-loop-with-live-tui/bench/system-loop-summary.json',
     '--tui-summary',
     tuiSummarySelection.path,
     '--workflow-summary',
@@ -1233,7 +1233,7 @@ async function selectSotaUltraworkSummary(context) {
 }
 
 async function findLatestSotaTuiSummary(context) {
-  const evidenceRoot = path.join(context.sourceCheckout, '.omo', 'evidence');
+  const evidenceRoot = path.join(context.sourceCheckout, '.super-kimi', 'evidence');
   const candidates = await findTuiSummaryCandidates(evidenceRoot, context.evidenceRoot);
   for (const candidate of candidates) {
     const summary = await readJsonIfFile(candidate.path);
@@ -1253,7 +1253,7 @@ async function findLatestSotaTuiSummary(context) {
 }
 
 async function findLatestSotaWorkflowSummary(context) {
-  const evidenceRoot = path.join(context.sourceCheckout, '.omo', 'evidence');
+  const evidenceRoot = path.join(context.sourceCheckout, '.super-kimi', 'evidence');
   const candidates = await findWorkflowSummaryCandidates(evidenceRoot, context.evidenceRoot);
   for (const candidate of candidates) {
     const summary = await readJsonIfFile(candidate.path);
@@ -1278,7 +1278,7 @@ async function findLatestSotaWorkflowSummary(context) {
 }
 
 async function findLatestSotaUltraworkSummary(context) {
-  const evidenceRoot = path.join(context.sourceCheckout, '.omo', 'evidence');
+  const evidenceRoot = path.join(context.sourceCheckout, '.super-kimi', 'evidence');
   const candidates = await findUltraworkSummaryCandidates(evidenceRoot, context.evidenceRoot);
   let selected;
   for (const candidate of candidates) {
@@ -1955,7 +1955,7 @@ function buildReadinessDebtAction(gate, index) {
       reason:
         'Replace the allowed BLOCKED proof with a real before/after TUI iteration run that records visible evidence and an Ouroboros PASS verdict.',
       command:
-        'node scripts/qa-super-kimi-autonomous.mjs --phase tui-iteration --tui-before <before-dir> --tui-after <after-dir> --evidence-root .omo/evidence/<tui-iteration-after>',
+        'node scripts/qa-super-kimi-autonomous.mjs --phase tui-iteration --tui-before <before-dir> --tui-after <after-dir> --evidence-root .super-kimi/evidence/<tui-iteration-after>',
     };
   }
   if (gate.name === 'autonomous') {
@@ -1966,7 +1966,7 @@ function buildReadinessDebtAction(gate, index) {
       reason:
         'Replace the credential BLOCKED proof with a provider-backed autonomous canary using the real Kimi /login session and selected coding model.',
       command:
-        'node scripts/qa-super-kimi-autonomous.mjs --phase autonomous --use-real-kimi-home --evidence-root .omo/evidence/<autonomous-canary-after>',
+        'node scripts/qa-super-kimi-autonomous.mjs --phase autonomous --use-real-kimi-home --evidence-root .super-kimi/evidence/<autonomous-canary-after>',
     };
   }
   return {
@@ -11300,7 +11300,7 @@ function runPreflight(sourceCheckout, selectedPort) {
     lsof: preflightBinary('lsof'),
     curl: preflightBinary('curl'),
     git: preflightGit(sourceCheckout),
-    omoSparkshell: preflightOmoSparkshell(sourceCheckout),
+    superKimiWorkspace: preflightSuperKimiWorkspace(sourceCheckout),
     loopbackPort: {
       name: 'loopback port',
       status: selectedPort.availability.status,
@@ -11368,30 +11368,21 @@ function preflightGit(cwd) {
   };
 }
 
-function preflightOmoSparkshell(cwd) {
-  const lookup = runBoundedCommand('/bin/sh', ['-lc', 'command -v omo'], {
-    cwd,
-    timeoutMs: 5_000,
-  });
-  if (lookup.status !== 0) {
-    return {
-      name: 'omo sparkshell',
-      status: 'FAIL',
-      expected: 'omo available on PATH',
-      actual: lookup.stderr.trim() || `exit ${lookup.status}`,
-      detail: lookup.timedOut ? 'omo lookup timed out.' : 'omo was not found on PATH.',
-    };
-  }
-  const result = runBoundedCommand('omo', ['sparkshell', '--help'], {
-    cwd,
-    timeoutMs: 15_000,
-  });
+function preflightSuperKimiWorkspace(cwd) {
+  const result = runBoundedCommand(
+    '/bin/sh',
+    ['-lc', 'test -d .super-kimi/bench && mkdir -p .super-kimi/evidence && test -w .super-kimi/evidence'],
+    {
+      cwd,
+      timeoutMs: 5_000,
+    },
+  );
   return {
-    name: 'omo sparkshell',
+    name: 'super-kimi workspace',
     status: result.status === 0 ? 'PASS' : 'FAIL',
-    expected: 'omo sparkshell --help exits 0',
-    actual: result.stdout.split('\n').find((line) => line.trim() !== '') ?? result.stderr.trim() ?? '',
-    detail: result.timedOut ? 'omo sparkshell --help timed out.' : 'Checked sparkshell help.',
+    expected: '.super-kimi/bench tracked and .super-kimi/evidence writable',
+    actual: result.status === 0 ? '.super-kimi workspace ready' : result.stderr.trim() || `exit ${result.status}`,
+    detail: result.timedOut ? 'workspace check timed out.' : 'Checked Super Kimi local artifact roots.',
   };
 }
 

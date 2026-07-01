@@ -6,9 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const DEFAULT_EVIDENCE_ROOT = '.omo/evidence/super-kimi-preflight-refresh';
-const DEFAULT_RUNTIME_EVIDENCE_ROOT = '.omo/evidence/preflight-readiness';
-const DEFAULT_EVIDENCE_SEARCH_ROOT = '.omo/evidence';
+const DEFAULT_EVIDENCE_ROOT = '.super-kimi/evidence/super-kimi-preflight-refresh';
+const DEFAULT_RUNTIME_EVIDENCE_ROOT = '.super-kimi/evidence/preflight-readiness';
+const DEFAULT_EVIDENCE_SEARCH_ROOT = '.super-kimi/evidence';
 const DEFAULT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_SCAN_FILES = 200;
 const MAX_DISCOVERY_SCAN_FILES = 2000;
@@ -60,7 +60,7 @@ Options:
 
 Examples:
   node scripts/kimi-preflight-refresh.mjs
-  node scripts/kimi-preflight-refresh.mjs --runtime-evidence-root .omo/evidence/preflight-readiness
+  node scripts/kimi-preflight-refresh.mjs --runtime-evidence-root .super-kimi/evidence/preflight-readiness
 `;
 }
 

@@ -23,7 +23,7 @@
         "--require-computer-use",
         "missing",
         "--evidence-root",
-        ".omo/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use"
+        ".super-kimi/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use"
       ],
       "exitCode": 1,
       "timeoutMs": 120000,
@@ -34,7 +34,7 @@
       "command": "node",
       "args": [
         "-e",
-        "const fs=require('node:fs'); const manifest=JSON.parse(fs.readFileSync('.omo/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use/manifest.json','utf8')); const summary=JSON.parse(fs.readFileSync('.omo/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use/tui/summary.json','utf8')); if (manifest.status !== 'blocked') throw new Error(`manifest status ${manifest.status}`); if (summary.status !== 'BLOCKED') throw new Error(`tui summary status ${summary.status}`); if (!String(summary.reason).includes('computer-use')) throw new Error('blocked reason does not mention computer-use');"
+        "const fs=require('node:fs'); const manifest=JSON.parse(fs.readFileSync('.super-kimi/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use/manifest.json','utf8')); const summary=JSON.parse(fs.readFileSync('.super-kimi/evidence/kimi-agent-bench/system-suite/tui-launch-missing-computer-use/tui/summary.json','utf8')); if (manifest.status !== 'blocked') throw new Error(`manifest status ${manifest.status}`); if (summary.status !== 'BLOCKED') throw new Error(`tui summary status ${summary.status}`); if (!String(summary.reason).includes('computer-use')) throw new Error('blocked reason does not mention computer-use');"
       ],
       "timeoutMs": 30000,
       "weight": 1

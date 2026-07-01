@@ -23,7 +23,7 @@ describe('status command recovery readiness', () => {
   });
 
   it('marks recovery ready from a passing SOTA summary with live workflow evidence', () => {
-    const summaryPath = join(workDir, '.omo', 'evidence', 'sota', 'sota-gate-summary.json');
+    const summaryPath = join(workDir, '.super-kimi', 'evidence', 'sota', 'sota-gate-summary.json');
     writeJson(summaryPath, {
       status: 'PASS',
       completedAt: '2026-06-30T19:10:26.399Z',
@@ -34,7 +34,7 @@ describe('status command recovery readiness', () => {
 
     expect(loadStatusRecoveryReadiness(workDir)).toEqual({
       ready: true,
-      evidencePath: '.omo/evidence/sota/sota-gate-summary.json',
+      evidencePath: '.super-kimi/evidence/sota/sota-gate-summary.json',
       nextAction: 'Recovery evidence ready.',
     });
   });
