@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { createControlledPromise, type ControlledPromise } from '@antfu/utils';
 import {
   APIConnectionError,
+  APIContextOverflowError,
   APIEmptyResponseError,
   APIStatusError,
   APITimeoutError,
@@ -773,10 +774,19 @@ export class TurnFlow {
 
         return result.stopReason;
       } catch (error) {
+        const isContextOverflow =
+          error instanceof APIContextOverflowError ||
+          (isKimiError(error) && error.code === ErrorCodes.CONTEXT_OVERFLOW);
+        const estimatedRequestTokens = isContextOverflow
+          ? this.agent.fullCompaction.estimateCurrentRequestTokens()
+          : undefined;
         if (
-          this.agent.fullCompaction.shouldRecoverFromContextOverflow(error) ||
-          (isKimiError(error) && error.code === ErrorCodes.CONTEXT_OVERFLOW)
+          isContextOverflow ||
+          this.agent.fullCompaction.shouldRecoverFromContextOverflow(error, estimatedRequestTokens)
         ) {
+          this.agent.fullCompaction.observeContextOverflow(
+            estimatedRequestTokens ?? this.agent.fullCompaction.estimateCurrentRequestTokens(),
+          );
           await this.agent.fullCompaction.handleOverflowError(signal, error);
           continue; // Retry with compacted context
         }

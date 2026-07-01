@@ -70,6 +70,7 @@ export const MAX_COMPACTION_RETRY_ATTEMPTS = 5;
 const DEFAULT_COMPACTION_MAX_COMPLETION_TOKENS = 128 * 1024;
 const DEFAULT_PARALLEL_BLOCK_THRESHOLD = 30_000;
 const DEFAULT_PARALLEL_BLOCK_TARGET = 15_000;
+const OVERFLOW_CONTEXT_SAFETY_RATIO = 0.85;
 const OVERFLOW_STATUS_RECOVERY_RATIO = 0.5;
 
 class CompactionTruncatedError extends Error {
@@ -87,6 +88,8 @@ export class FullCompaction {
     blockedByTurn: boolean;
   } | null = null;
   protected readonly strategy: CompactionStrategy;
+  private readonly observedMaxContextTokensByModel = new Map<string, number>();
+  private lastCompactedTokenCount: number | null = null;
   private consecutiveOverflowCompactions = 0;
   protected extractedFacts: ExtractedFact[] = [];
   protected anchor: AnchorDocument | null = null;
@@ -100,7 +103,7 @@ export class FullCompaction {
     this.strategy =
       strategy ??
       new DefaultCompactionStrategy(
-        () => agent.config.modelCapabilities.max_context_tokens,
+        () => this.getEffectiveMaxContextTokens(),
         {
           ...DEFAULT_COMPACTION_CONFIG,
           reservedContextSize:
@@ -195,10 +198,37 @@ export class FullCompaction {
   }
 
   estimateCurrentRequestTokens(): number {
+    return this.estimateRequestTokens(this.agent.context.messages);
+  }
+
+  getEffectiveMaxContextTokens(): number {
+    const configured = this.agent.config.modelCapabilities.max_context_tokens;
+    const modelAlias = this.agent.config.modelAlias;
+    const observed =
+      modelAlias === undefined ? undefined : this.observedMaxContextTokensByModel.get(modelAlias);
+    if (observed === undefined) return configured;
+    if (configured <= 0) return observed;
+    return Math.min(configured, observed);
+  }
+
+  observeContextOverflow(estimatedRequestTokens: number): void {
+    if (!Number.isFinite(estimatedRequestTokens) || estimatedRequestTokens <= 0) return;
+    const modelAlias = this.agent.config.modelAlias;
+    if (modelAlias === undefined) return;
+    const observed = Math.max(
+      1,
+      Math.floor(estimatedRequestTokens * OVERFLOW_CONTEXT_SAFETY_RATIO),
+    );
+    const current = this.getEffectiveMaxContextTokens();
+    if (current > 0 && observed >= current) return;
+    this.observedMaxContextTokensByModel.set(modelAlias, observed);
+  }
+
+  private estimateRequestTokens(messages: readonly Message[]): number {
     return (
       estimateTokens(this.agent.config.systemPrompt) +
       estimateTokensForTools(this.agent.tools.loopTools) +
-      estimateTokensForMessages(this.agent.context.messages)
+      estimateTokensForMessages(messages)
     );
   }
 
@@ -208,7 +238,7 @@ export class FullCompaction {
   ): boolean {
     if (error instanceof APIContextOverflowError) return true;
     if (!(error instanceof APIStatusError) || error.statusCode !== 413) return false;
-    const maxContextTokens = this.agent.config.modelCapabilities.max_context_tokens;
+    const maxContextTokens = this.getEffectiveMaxContextTokens();
     return (
       maxContextTokens > 0 &&
       estimatedRequestTokens >= maxContextTokens * OVERFLOW_STATUS_RECOVERY_RATIO
@@ -218,6 +248,7 @@ export class FullCompaction {
   resetForTurn(): void {
     this.compactionCountInTurn = 0;
     this.consecutiveOverflowCompactions = 0;
+    this.lastCompactedTokenCount = null;
   }
 
   async handleOverflowError(signal: AbortSignal, error: unknown) {
@@ -253,6 +284,12 @@ export class FullCompaction {
 
   private checkAutoCompaction(throwOnLimit: boolean = true): boolean {
     if (this.compacting) return true;
+    if (
+      this.lastCompactedTokenCount !== null &&
+      this.tokenCountWithPending <= this.lastCompactedTokenCount
+    ) {
+      return false;
+    }
     if (!this.strategy.shouldCompact(this.tokenCountWithPending)) return false;
     return this.beginAutoCompaction(throwOnLimit);
   }
@@ -522,6 +559,7 @@ export class FullCompaction {
         ...usageTelemetryProperties(usage),
       });
       this.agent.context.applyCompaction(result);
+      this.lastCompactedTokenCount = result.tokensAfter;
       return result;
     } catch (error) {
       if (isAbortError(error)) return;

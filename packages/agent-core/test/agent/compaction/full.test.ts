@@ -1742,6 +1742,9 @@ describe('FullCompaction', () => {
         args: { turnId: 0, reason: 'completed' },
       }),
     );
+    expect(ctx.agent.fullCompaction.getEffectiveMaxContextTokens()).toBeLessThan(
+      CATALOGUED_MODEL_CAPABILITIES.max_context_tokens,
+    );
     expect(inputs).toMatchInlineSnapshot(`
       [
         [
@@ -1859,6 +1862,7 @@ describe('FullCompaction', () => {
     const events = await ctx.untilTurnEnd();
 
     expect(callCount).toBe(3);
+    expect(ctx.agent.fullCompaction.getEffectiveMaxContextTokens()).toBeLessThan(1_000);
     expect(events).toContainEqual(
       expect.objectContaining({
         event: 'compaction.started',
@@ -1941,6 +1945,9 @@ describe('FullCompaction', () => {
 
     expect(callCount).toBe(3);
     expect(providerThinkingEfforts).toEqual(['high', 'high', 'high']);
+    expect(ctx.agent.fullCompaction.getEffectiveMaxContextTokens()).toBeLessThan(
+      CATALOGUED_MODEL_CAPABILITIES.max_context_tokens,
+    );
     expect(records).toContainEqual({
       event: 'compaction_finished',
       properties: expect.objectContaining({
