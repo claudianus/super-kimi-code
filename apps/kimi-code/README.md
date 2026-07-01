@@ -1,24 +1,39 @@
-# @moonshot-ai/kimi-code
+# Super Kimi Code CLI
 
-> The Starting Point for Next-Gen Agents
+> A heavier-duty Kimi Code fork for provider pools, quota-aware routing, long-context work, memory, research, and premium terminal operation.
 
-[![npm](https://img.shields.io/npm/v/@moonshot-ai/kimi-code)](https://www.npmjs.com/package/@moonshot-ai/kimi-code) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)  [![Docs](https://img.shields.io/badge/docs-online-blue)](https://claudianus.github.io/super-kimi-code/en/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-online-blue)](https://claudianus.github.io/super-kimi-code/en/)
 
-## What is Kimi Code CLI
+## What This Package Is
 
-Kimi Code CLI is an AI coding agent that runs in your terminal. It can read and edit code, run shell commands, search files, fetch web pages, and choose the next step based on the feedback it receives. It works out of the box with Moonshot AI's Kimi models and can also be configured to use other compatible providers.
+This package contains the terminal CLI/TUI application built by Super Kimi Code. Upstream Kimi Code gives you a capable terminal coding agent; Super Kimi Code adds the operational layer around it for heavier daily use.
+
+The fork focuses on practical failure modes: multiple API keys, OAuth accounts, provider outages, rate limits, quota exhaustion, long context drift, research-heavy implementation, and a terminal UI that stays readable during long sessions.
+
+## Super Kimi Advantages
+
+| Surface | Super Kimi Code capability |
+| --- | --- |
+| Source install | Builds from this GitHub fork and installs the local `skimi` command |
+| Provider operations | Multi-provider catalog, custom endpoints, API-key/OAuth pools, labels, secret-safe status |
+| Routing | `auto`, `fallback`, `fill_first`, `round_robin`, `weighted_round_robin`, `least_used`, `lowest_latency`, `rate_limit_aware`, and `random` |
+| Quota handling | Detects auth, quota, rate-limit, timeout, server, connection, and empty-response failures and cools down unhealthy candidates |
+| Long context | Context OS compaction, structured working memory, repair, bounded rehydration |
+| Memory | Kimi Recall semantic, episodic, procedural, prospective, and governance memory scopes |
+| Workflow | Ultrawork planning, research, goal creation, swarm execution, integration, verification, and learning |
+| TUI | Premium themes, bundled external terminal themes, syntax-aware colors, stronger status surfaces |
 
 ## Install
 
-The recommended install path builds Super Kimi Code from this GitHub source repository. It requires Git and Node.js 24.15.0 or later.
+The recommended path builds Super Kimi Code from this GitHub source repository. It requires Git and Node.js 24.15.0 or later.
 
-- **macOS / Linux**:
+**macOS / Linux**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.sh | bash
 ```
 
-- **Windows (PowerShell)**:
+**Windows PowerShell**
 
 ```powershell
 irm https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.ps1 | iex
@@ -26,27 +41,11 @@ irm https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.ps
 
 > On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Super Kimi Code uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-Then run it with a new Terminal session:
+Open a new terminal session and verify:
 
 ```sh
 skimi --version
 ```
-
-### Alternative: npm
-
-If you prefer npm, use Node.js 22.19.0 or later:
-
-```sh
-npm install -g @moonshot-ai/kimi-code
-```
-
-Or with pnpm:
-
-```sh
-pnpm add -g @moonshot-ai/kimi-code
-```
-
-For upgrade and uninstall instructions, see the [Getting Started guide](https://claudianus.github.io/super-kimi-code/en/guides/getting-started).
 
 ## Quick Start
 
@@ -57,34 +56,32 @@ cd your-project
 skimi
 ```
 
-On first launch, run `/login` inside Kimi Code CLI and choose either Kimi Code OAuth or a Kimi Platform API key. After login, try a first task:
+Connect providers and route candidates:
 
+```sh
+kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY
+kimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --auto-route
+kimi provider route preview <modelAlias>
+kimi provider route status <sessionId>
 ```
-Take a look at this project and explain the main directories.
+
+Run a larger task through Ultrawork:
+
+```sh
+skimi -p "/ultrawork Plan, implement, verify, and summarize the release risk for this change."
 ```
-
-## Key Features
-
-- **GitHub source install.** Install with one command from this fork and get a local `skimi` command.
-- **Blazing-fast startup.** The TUI is ready in milliseconds, so opening a session never feels heavy.
-- **Polished TUI.** A carefully tuned interface designed for long, focused agent sessions.
-- **Provider routing.** Register multiple API keys or OAuth accounts, label them, set local RPM/TPM limits, and route across healthy credentials and fallback models.
-- **Video input.** Drop a screen recording or demo clip into the chat — let the agent watch instead of typing out what's hard to describe in words.
-- **AI-native MCP configuration.** Add, edit, and authenticate Model Context Protocol servers conversationally via `/mcp-config` — no hand-editing JSON.
-- **Subagents for focused, parallel work.** Dispatch built-in `coder`, `explore`, and `plan` subagents in isolated context windows; the main conversation stays clean.
-- **Lifecycle hooks.** Run local commands at key points — gate risky tool calls, audit decisions, fire desktop notifications, wire into your own automation.
 
 ## Documentation
 
 - Full docs: https://claudianus.github.io/super-kimi-code/en/
 - 中文文档: https://claudianus.github.io/super-kimi-code/zh/
-- Getting Started: https://claudianus.github.io/super-kimi-code/en/guides/getting-started
+- Root README: https://github.com/claudianus/super-kimi-code
 
-## Repository & Issues
+## Repository And Issues
 
 - Source: https://github.com/claudianus/super-kimi-code
 - Issues: https://github.com/claudianus/super-kimi-code/issues
-- Security: see SECURITY.md in the main repository
+- Security: see `SECURITY.md` in the main repository
 
 ## License
 

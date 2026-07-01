@@ -5,11 +5,38 @@
 
 ![Super Kimi Code 使用演示](./docs/media/intro.gif)
 
-## 为真正交付的人准备的编码 Agent
+## 不是 Kimi Code 换皮，而是 Super Kimi 运营层
 
-Super Kimi Code CLI 是运行在终端里的 AI 编码 Agent。它可以阅读和修改代码、执行 shell 命令、搜索文件、抓取网页、协调子 Agent，并根据实时反馈调整下一步行动。
+上游 Kimi Code 是一个优秀的终端编码 Agent。Super Kimi Code 在这个基础上加入更重的实战运营层：多个 provider、多个账号、API key quota 耗尽、rate limit、长上下文漂移、research evidence、验证流程，以及每天长时间使用时真正重要的 TUI 质量。
 
-这个 fork 专注于日常高强度使用体验：从 GitHub 源码一行安装，更快、更清晰的 TUI，更强的 provider 与账号/API key 设置，多 key 与 OAuth 账号池，以及根据 rate limit 和 quota 自动 fallback、routing、load balancing 的能力。
+这个 fork 的目标不是简单改名。它要解决的是：一个 key 被限流时自动换 credential，长会话变散时用 Context OS 收束，大任务通过 Ultrawork 完成规划、研究、执行、验证和学习。
+
+## Super Kimi 相比上游新增了什么
+
+| 维度 | 上游 Kimi Code | Super Kimi Code |
+| --- | --- | --- |
+| 安装与命令 | 官方 Kimi package flow | 从本 fork 源码安装，本地 `skimi` 命令，Windows Git Bash 检测，PATH 修复，source update 路径 |
+| provider 设置 | 基础 provider/model 设置 | multi-provider catalog、API key/OAuth account pool、custom endpoint、label、secret-safe status、`provider doctor` |
+| routing | 选择 model/provider | `auto`、`fallback`、`fill_first`、`round_robin`、`weighted_round_robin`、`least_used`、`lowest_latency`、`rate_limit_aware`、`random` 策略 |
+| quota 生存能力 | 失败后用户手动调整 | 识别 auth、quota、rate-limit、timeout、server、connection、empty-response 失败，并进入 cooldown/fallback 选择 |
+| 长上下文 | 普通 session compaction | Super Kimi Context OS、structured working memory、quality warning、repair、bounded rehydration、`super_kimi_context_compaction_v2` |
+| memory | 以 session history 为主 | Kimi Recall：semantic、episodic、procedural、prospective、governance memory scope 与 readiness check |
+| workflow | prompt、plan、subagent primitive | Ultrawork：UltraPlan、UltraResearch、UltraGoal、UltraSwarm、Integrate、Verify、Learn 的长任务流程 |
+| research | web fetch/search tool | local web research fallback、evidence pack、source classification、readiness check、research-provider metadata |
+| TUI | 可用的 terminal UI | premium theme preset、bundled external terminal themes、live theme picker、syntax-aware code color、更清晰的 status surface |
+| QA | 常规 test | agent benchmark script、真实 TUI workflow check、installer QA、route test、compaction test、release hardening script |
+
+## 高级运营栈
+
+- **provider/account 自由度**：连接 Kimi、Anthropic、OpenAI 兼容 provider、Google GenAI、Vertex AI、catalog provider 和 custom endpoint。
+- **multi-key resilience**：每个 provider 注册多个 API key 或 OAuth account，设置 label、RPM/TPM hint，并在状态输出中隐藏 secret。
+- **quota-aware routing**：自动路由到健康 credential 和 fallback model，对 quota/rate-limit 候选执行 cooldown。
+- **实时 route 可见性**：查看候选 credential、实际选中 route、latency、local limit headroom、cooldown reason、failure count。
+- **长会话 Context OS**：在长任务中结构化上下文，通过质量告警、repair 和 bounded rehydration 修复逐渐发散的会话。
+- **Kimi Recall memory**：把项目事实、决策、流程和未来提醒保存在 session 之外，后续继续复用。
+- **Ultrawork mode**：把 planning、research、goal creation、staffing、swarm execution、integration、verification、learning 串成一个流程。
+- **有证据的 research**：分类 source，保留 evidence pack，并在外部路径不足时使用 local fallback search/fetch。
+- **适合每天使用的 TUI**：强化 premium visual theme、syntax color、status hint、command surface 和 ACP editor integration。
 
 ## 安装
 
@@ -46,30 +73,26 @@ cd your-project
 skimi
 ```
 
-首次启动时，运行 `/login` 并选择 Kimi Code OAuth 或 API key 登录流程。要连接其他 provider，可以使用 TUI 中的 `/provider`，也可以使用非交互的 `kimi provider` 命令：
+首次启动时，运行 `/login` 并选择 Kimi Code OAuth 或 API key 登录流程。要连接其他 provider，可以使用 TUI 中的 `/provider`，也可以使用非交互的 provider 命令：
 
 ```sh
 kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY
 kimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --auto-route
+kimi provider route preview <modelAlias>
 kimi provider route status <sessionId>
 ```
 
-可以从这个任务开始：
+大型实现任务可以从 Ultrawork 开始：
 
+```sh
+skimi -p "/ultrawork Audit this repo, plan the migration, implement it, run verification, and summarize the release risk."
 ```
-帮我看一下这个项目的主要目录，并说明每个目录负责什么。
+
+或者在 TUI 中这样请求：
+
+```text
+Use Ultrawork. Analyze this project, identify the safest migration path, implement it, verify it, and preserve the important decisions in memory.
 ```
-
-## 为什么选择它
-
-- **GitHub 源码一行安装**：直接从这个 fork 安装本地 `skimi` 命令，避免全局包冲突。
-- **快速、专注的 TUI**：为长时间 Agent 会话优化状态、控制、主题和代码显示。
-- **Provider 自由度**：支持 Kimi、Anthropic、OpenAI 兼容 provider、Google GenAI、Vertex AI、自定义 endpoint 和 catalog provider。
-- **账号和 key 池**：每个 provider 可注册多个 API key 或 OAuth 账号，设置 label、本地 RPM/TPM limit，并在状态视图中隐藏 secret。
-- **Quota-aware routing**：使用 `auto`、`round_robin`、`weighted_round_robin`、`least_used`、`lowest_latency`、`rate_limit_aware` 等策略自动选择健康 credential 与 fallback model。
-- **运营可见性**：用 `kimi provider doctor`、route preview、route status 查看 cooldown、quota、latency 和实际选中的 provider/key/account。
-- **子 Agent 与 Ultrawork**：让 planning、goal tracking、research、verification 等长任务流程更清晰。
-- **编辑器集成**：通过 `skimi acp` 接入 Zed、JetBrains 或任何 Agent Client Protocol 客户端。
 
 ## 在编辑器中使用
 
@@ -124,7 +147,7 @@ pnpm build
 
 ## 致谢
 
-Super Kimi Code 构建在 Kimi Code 项目和 [`pi-tui`](https://github.com/earendil-works/pi-mono/tree/main/packages/tui) 终端 UI 基础之上。感谢原作者和贡献者提供了这个 fork 得以继续扩展的基础。
+Super Kimi Code 构建在 Kimi Code 项目和 [`pi-tui`](https://github.com/earendil-works/pi-mono/tree/main/packages/tui) 终端 UI 基础之上。这个 fork 的重点不是隐藏基础，而是加入重度日常使用需要的 reliability、routing、memory、workflow、research 和 TUI layer。
 
 ## 许可证
 
