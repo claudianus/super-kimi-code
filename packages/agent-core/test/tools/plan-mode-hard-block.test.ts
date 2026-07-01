@@ -373,7 +373,11 @@ describe('Plan mode permission policy', () => {
     const planPath = planMode.planFilePath;
     if (planPath === null) throw new Error('expected plan path');
 
+    expect(evaluatePlanPolicy(agent, 'Read', { path: planPath })).toBeUndefined();
     expect(evaluatePlanPolicy(agent, 'Write', { path: planPath, content: '# fixed' })).toBeUndefined();
+
+    const readDeny = expectDeny(evaluatePlanPolicy(agent, 'Read', { path: '/workspace/src/main.ts' }));
+    expect(readDeny.message ?? '').toContain('current plan-file reads');
 
     const deny = expectDeny(
       evaluatePlanPolicy(agent, 'Write', {
@@ -454,6 +458,7 @@ describe('Plan mode permission policy', () => {
 function toolAccesses(toolName: string, args: unknown) {
   const path = args !== null && typeof args === 'object' ? (args as { path?: unknown }).path : undefined;
   if (typeof path !== 'string') return ToolAccesses.none();
+  if (toolName === 'Read') return ToolAccesses.readFile(path);
   if (toolName === 'Write') return ToolAccesses.writeFile(path);
   if (toolName === 'Edit') return ToolAccesses.readWriteFile(path);
   return ToolAccesses.none();

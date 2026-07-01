@@ -153,6 +153,22 @@ describe('PlanModeInjector content', () => {
     expect(text).toContain('narrow read-only Bash inspection');
     expect(text).toContain('pwd, ls, git status, git diff --stat/name-only/check');
   });
+
+  it('tells Ultra Plan exit how to repair missing plan sections', async () => {
+    const agent = planAgent({
+      isActive: true,
+      isUltraMode: true,
+      phase: 'exit',
+      planFilePath: '/tmp/ultra-plan.md',
+    });
+    const injector = new PlanModeInjector(agent);
+
+    await injector.inject();
+
+    const text = lastReminder(agent);
+    expect(text).toContain('Read the current plan file if needed');
+    expect(text).toContain('correct only that plan file');
+  });
 });
 
 describe('PlanModeInjector cadence', () => {

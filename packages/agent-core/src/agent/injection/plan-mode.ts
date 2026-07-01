@@ -274,7 +274,7 @@ Use Write or Edit to modify the plan file. If it does not exist, create it first
   exit: `## Exit Phase
 The plan is complete. Call ExitPlanMode to request user approval.
 Make sure the plan file contains a complete Seed Spec and Swarm Decision before exiting.
-If ExitPlanMode reports missing sections, correct only the plan file with Write/Edit and call ExitPlanMode again.`,
+If ExitPlanMode reports missing sections, Read the current plan file if needed, correct only that plan file with Write/Edit, and call ExitPlanMode again.`,
 };
 
 function phaseReminder(planFilePath: PlanFilePath, phase: string, agent?: Agent): string {

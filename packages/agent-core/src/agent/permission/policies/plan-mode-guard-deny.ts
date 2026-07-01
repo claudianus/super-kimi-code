@@ -1,4 +1,5 @@
 import type { Agent } from '../..';
+import type { ToolFileAccess } from '../../../loop/tool-access';
 import type { PermissionPolicy, PermissionPolicyContext, PermissionPolicyResult } from '../types';
 import { writeFileAccesses } from './file-access-ask';
 
@@ -142,12 +143,14 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
       }
       case 'exit': {
         // ExitPlanMode may report a missing required section. Allow plan-file
-        // edits so the agent can repair the plan instead of getting trapped.
+        // reads and edits so the agent can repair the plan instead of getting trapped.
+        const planFilePath = this.agent.planMode.planFilePath;
+        if (toolName === 'Read' && planFilePath !== null && readsOnlyPlanFile(context, planFilePath)) return;
         if (toolName === 'Write' || toolName === 'Edit') return;
         if (toolName === 'ExitPlanMode') return;
         return {
           kind: 'deny',
-          message: `${toolName} is blocked in Exit phase. Only ExitPlanMode or plan-file edits are allowed.`,
+          message: `${toolName} is blocked in Exit phase. Only ExitPlanMode, current plan-file reads, or plan-file edits are allowed.`,
         };
       }
       default:
@@ -163,6 +166,19 @@ function writesOnlyPlanFile(
   const writeAccesses = writeFileAccesses(context);
   if (writeAccesses.length === 0) return false;
   return writeAccesses.every((access) => access.path === planFilePath);
+}
+
+function readsOnlyPlanFile(
+  context: PermissionPolicyContext,
+  planFilePath: string,
+): boolean {
+  const readAccesses =
+    context.execution.accesses?.filter(
+      (access): access is ToolFileAccess =>
+        access.kind === 'file' && access.operation === 'read',
+    ) ?? [];
+  if (readAccesses.length === 0) return false;
+  return readAccesses.every((access) => access.path === planFilePath);
 }
 
 function planModeWriteDeniedMessage(planFilePath: string | null): string {
