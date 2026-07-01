@@ -144,6 +144,15 @@ export type {
   CustomRegistrySource,
 } from './custom-registry';
 
+export { refreshProviderModels } from './refreshProviderModels';
+export type {
+  ProviderChange,
+  RefreshProviderHost,
+  RefreshProviderOptions,
+  RefreshProviderScope,
+  RefreshResult,
+} from './refreshProviderModels';
+
 export { KimiOAuthToolkit, resolveKimiTokenStorageName } from './toolkit';
 export type {
   AuthManagedUsageResult,

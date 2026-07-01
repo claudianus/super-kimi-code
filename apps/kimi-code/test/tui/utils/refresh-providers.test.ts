@@ -2,6 +2,7 @@ import {
   KIMI_CODE_PROVIDER_NAME,
   resolveKimiCodeOAuthKey,
   resolveKimiCodeOAuthRef,
+  type ManagedKimiConfigShape,
 } from '@moonshot-ai/kimi-code-oauth';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,17 +22,19 @@ function fetchInputUrl(input: Parameters<typeof fetch>[0]): string {
 
 function makeRefreshHost(initial: KimiConfig): {
   current: () => KimiConfig;
-  removeProvider: ReturnType<typeof vi.fn<(providerId: string) => Promise<KimiConfig>>>;
-  setConfig: ReturnType<typeof vi.fn<(patch: Partial<KimiConfig>) => Promise<KimiConfig>>>;
+  removeProvider: ReturnType<typeof vi.fn<(providerId: string) => Promise<ManagedKimiConfigShape>>>;
+  setConfig: ReturnType<
+    typeof vi.fn<(patch: ManagedKimiConfigShape) => Promise<ManagedKimiConfigShape>>
+  >;
 } {
-  let persisted = structuredClone(initial);
+  let persisted = structuredClone(initial) as unknown as ManagedKimiConfigShape;
   const removeProvider = vi.fn(async (providerId: string) => {
     const providers = { ...persisted.providers };
     delete providers[providerId];
     const models = { ...persisted.models };
     let defaultRemoved = false;
     for (const [alias, model] of Object.entries(models)) {
-      if (model.provider !== providerId) continue;
+      if ((model as { provider?: unknown }).provider !== providerId) continue;
       delete models[alias];
       if (persisted.defaultModel === alias) defaultRemoved = true;
     }
@@ -39,12 +42,12 @@ function makeRefreshHost(initial: KimiConfig): {
     if (defaultRemoved) persisted = { ...persisted, defaultModel: undefined };
     return structuredClone(persisted);
   });
-  const setConfig = vi.fn(async (patch: Partial<KimiConfig>) => {
+  const setConfig = vi.fn(async (patch: ManagedKimiConfigShape) => {
     persisted = { ...persisted, ...patch };
     return structuredClone(persisted);
   });
   return {
-    current: () => structuredClone(persisted),
+    current: () => structuredClone(persisted) as unknown as KimiConfig,
     removeProvider,
     setConfig,
   };

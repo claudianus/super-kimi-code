@@ -35,6 +35,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1129`, `#1156`: use model `maxOutputSize` and a 128k default cap for compaction output budgets.
 - Upstream `#1170`, `#1186` selective: route managed Kimi Code Anthropic-protocol model aliases through the Anthropic beta Messages API.
 - Upstream `#1203` selective: track when Glob/Grep search tools use a non-system ripgrep fallback.
+- Upstream `#1207` selective: share provider model refresh orchestration between the CLI/TUI path and runtime model catalog service.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -63,8 +64,10 @@ Super Kimi adaptation:
 - Preserved Super Kimi's compaction strategy while capping compaction completion budgets with alias `maxOutputSize` first, then a safe 128k default for known large-context models, leaving unknown-context and explicit env opt-out behavior intact.
 - Kept the managed Kimi provider surface intact while storing only the needed `protocol: anthropic` alias metadata, preserving Kimi OAuth/base URLs, forwarding Kimi identity headers, and routing those aliases through Anthropic beta transport with session metadata.
 - Kept the existing ripgrep-powered search tools and added telemetry only at the fallback boundary so Super Kimi can diagnose slow or missing search binaries without changing tool output.
+- Kept the product surface TUI-first and deferred the web/server scheduler pieces from the same upstream PR, while moving the shared managed Kimi, Open Platform, and custom-registry refresh core into the OAuth package for CLI and runtime reuse.
 
 ## Next Candidate Queue
 
 - `#1214` compaction strategy remainder: potential token-efficiency win, but large behavioral surface.
 - `#1132` thinking config/model effort overhaul: potentially useful for future Kimi model metadata, but broad and breaking; continue mining for small safe provider/auth pieces first.
+- `#1207` remainder: model-catalog background scheduling and change-event fanout need separate review before any TUI-visible status surface changes.
