@@ -164,20 +164,23 @@ export function applyOpenPlatformConfig(
   };
 
   const existingModels = config.models ?? {};
+  const upstreamKeys = new Set(options.models.map((model) => `${providerKey}/${model.id}`));
   for (const [key, model] of Object.entries(existingModels)) {
-    if (isRecord(model) && model['provider'] === providerKey) {
+    if (isRecord(model) && model['provider'] === providerKey && !upstreamKeys.has(key)) {
       delete existingModels[key];
     }
   }
 
   for (const model of options.models) {
     const aliasKey = `${providerKey}/${model.id}`;
+    const existing = isRecord(existingModels[aliasKey]) ? existingModels[aliasKey] : {};
     existingModels[aliasKey] = {
+      ...existing,
       provider: providerKey,
       model: model.id,
       maxContextSize: model.contextLength,
       capabilities: capabilitiesForModel(model),
-      displayName: model.displayName,
+      ...(model.displayName !== undefined ? { displayName: model.displayName } : {}),
     };
   }
 
