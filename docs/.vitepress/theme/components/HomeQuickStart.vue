@@ -2,17 +2,18 @@
 import { useData, withBase } from 'vitepress'
 import { computed, ref } from 'vue'
 
-const { lang } = useData()
+const { lang, frontmatter } = useData()
 const isZh = computed(() => lang.value.startsWith('zh'))
+const isKo = computed(() => String(frontmatter.value.hero?.text ?? '').includes('Kimi Code 복제'))
 
-const installMacCommand = 'curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash'
-const installWinCommand = 'irm https://code.kimi.com/kimi-code/install.ps1 | iex'
-const runCommand = 'kimi'
+const installMacCommand = 'curl -fsSL https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.sh | bash'
+const installWinCommand = 'irm https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.ps1 | iex'
+const runCommand = 'skimi'
 
 const copy = computed(() => isZh.value
   ? {
-      title: '一行命令开始',
-      lede: '装好之后跑 kimi，立刻在你当前的项目里开聊。',
+      title: '从源码安装 Super Kimi',
+      lede: '从本 fork 构建并安装 skimi，避免与上游 kimi package flow 混淆。',
       macLabel: 'macOS / Linux',
       winLabel: 'Windows (PowerShell)',
       runLabel: '在任意目录运行',
@@ -21,12 +22,24 @@ const copy = computed(() => isZh.value
       ctaText: '查看完整安装指南',
       ctaHref: '/zh/guides/getting-started',
     }
+  : isKo.value
+    ? {
+        title: '소스에서 Super Kimi 설치',
+        lede: '이 fork에서 직접 빌드한 skimi 명령을 설치해 upstream kimi package flow와 분리합니다.',
+        macLabel: 'macOS / Linux',
+        winLabel: 'Windows PowerShell',
+        runLabel: '프로젝트에서 실행',
+        copyHint: '복사',
+        copiedHint: '복사됨',
+        ctaText: 'English install guide 보기',
+        ctaHref: '/en/guides/getting-started',
+      }
   : {
-      title: 'Get started in one line',
-      lede: 'Once installed, run kimi inside any project to start a conversation.',
+      title: 'Install Super Kimi from source',
+      lede: 'Build this fork and install the skimi command, separate from the upstream kimi package flow.',
       macLabel: 'macOS / Linux',
       winLabel: 'Windows (PowerShell)',
-      runLabel: 'Run anywhere',
+      runLabel: 'Run in a project',
       copyHint: 'Copy',
       copiedHint: 'Copied',
       ctaText: 'Read the full install guide',

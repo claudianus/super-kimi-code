@@ -3,31 +3,20 @@ import { useData, withBase } from 'vitepress'
 import { computed } from 'vue'
 import KimiLogo from './KimiLogo.vue'
 
-const { lang } = useData()
+interface HeroAction {
+  theme?: string
+  text: string
+  link: string
+}
 
-const isZh = computed(() => lang.value.startsWith('zh'))
+const { frontmatter } = useData()
 
-const copy = computed(() => isZh.value
-  ? {
-      titleLead: 'Kimi',
-      titleAccent: 'Code',
-      titleTail: ' CLI',
-      tagline: 'The Starting Point for Next-Gen Agents',
-      primaryText: '开始使用',
-      primaryHref: '/zh/guides/getting-started',
-      secondaryText: '在 GitHub 查看',
-      secondaryHref: 'https://github.com/MoonshotAI/kimi-code',
-    }
-  : {
-      titleLead: 'Kimi',
-      titleAccent: 'Code',
-      titleTail: ' CLI',
-      tagline: 'The Starting Point for Next-Gen Agents',
-      primaryText: 'Get started',
-      primaryHref: '/en/guides/getting-started',
-      secondaryText: 'View on GitHub',
-      secondaryHref: 'https://github.com/MoonshotAI/kimi-code',
-    })
+const hero = computed(() => frontmatter.value.hero ?? {})
+const actions = computed<HeroAction[]>(() => hero.value.actions ?? [])
+
+function resolveHref(link: string): string {
+  return /^https?:\/\//.test(link) ? link : withBase(link)
+}
 </script>
 
 <template>
@@ -38,21 +27,23 @@ const copy = computed(() => isZh.value
         <KimiLogo :size="64" />
       </div>
       <h1 class="KimiHero__title">
-        {{ copy.titleLead }}&nbsp;<span class="KimiHero__accent">{{ copy.titleAccent }}</span>{{ copy.titleTail }}
+        Super Kimi <span class="KimiHero__accent">Code</span> CLI
       </h1>
-      <p class="KimiHero__tagline">{{ copy.tagline }}</p>
+      <p class="KimiHero__tagline">{{ hero.text }}</p>
+      <p class="KimiHero__subtagline">{{ hero.tagline }}</p>
       <div class="KimiHero__actions">
-        <a class="KimiBtn KimiBtn--primary" :href="withBase(copy.primaryHref)">
-          {{ copy.primaryText }}
+        <a
+          v-for="action in actions"
+          :key="action.text"
+          :class="['KimiBtn', action.theme === 'brand' ? 'KimiBtn--primary' : 'KimiBtn--ghost']"
+          :href="resolveHref(action.link)"
+          :target="/^https?:\/\//.test(action.link) ? '_blank' : undefined"
+          :rel="/^https?:\/\//.test(action.link) ? 'noopener' : undefined"
+        >
+          {{ action.text }}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-        </a>
-        <a class="KimiBtn KimiBtn--ghost" :href="copy.secondaryHref" target="_blank" rel="noopener">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M8 .2C3.58.2 0 3.78 0 8.2c0 3.54 2.3 6.54 5.48 7.6.4.07.55-.17.55-.38l-.01-1.5c-2.23.49-2.7-.95-2.7-.95-.37-.93-.9-1.18-.9-1.18-.73-.5.06-.49.06-.49.81.06 1.24.83 1.24.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.13 0 0 .67-.21 2.2.82a7.65 7.65 0 014 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.55.74.55 1.49l-.01 2.21c0 .21.15.46.55.38C13.7 14.74 16 11.74 16 8.2 16 3.78 12.42.2 8 .2z" />
-          </svg>
-          {{ copy.secondaryText }}
         </a>
       </div>
     </div>
@@ -103,11 +94,11 @@ const copy = computed(() => isZh.value
 }
 
 .KimiHero__title {
-  font-size: clamp(40px, 7vw, 84px);
+  font-size: 76px;
   font-weight: 700;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
   line-height: 1.05;
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   color: var(--vp-c-text-1);
   max-width: 18ch;
 }
@@ -121,10 +112,19 @@ const copy = computed(() => isZh.value
 }
 
 .KimiHero__tagline {
-  font-size: clamp(16px, 1.5vw, 20px);
+  font-size: 22px;
+  font-weight: 640;
   line-height: 1.55;
+  color: var(--vp-c-text-1);
+  max-width: 760px;
+  margin: 0 0 12px;
+}
+
+.KimiHero__subtagline {
+  font-size: 17px;
+  line-height: 1.65;
   color: var(--vp-c-text-2);
-  max-width: 620px;
+  max-width: 820px;
   margin: 0 0 40px;
 }
 
@@ -136,6 +136,15 @@ const copy = computed(() => isZh.value
 }
 
 @media (max-width: 480px) {
+  .KimiHero__title {
+    font-size: 42px;
+  }
+  .KimiHero__tagline {
+    font-size: 18px;
+  }
+  .KimiHero__subtagline {
+    font-size: 15px;
+  }
   .KimiHero__actions {
     width: 100%;
     flex-direction: column;

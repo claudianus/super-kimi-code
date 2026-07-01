@@ -2,8 +2,9 @@
 import { useData, withBase } from 'vitepress'
 import { computed } from 'vue'
 
-const { lang } = useData()
+const { lang, frontmatter } = useData()
 const isZh = computed(() => lang.value.startsWith('zh'))
+const isKo = computed(() => String(frontmatter.value.hero?.text ?? '').includes('Kimi Code 복제'))
 
 interface Highlight {
   icon: string
@@ -21,104 +22,157 @@ interface Feature {
 const highlights = computed<Highlight[]>(() => isZh.value
   ? [
       {
-        icon: '⚡',
-        title: '极速轻量',
-        desc: '一行命令装好的单文件 CLI，毫秒级启动，无需 Node.js，零环境干扰。',
+        icon: '⇄',
+        title: 'Quota-aware routing',
+        desc: '多 provider、多 API key、多 OAuth account 形成 route pool，绕开 quota 与 rate limit。',
       },
       {
-        icon: '🎬',
-        title: '视频也能输入',
-        desc: '屏幕录像、演示视频拖进对话——画面替你说清需求。',
+        icon: '◇',
+        title: 'Context OS + Kimi Recall',
+        desc: '长会话通过结构化 compaction、repair、rehydration 与 durable memory 保持清晰。',
       },
       {
-        icon: '🎨',
-        title: '精致 TUI',
-        desc: '为长时间、专注的 Agent 会话精心打磨的交互界面。',
+        icon: '✓',
+        title: 'Ultrawork verification',
+        desc: '把 plan、research、goal、swarm、integrate、verify、learn 串成一个长任务流程。',
       },
     ]
+  : isKo.value
+    ? [
+        {
+          icon: '⇄',
+          title: 'Quota-aware routing',
+          desc: '여러 provider, API key, OAuth account를 route pool로 묶고 quota와 rate limit을 우회합니다.',
+        },
+        {
+          icon: '◇',
+          title: 'Context OS + Kimi Recall',
+          desc: '긴 세션을 structured compaction, repair, rehydration, durable memory로 선명하게 유지합니다.',
+        },
+        {
+          icon: '✓',
+          title: 'Ultrawork verification',
+          desc: 'plan, research, goal, swarm, integrate, verify, learn을 하나의 long-task workflow로 실행합니다.',
+        },
+      ]
   : [
       {
-        icon: '⚡',
-        title: 'Fast & lightweight',
-        desc: 'Single-binary install with millisecond startup — no Node.js, no PATH gymnastics.',
+        icon: '⇄',
+        title: 'Quota-aware routing',
+        desc: 'Route across provider, API-key, and OAuth account pools while avoiding quota and rate-limit failures.',
       },
       {
-        icon: '🎬',
-        title: 'Video input',
-        desc: 'Drop a screen recording or demo clip in chat; the agent reads the frames and acts on them.',
+        icon: '◇',
+        title: 'Context OS + Kimi Recall',
+        desc: 'Keep long sessions legible with structured compaction, repair, rehydration, and durable memory.',
       },
       {
-        icon: '🎨',
-        title: 'Polished TUI',
-        desc: 'A carefully tuned interface designed for long, focused agent sessions.',
+        icon: '✓',
+        title: 'Ultrawork verification',
+        desc: 'Run planning, research, goals, swarm execution, integration, verification, and learning as one workflow.',
       },
     ])
 
 const features = computed<Feature[]>(() => isZh.value
   ? [
       {
-        icon: '🧩',
-        title: 'Agent Skills',
-        desc: '把团队的工作流程封装成 Kimi 随时调用的技能，不必每次都重新解释。',
-        href: '/zh/customization/skills',
+        icon: '01',
+        title: 'Provider operations',
+        desc: '管理 catalog provider、custom endpoint、API key pool、OAuth account、label、local limit 与 route health。',
+        href: '/zh/configuration/providers',
       },
       {
-        icon: '🪝',
-        title: 'Hooks',
-        desc: '在生命周期关键点注入脚本，做格式化、审批、通知或任意自定义逻辑。',
-        href: '/zh/customization/hooks',
+        icon: '02',
+        title: 'Long-running goals',
+        desc: '用 goal 与 Ultrawork 把大任务拆成可验证的执行合同。',
+        href: '/zh/guides/goals',
       },
       {
-        icon: '🤖',
-        title: 'Sub-agents',
-        desc: '并行派发独立任务，每个子 agent 自带上下文，主对话保持清爽。',
-        href: '/zh/customization/agents',
+        icon: '03',
+        title: 'Premium TUI themes',
+        desc: '选择内置高级主题、导入 terminal palette，并保持代码高亮与状态可读。',
+        href: '/zh/customization/themes',
       },
       {
-        icon: '🔌',
-        title: 'MCP',
-        desc: '通过 Model Context Protocol 接入任意工具、数据源与企业系统。',
-        href: '/zh/customization/mcp',
+        icon: '04',
+        title: 'ACP editor use',
+        desc: '通过 skimi acp 在兼容编辑器中运行同一个 Super Kimi 会话。',
+        href: '/zh/guides/ides',
       }
     ]
+  : isKo.value
+    ? [
+        {
+          icon: '01',
+          title: 'Provider operations',
+          desc: 'catalog provider, custom endpoint, API key pool, OAuth account, label, local limit, route health를 관리합니다.',
+          href: '/en/configuration/providers',
+        },
+        {
+          icon: '02',
+          title: 'Long-running goals',
+          desc: 'goal과 Ultrawork로 큰 작업을 검증 가능한 실행 계약으로 바꿉니다.',
+          href: '/en/guides/goals',
+        },
+        {
+          icon: '03',
+          title: 'Premium TUI themes',
+          desc: '고급 theme, imported terminal palette, code highlight, status readability를 강화합니다.',
+          href: '/en/customization/themes',
+        },
+        {
+          icon: '04',
+          title: 'ACP editor use',
+          desc: 'skimi acp로 compatible editor에서 같은 Super Kimi session을 구동합니다.',
+          href: '/en/guides/ides',
+        }
+      ]
   : [
       {
-        icon: '🧩',
-        title: 'Agent Skills',
-        desc: "Package your team's workflows into skills Kimi can invoke on demand.",
-        href: '/en/customization/skills',
+        icon: '01',
+        title: 'Provider operations',
+        desc: 'Manage catalog providers, custom endpoints, API-key pools, OAuth accounts, labels, local limits, and route health.',
+        href: '/en/configuration/providers',
       },
       {
-        icon: '🪝',
-        title: 'Hooks',
-        desc: 'Inject scripts at lifecycle checkpoints — formatting, approvals, notifications, anything.',
-        href: '/en/customization/hooks',
+        icon: '02',
+        title: 'Long-running goals',
+        desc: 'Use goals and Ultrawork to turn large tasks into a verifiable execution contract.',
+        href: '/en/guides/goals',
       },
       {
-        icon: '🤖',
-        title: 'Sub-agents',
-        desc: 'Dispatch isolated tasks in parallel, each with its own context — main thread stays clean.',
-        href: '/en/customization/agents',
+        icon: '03',
+        title: 'Premium TUI themes',
+        desc: 'Choose premium themes, import terminal palettes, and keep code highlighting and status surfaces readable.',
+        href: '/en/customization/themes',
       },
       {
-        icon: '🔌',
-        title: 'MCP',
-        desc: 'Plug in any tool, data source, or enterprise system via the Model Context Protocol.',
-        href: '/en/customization/mcp',
+        icon: '04',
+        title: 'ACP editor use',
+        desc: 'Run the same Super Kimi session inside compatible editors with skimi acp.',
+        href: '/en/guides/ides',
       }
     ])
 
-const highlightsTitle = computed(() => isZh.value ? '开箱即得' : 'Ready out of the box')
+const highlightsTitle = computed(() => isZh.value
+  ? '为真实故障而设计'
+  : isKo.value ? '실전 장애를 전제로 설계' : 'Designed for real failure modes')
 const highlightsLede = computed(() => isZh.value
-  ? '装好就能用，关键能力默认就绪。'
-  : 'Install once. The essentials are already there.')
+  ? 'Super Kimi Code 不是展示 demo 的 fork，而是为 quota、context、research、verification 和长期使用设计的运营层。'
+  : isKo.value
+    ? 'Super Kimi Code는 demo용 fork가 아니라 quota, context, research, verification, 장기 사용을 버티는 운영 레이어입니다.'
+    : 'Super Kimi Code is not a demo fork. It is an operations layer for quota, context, research, verification, and long daily use.')
 
-const featuresTitle = computed(() => isZh.value ? '按需扩展' : 'Extend it your way')
+const featuresTitle = computed(() => isZh.value
+  ? '超越上游的核心入口'
+  : isKo.value ? 'upstream을 넘어선 핵심 진입점' : 'Core Entry Points Beyond Upstream')
 const featuresLede = computed(() => isZh.value
-  ? '内置可编程的扩展点，按自己的方式塑造工作流。'
-  : 'Programmable extension points to shape the workflow around you.')
+  ? '从 provider operations 到 editor integration，Super Kimi 的新增能力都放在日常路径上。'
+  : isKo.value
+    ? 'provider operations부터 editor integration까지, Super Kimi의 추가 기능은 매일 쓰는 경로에 배치되어 있습니다.'
+    : 'From provider operations to editor integration, the Super Kimi additions sit directly on the daily path.')
 
-const ctaText = computed(() => isZh.value ? '了解' : 'Learn more')
+const ctaText = computed(() => isZh.value ? '查看' : isKo.value ? '보기' : 'Learn more')
 </script>
 
 <template>
