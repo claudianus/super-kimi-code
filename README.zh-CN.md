@@ -1,42 +1,31 @@
 # Super Kimi Code CLI
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-online-blue)](https://claudianus.github.io/super-kimi-code/zh/) <br>
-[文档](https://claudianus.github.io/super-kimi-code/zh/) · [Issues](https://github.com/claudianus/super-kimi-code/issues) · [한국어](README.ko.md) · [English](README.md)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Site](https://img.shields.io/badge/site-online-blue)](https://claudianus.github.io/super-kimi-code/zh/) <br>
+[站点](https://claudianus.github.io/super-kimi-code/zh/) · [Issues](https://github.com/claudianus/super-kimi-code/issues) · [한국어](README.ko.md) · [English](README.md)
 
-![Super Kimi Code 使用演示](./docs/media/intro.gif)
+![Super Kimi Code command center](./site/assets/hero-command-center.png)
 
-## 不是 Kimi Code 换皮，而是 Super Kimi 运营层
+## 持续推进软件工作的 AI 编码 Agent
 
-上游 Kimi Code 是一个优秀的终端编码 Agent。Super Kimi Code 在这个基础上加入更重的实战运营层：多个 provider、多个账号、API key quota 耗尽、rate limit、长上下文漂移、research evidence、验证流程，以及每天长时间使用时真正重要的 TUI 质量。
+Super Kimi Code 是面向长周期软件任务的独立 AI 编码 Agent。它将规划、研究、目标管理、并行执行、验证、记忆和项目文档连接到同一个终端优先工作流中。
 
-这个 fork 的目标不是简单改名。它要解决的是：一个 key 被限流时自动换 credential，长会话变散时用 Context OS 收束，大任务通过 Ultrawork 完成规划、研究、执行、验证和学习。
+这个产品面向同时关注上下文质量、provider 可用性、证据和发布风险的项目工作。它让决策可追溯，让已验证知识可以继续复用，并帮助下一步从更清晰的起点开始。
 
-## Super Kimi 相比上游新增了什么
+## 核心能力
 
-| 维度 | 上游 Kimi Code | Super Kimi Code |
-| --- | --- | --- |
-| 安装与命令 | 官方 Kimi package flow | 从本 fork 源码安装，本地 `skimi` 命令，Windows Git Bash 检测，PATH 修复，source update 路径 |
-| provider 设置 | 基础 provider/model 设置 | multi-provider catalog、API key/OAuth account pool、custom endpoint、label、secret-safe status、`provider doctor` |
-| routing | 选择 model/provider | `auto`、`fallback`、`fill_first`、`round_robin`、`weighted_round_robin`、`least_used`、`lowest_latency`、`rate_limit_aware`、`random` 策略 |
-| quota 生存能力 | 失败后用户手动调整 | 识别 auth、quota、rate-limit、timeout、server、connection、empty-response 失败，并进入 cooldown/fallback 选择 |
-| 长上下文 | 普通 session compaction | Super Kimi Context OS、structured working memory、quality warning、repair、bounded rehydration、`super_kimi_context_compaction_v2` |
-| memory | 以 session history 为主 | Kimi Recall：semantic、episodic、procedural、prospective、governance memory scope 与 readiness check |
-| workflow | prompt、plan、subagent primitive | Ultrawork：UltraPlan、UltraResearch、UltraGoal、UltraSwarm、Integrate、Verify、Learn 的长任务流程 |
-| research | web fetch/search tool | local web research fallback、evidence pack、source classification、readiness check、research-provider metadata |
-| TUI | 可用的 terminal UI | premium theme preset、bundled external terminal themes、live theme picker、syntax-aware code color、更清晰的 status surface |
-| QA | 常规 test | agent benchmark script、真实 TUI workflow check、installer QA、route test、compaction test、release hardening script |
-
-## 高级运营栈
-
-- **provider/account 自由度**：连接 Kimi、Anthropic、OpenAI 兼容 provider、Google GenAI、Vertex AI、catalog provider 和 custom endpoint。
-- **multi-key resilience**：每个 provider 注册多个 API key 或 OAuth account，设置 label、RPM/TPM hint，并在状态输出中隐藏 secret。
-- **quota-aware routing**：自动路由到健康 credential 和 fallback model，对 quota/rate-limit 候选执行 cooldown。
-- **实时 route 可见性**：查看候选 credential、实际选中 route、latency、local limit headroom、cooldown reason、failure count。
-- **长会话 Context OS**：在长任务中结构化上下文，通过质量告警、repair 和 bounded rehydration 修复逐渐发散的会话。
-- **Kimi Recall memory**：把项目事实、决策、流程和未来提醒保存在 session 之外，后续继续复用。
-- **Ultrawork mode**：把 planning、research、goal creation、staffing、swarm execution、integration、verification、learning 串成一个流程。
-- **有证据的 research**：分类 source，保留 evidence pack，并在外部路径不足时使用 local fallback search/fetch。
-- **适合每天使用的 TUI**：强化 premium visual theme、syntax color、status hint、command surface 和 ACP editor integration。
+| 能力 | 支持内容 |
+| --- | --- |
+| UltraPlan | 将需求、约束和风险整理成可执行计划。 |
+| UltraResearch | 检查 API、论文、发布说明和安全议题，并保留证据。 |
+| UltraGoal | 让目标、预算和完成标准在长任务中保持明确。 |
+| UltraSwarm | 将探索、实现、审查和文档交给不同角色的 subagent 处理。 |
+| UltraWork | 将规划、研究、角色分配、集成、验证和学习连接成同一流程。 |
+| Provider routing | 注册 API key 与 OAuth account，并按 quota、cooldown、latency 和 route health 选择 fallback 候选。 |
+| Kimi Recall | 保存项目事实、决策、流程、后续任务和 governance rule。 |
+| LLM Wiki | 将代码库知识、证据和验证结果整理成可复用的项目文档。 |
+| Context OS | 通过 structured working memory、repair 和 bounded rehydration 管理长会话。 |
+| Premium themes | 通过 preset、外部 terminal palette 和 syntax-aware color 提升长时间终端使用的可读性。 |
+| ACP support | 让兼容编辑器通过 stdio 继续同一个 Super Kimi workflow。 |
 
 ## 安装
 
@@ -73,16 +62,16 @@ cd your-project
 skimi
 ```
 
-首次启动时，运行 `/login` 并选择 Kimi Code OAuth 或 API key 登录流程。要连接其他 provider，可以使用 TUI 中的 `/provider`，也可以使用非交互的 provider 命令：
+首次启动时，用 `/login` 连接 OAuth account 或 API key provider。要添加 provider 和 route 候选，可以使用 TUI 中的 `/provider`，也可以使用非交互命令：
 
 ```sh
-kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY
-kimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --auto-route
-kimi provider route preview <modelAlias>
-kimi provider route status <sessionId>
+skimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY
+skimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --auto-route
+skimi provider route preview <modelAlias>
+skimi provider route status <sessionId>
 ```
 
-大型实现任务可以从 Ultrawork 开始：
+大型实现任务可以从 UltraWork 开始：
 
 ```sh
 skimi -p "/ultrawork Audit this repo, plan the migration, implement it, run verification, and summarize the release risk."
@@ -91,12 +80,12 @@ skimi -p "/ultrawork Audit this repo, plan the migration, implement it, run veri
 或者在 TUI 中这样请求：
 
 ```text
-Use Ultrawork. Analyze this project, identify the safest migration path, implement it, verify it, and preserve the important decisions in memory.
+Use UltraWork. Analyze this project, identify the safest migration path, implement it, verify it, and preserve the important decisions in memory.
 ```
 
 ## 在编辑器中使用
 
-Super Kimi Code CLI 支持 Agent Client Protocol。登录一次后，让编辑器运行 `skimi acp` 即可。
+Super Kimi Code 支持 Agent Client Protocol。登录一次后，让编辑器运行 `skimi acp` 即可。
 
 Zed 示例：
 
@@ -115,12 +104,9 @@ Zed 示例：
 
 ## 文档
 
-- [快速上手](https://claudianus.github.io/super-kimi-code/zh/guides/getting-started)
-- [平台与模型](https://claudianus.github.io/super-kimi-code/zh/configuration/providers)
-- [命令参考](https://claudianus.github.io/super-kimi-code/zh/reference/kimi-command)
-- [交互与审批](https://claudianus.github.io/super-kimi-code/zh/guides/interaction)
-- [会话](https://claudianus.github.io/super-kimi-code/zh/guides/sessions)
-- [在 IDE 中使用](https://claudianus.github.io/super-kimi-code/zh/guides/ides)
+- [中文站点](https://claudianus.github.io/super-kimi-code/zh/)
+- [한국어 사이트](https://claudianus.github.io/super-kimi-code/)
+- [English site](https://claudianus.github.io/super-kimi-code/en/)
 
 ## 本地开发
 
@@ -144,10 +130,6 @@ pnpm build
 
 - [Issues](https://github.com/claudianus/super-kimi-code/issues)
 - 安全漏洞反馈请见 [SECURITY.md](SECURITY.md)。
-
-## 致谢
-
-Super Kimi Code 构建在 Kimi Code 项目和 [`pi-tui`](https://github.com/earendil-works/pi-mono/tree/main/packages/tui) 终端 UI 基础之上。这个 fork 的重点不是隐藏基础，而是加入重度日常使用需要的 reliability、routing、memory、workflow、research 和 TUI layer。
 
 ## 许可证
 

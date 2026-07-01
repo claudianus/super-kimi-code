@@ -78,7 +78,6 @@
         ./apps/vis
         ./apps/vis/server
         ./apps/vis/web
-        ./docs
       ];
 
       workspaceNames = [
@@ -97,7 +96,6 @@
         "@moonshot-ai/vis"
         "@moonshot-ai/vis-server"
         "@moonshot-ai/vis-web"
-        "kimi-code-docs"
         "kimi-migration-legacy"
       ];
     in
@@ -204,8 +202,8 @@
             '';
 
             meta = {
-              description = "Kimi Code CLI";
-              homepage = "https://github.com/MoonshotAI/kimi-code";
+              description = "Super Kimi Code CLI";
+              homepage = "https://github.com/claudianus/super-kimi-code";
               license = lib.licenses.mit;
               mainProgram = "kimi";
               platforms = systems;

@@ -1,6 +1,8 @@
 # Documentation Agent Guide
 
-This repository uses VitePress for the documentation site. Most user-facing pages under `docs/en/` and `docs/zh/` are fully written; New or updated content should keep both locales in sync.
+GitHub Pages is served from the hand-built static site under `site/`. The `docs/` directory is an archive of older guide pages and is no longer the public site source.
+
+Do not reintroduce VitePress configuration, package files, or media assets. Update `site/` for the public landing page, and keep archived markdown edits focused when a guide still needs reference maintenance.
 
 ## Structure
 
@@ -11,7 +13,7 @@ This repository uses VitePress for the documentation site. Most user-facing page
   - Configuration: config-files, providers, overrides, env-vars, data-locations
   - Reference: kimi-command, tools, slash-commands, keyboard
   - Release notes: changelog
-- Navigation and sidebar are defined in `docs/.vitepress/config.ts`. Any new or renamed page must be wired there for both locales.
+- Public navigation is maintained in `site/index.html`, `site/en/index.html`, and `site/zh/index.html`.
 
 ## Source of truth
 
@@ -150,7 +152,7 @@ Rules:
 - **Avoid fragmentation**: Don't turn every point into a subheading; use paragraph transitions instead. This applies to narrative content — explanations, motivations, and sequential reasoning that flow as connected prose.
 - **Global perspective**: "Getting Started" introduces core concepts only; detailed usage belongs in later pages.
 - **Progressive depth**: Guides → Customization → Configuration → Reference, information deepens gradually.
-- **No nav tip blocks**: VitePress provides automatic prev/next navigation; don't add `::: tip 接下来` blocks at page end. A `## Next steps` section is appropriate when there are closely related follow-on pages — see [Page structure](#page-structure).
+- **No nav tip blocks**: do not add `::: tip 接下来` blocks at page end. A `## Next steps` section is appropriate when there are closely related follow-on pages — see [Page structure](#page-structure).
 - **One idea per paragraph**: Each paragraph makes one point. 3–4 sentences is the target; split when a paragraph exceeds 5 sentences.
 - **Map before detail**: Every page and every major section should open with one "map" sentence — what this section covers and how it relates to what came before — before expanding into details. Readers should know where they are before they dive in.
 
@@ -313,13 +315,10 @@ Before shipping, verify these values match the rest of the docs:
 
 ## Build and preview
 
-- Docs are built with VitePress from `docs/`.
-- Common commands (run inside `docs/`):
-  - `npm install`
-  - `npm run dev`
-  - `npm run build`
-  - `npm run preview`
-- The build output is `docs/.vitepress/dist`.
+- The public site is the static directory `site/`.
+- Preview from the repository root with `pnpm dev:docs`.
+- GitHub Pages uploads `site/` directly through `.github/workflows/docs-deploy.yml`.
+- When changing public copy, update `site/index.html`, `site/en/index.html`, and `site/zh/index.html` together.
 
 ## Changelog syncing
 

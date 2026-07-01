@@ -1,17 +1,17 @@
 {
   "name": "@moonshot-ai/kimi-code",
   "version": "0.20.1",
-  "description": "The Starting Point for Next-Gen Agents",
+  "description": "AI coding agent for sustained software work",
   "license": "MIT",
   "author": "Moonshot AI",
-  "homepage": "https://github.com/MoonshotAI/kimi-code/tree/main/apps/kimi-code#readme",
+  "homepage": "https://github.com/claudianus/super-kimi-code/tree/main/apps/kimi-code#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MoonshotAI/kimi-code.git",
+    "url": "git+https://github.com/claudianus/super-kimi-code.git",
     "directory": "apps/kimi-code"
   },
   "bugs": {
-    "url": "https://github.com/MoonshotAI/kimi-code/issues"
+    "url": "https://github.com/claudianus/super-kimi-code/issues"
   },
   "keywords": [
     "kimi",

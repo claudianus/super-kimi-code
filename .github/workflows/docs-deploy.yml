@@ -1,4 +1,4 @@
-name: Deploy Docs to GitHub Pages
+name: Deploy Site to GitHub Pages
 
 on:
   workflow_call:
@@ -14,33 +14,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build docs
-        run: pnpm -C docs run build
-        env:
-          VITEPRESS_BASE: /${{ github.event.repository.name }}/
+      - name: Verify handmade site
+        run: |
+          test -f site/index.html
+          test -f site/en/index.html
+          test -f site/zh/index.html
+          test -f site/assets/styles.css
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/.vitepress/dist
+          path: site
 
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: package
     runs-on: ubuntu-latest
     environment:
       name: github-pages
