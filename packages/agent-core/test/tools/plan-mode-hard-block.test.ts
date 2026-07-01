@@ -339,6 +339,23 @@ describe('Plan mode permission policy', () => {
     expect(evaluatePlanPolicy(agent, 'NextPhase', { phase: nextPhase })).toBeUndefined();
   });
 
+  it('allows Ultra Plan exit phase to repair only the plan file', async () => {
+    const { agent, planMode } = await activePlanAgent({ ultra: true });
+    planMode.setPhase('exit');
+    const planPath = planMode.planFilePath;
+    if (planPath === null) throw new Error('expected plan path');
+
+    expect(evaluatePlanPolicy(agent, 'Write', { path: planPath, content: '# fixed' })).toBeUndefined();
+
+    const deny = expectDeny(
+      evaluatePlanPolicy(agent, 'Write', {
+        path: '/workspace/src/main.ts',
+        content: 'x',
+      }),
+    );
+    expect(deny.message ?? '').toContain('current plan file');
+  });
+
   it.each(['manual', 'yolo', 'auto'] as const)(
     'defers Bash to ordinary %s permission handling while plan mode is active',
     async (mode) => {

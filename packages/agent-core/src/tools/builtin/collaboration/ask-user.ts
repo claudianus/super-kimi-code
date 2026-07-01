@@ -46,10 +46,10 @@ const QuestionItemSchema = z.object({
     .describe("Short category tag (max 12 chars, e.g. 'Auth', 'Style')."),
   options: z
     .array(QuestionOptionSchema)
-    .min(2)
+    .min(1)
     .max(4)
     .describe(
-      "2-4 meaningful, distinct options. Do NOT include an 'Other' option — the system adds one automatically.",
+      "1-4 meaningful, distinct options. Prefer 2-4 for real choices; use 1 only for explicit confirmation. Do NOT include an 'Other' option — the system adds one automatically.",
     ),
   multi_select: z
     .boolean()

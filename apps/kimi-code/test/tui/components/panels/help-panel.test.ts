@@ -127,6 +127,23 @@ describe('HelpPanelComponent', () => {
     expect(advancedOut).toMatch(/Run Ultrawork: UltraPlan interview, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn/);
   });
 
+  it('keeps Ultrawork steering controls visible in the first advanced help window', () => {
+    const advancedPanel = new HelpPanelComponent({
+      commands: slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'advanced'),
+      intro: ADVANCED_HELP_INTRO,
+      shortcuts: ADVANCED_KEYBOARD_SHORTCUTS,
+      commandSectionTitle: 'Advanced Ultrawork controls',
+      maxVisible: 24,
+      onClose: () => {},
+    });
+    const advancedOut = strip(advancedPanel.render(120).join('\n'));
+
+    expect(advancedOut).toMatch(/\/plan/);
+    expect(advancedOut).toMatch(/\/swarm/);
+    expect(advancedOut).toMatch(/\/ultrawork \(\/uw\)/);
+    expect(advancedOut).toMatch(/Advanced steering for UltraSwarm; Ultrawork decides after UltraGoal/);
+  });
+
   it('Escape fires onClose', () => {
     const onClose = vi.fn();
     const panel = new HelpPanelComponent({

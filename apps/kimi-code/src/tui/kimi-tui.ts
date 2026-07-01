@@ -1469,7 +1469,7 @@ export class KimiTUI {
       thinking: status.thinkingLevel !== 'off',
       permissionMode: status.permission,
       planMode: status.planMode,
-      ultraworkMode: status.planMode ? this.state.appState.ultraworkMode : false,
+      ultraworkMode: this.state.appState.ultraworkMode,
       swarmMode: status.swarmMode ?? false,
       contextTokens: status.contextTokens,
       maxContextTokens: status.maxContextTokens,

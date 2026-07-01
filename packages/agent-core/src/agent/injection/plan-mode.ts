@@ -258,19 +258,22 @@ You are in the Write Phase. You may ONLY write to the current plan file.
 All other file edits are BLOCKED.
 
 Goal: Write the complete plan to the plan file with these sections:
-1. Seed Spec — immutable Goal, Constraints, Acceptance Criteria, Ontology
+1. Seed Spec — Verifiable UltraGoal, Completion Criterion, Actors, Inputs, Outputs, Constraints, Non-goals, Acceptance Criteria, Verification Plan, Failure Modes, Runtime Context
 2. AC Tree — hierarchical acceptance criteria with statuses
-3. Evaluation Plan — how the implementation will be verified
-4. Execution Plan — step-by-step implementation plan
+3. Swarm Decision — Decision, Reason, Specialist value, Verification owner
+4. Evaluation Plan — how the implementation will be verified
+5. Execution Plan — step-by-step implementation plan
 
 You MUST fill out the Seed Spec template completely.
+You MUST include one auditable Swarm decision line or section before implementation: ENGAGE or DEFER, reason, specialist value or none, and verification owner.
 You can call ExitPlanMode ONLY after the plan file contains a complete Seed Spec.
 
 Use Write or Edit to modify the plan file. If it does not exist, create it first.`,
 
   exit: `## Exit Phase
 The plan is complete. Call ExitPlanMode to request user approval.
-Make sure the plan file contains a complete Seed Spec before exiting.`,
+Make sure the plan file contains a complete Seed Spec and Swarm Decision before exiting.
+If ExitPlanMode reports missing sections, correct only the plan file with Write/Edit and call ExitPlanMode again.`,
 };
 
 function phaseReminder(planFilePath: PlanFilePath, phase: string, agent?: Agent): string {

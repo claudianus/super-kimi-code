@@ -19,6 +19,8 @@ function makeAgent(
     readonly plan?: string | null | undefined;
     readonly path?: string | undefined;
     readonly planFilePath?: string | null | undefined;
+    readonly ultra?: boolean | undefined;
+    readonly phase?: string | undefined;
     readonly emit?: ((event: unknown) => void) | undefined;
   } = {},
 ): { agent: Agent; requestApproval: ReturnType<typeof vi.fn>; emit: ReturnType<typeof vi.fn> } {
@@ -35,6 +37,19 @@ function makeAgent(
       },
       get planFilePath() {
         return input.planFilePath ?? null;
+      },
+      get isUltraMode() {
+        return input.ultra ?? false;
+      },
+      get phase() {
+        return input.phase ?? 'exit';
+      },
+      ultraEngine: {
+        calculateDrift: vi.fn(() => ({
+          goalDrift: 0,
+          constraintDrift: 0,
+          ontologyDrift: 0,
+        })),
       },
       data: vi.fn(async () => {
         if (input.plan === null) return null;
@@ -175,6 +190,177 @@ describe('ExitPlanModeTool', () => {
 
     expect(result).toMatchObject({ isError: true });
     expect(result.output).toContain('journal write failed');
+  });
+
+  it('accepts a complete Ultra Plan written with Markdown bold field labels', async () => {
+    const { agent, emit } = makeAgent({
+      ultra: true,
+      phase: 'exit',
+      plan: [
+        '# Ultra Plan',
+        '',
+        '## Seed Spec',
+        '- **Verifiable UltraGoal:** True when the requested token is emitted by the prompt and the focused test asserts it; false otherwise.',
+        '- **Completion Criterion:** Both the harness check and focused vitest command pass.',
+        '- **Actors:** CLI user, implementation agent, verification owner.',
+        '- **Inputs:** Source file, test file, harness verifier.',
+        '- **Outputs:**',
+        '  - Source guidance contains the requested token.',
+        '  - Test asserts the prompt contains the token.',
+        '- **Constraints:** No comments, no unrelated files.',
+        '- **Non-goals:** No full-suite rewrite.',
+        '- **Acceptance Criteria:** Token emitted, test assertion present, checks pass.',
+        '- **Verification Plan:** Run harness check and focused vitest.',
+        '- **Failure Modes:** Token in comment, vacuous assertion, missing verification.',
+        '- **Runtime Context:** Local TypeScript monorepo.',
+        '',
+        '## AC Tree',
+        '- Token emitted',
+        '- Test coverage',
+        '- Verification passes',
+        '',
+        '## Swarm Decision',
+        '- **Decision:** DEFER',
+        '- **Reason:** Bounded deterministic edit.',
+        '- **Specialist value:** none',
+        '- **Verification owner:** main agent',
+        '',
+        '## Evaluation Plan',
+        '- Mechanical and focused unit checks.',
+        '',
+        '## Execution Plan',
+        '1. Edit source.',
+        '2. Edit test.',
+        '3. Run checks.',
+      ].join('\n'),
+    });
+
+    const result = await executeTool(new ExitPlanModeTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_ultra_exit',
+      args: {},
+      signal,
+    });
+
+    expect(result.isError).toBe(false);
+    expect(emit).toHaveBeenCalledWith({ type: 'plan_mode.exit' });
+  });
+
+  it('blocks Ultra Plan exit when the Swarm decision lacks specialist value and owner', async () => {
+    const { agent, emit } = makeAgent({
+      ultra: true,
+      phase: 'exit',
+      plan: [
+        '# Ultra Plan',
+        '',
+        '## Seed Spec',
+        '- **Verifiable UltraGoal:** True when checks pass; false otherwise.',
+        '- **Completion Criterion:** Both checks pass.',
+        '- **Actors:** CLI user and agent.',
+        '- **Inputs:** Source and test.',
+        '- **Outputs:** Source and test changes.',
+        '- **Constraints:** Minimal change.',
+        '- **Non-goals:** No unrelated edits.',
+        '- **Acceptance Criteria:** Assertions pass.',
+        '- **Verification Plan:** Run checks.',
+        '- **Failure Modes:** Missing token.',
+        '- **Runtime Context:** Local repo.',
+        '',
+        '## AC Tree',
+        '- Done',
+        '',
+        '## Evaluation Plan',
+        '- Run checks.',
+        '',
+        '## Execution Plan',
+        '1. Swarm decision: DEFER — bounded deterministic edit.',
+      ].join('\n'),
+    });
+
+    const result = await executeTool(new ExitPlanModeTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_ultra_exit_missing',
+      args: {},
+      signal,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain('Specialist value');
+    expect(result.output).toContain('Verification owner');
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('accepts Ultra Plan required fields written as markdown headings with body text', async () => {
+    const { agent, emit } = makeAgent({
+      ultra: true,
+      phase: 'exit',
+      plan: [
+        '# Ultra Plan',
+        '',
+        '## Seed Spec',
+        'Summary of the bounded implementation task.',
+        '',
+        '## Verifiable UltraGoal',
+        'True when the requested prompt token is emitted and covered by the focused test; false otherwise.',
+        '',
+        '## Completion Criterion',
+        'The harness verifier and focused vitest command both pass.',
+        '',
+        '## Actors',
+        'CLI user, implementation agent, and verification owner.',
+        '',
+        '## Inputs',
+        'Source file, test file, and harness verifier.',
+        '',
+        '## Outputs',
+        'Source/test edits and passing verification evidence.',
+        '',
+        '## Constraints',
+        'No comments-only token and no unrelated edits.',
+        '',
+        '## Non-goals',
+        'No command rename or broad refactor.',
+        '',
+        '## Acceptance Criteria',
+        'Token emitted, test assertion present, checks pass.',
+        '',
+        '## Verification Plan',
+        'Run the harness verifier and focused vitest.',
+        '',
+        '## Failure Modes',
+        'Token in wrong location or vacuous assertion.',
+        '',
+        '## Runtime Context',
+        'Local TypeScript monorepo worktree.',
+        '',
+        '## Reason',
+        'The task is bounded and deterministic.',
+        '',
+        '## AC Tree',
+        '- Source edit',
+        '- Test edit',
+        '- Verification',
+        '',
+        '## Evaluation Plan',
+        '- Mechanical checks.',
+        '',
+        '## Execution Plan',
+        'Edit source, edit test, run checks.',
+        '',
+        '## Swarm Decision',
+        'Swarm decision: DEFER. Bounded deterministic edit. value: none; owner: main agent.',
+      ].join('\n'),
+    });
+
+    const result = await executeTool(new ExitPlanModeTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_ultra_exit_headings',
+      args: {},
+      signal,
+    });
+
+    expect(result.isError).toBe(false);
+    expect(emit).toHaveBeenCalledWith({ type: 'plan_mode.exit' });
   });
 });
 

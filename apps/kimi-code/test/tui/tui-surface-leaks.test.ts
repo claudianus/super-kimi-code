@@ -83,6 +83,11 @@ describe('TUI surface leak checks', () => {
       ),
     ).toBe(true);
     expect(
+      hasUltraworkFooterNextAction(
+        'Workflow interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
+      ),
+    ).toBe(true);
+    expect(
       hasUltraworkHelpContract(
         [
           'Shift-Tab enables Ultrawork mode for goal-driven work.',
@@ -104,6 +109,21 @@ describe('TUI surface leak checks', () => {
           'Flow          ███░ 3/4 verify queued',
           'Stages        Plan on | Goal ready | Swarm armed | Verify queued',
           'Next          Type task; Ultrawork will interview before goal, swarm, and edits.',
+        ].join('\n'),
+      ),
+    ).toBe(true);
+    expect(
+      hasUltraworkStatusContract(
+        [
+          'Model        not set',
+          'Ultrawork    needs readiness',
+          'State         Model needed',
+          'Workflow      interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
+          'Engine        UltraPlan | UltraGoal | Research | Swarm decision | Integrate | Verify | Learn',
+          'Auto          Shift-Tab Ultrawork mode; no regex promotion for plain tasks',
+          'Flow          ███░ 3/4 verify blocked',
+          'Stages        Plan off | Goal ready | Swarm off | Verify blocked',
+          'Next          Run /login or /provider first; use /model after sign-in.',
         ].join('\n'),
       ),
     ).toBe(true);

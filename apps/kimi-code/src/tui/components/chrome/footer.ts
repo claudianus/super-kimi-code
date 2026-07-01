@@ -186,11 +186,11 @@ function footerNextAction(state: AppState, git: GitStatus | null): string | null
   if (state.isReplaying) return 'replaying session';
   if (state.model.trim().length === 0) return 'next: /login or /provider, then /model';
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
+  if (state.ultraworkMode) {
+    return 'Workflow interview -> goal -> research -> swarm decision -> integrate -> verify -> learn';
+  }
   if (state.streamingPhase !== 'idle') return null;
   if (git?.dirty === true) return 'next: review changes';
-  if (state.ultraworkMode) {
-    return 'next: describe task; Ultrawork will interview before goal, swarm, and edits';
-  }
   return 'next: Shift-Tab for Ultrawork, or type a normal message';
 }
 

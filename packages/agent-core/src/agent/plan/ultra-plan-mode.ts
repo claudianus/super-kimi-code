@@ -9,7 +9,10 @@
  * adapting them to the existing architecture.
  */
 
+import { extractText } from '@moonshot-ai/kosong';
+
 import type { Agent } from '..';
+import { isRealUserPromptOrigin } from '../context';
 
 export interface SeedSpec {
   readonly goal: string;
@@ -583,14 +586,15 @@ export class UltraPlanModeEngine {
     const roundBasedClarity = Math.min(0.3 + totalRounds * 0.12, 0.9);
 
     // Heuristic: longer responses = more detail = more clarity
+    const corpusText = this.interviewCorpusText();
     const avgResponseLength = totalRounds > 0
       ? rounds.reduce((sum, r) => sum + r.userResponse.length, 0) / totalRounds
-      : 0;
+      : corpusText.length;
     const lengthClarity = Math.min(avgResponseLength / 200, 1.0);
 
     // Heuristic: presence of key terms indicates clarity
-    const allText = rounds.map((r) => r.question + ' ' + r.userResponse).join(' ').toLowerCase();
-    const hasGoal = /goal|objective|purpose|aim/.test(allText);
+    const allText = corpusText.toLowerCase();
+    const hasGoal = /goal|objective|purpose|aim|task|목표|작업/.test(allText);
     const hasConstraints = /constraint|limit|restriction|must|should|cannot/.test(allText);
     const hasCriteria = /criteria|requirement|accept|verify|test|check/.test(allText);
     const hasScope = /scope|in scope|out of scope|non-goal/.test(allText);
@@ -613,11 +617,11 @@ export class UltraPlanModeEngine {
       criteriaClarity * 0.3
     );
 
-    const boundedOverall = Math.max(0, Math.min(1, overall));
-
     const openGaps = this.openSeedGaps();
     const gapPressure = openGaps.length / ULTRA_PLAN_REQUIRED_SECTIONS.length;
     const verifiableGoal = this.hasVerifiableGoal();
+    const seedClosureBonus = openGaps.length === 0 && verifiableGoal ? 0.2 : 0;
+    const boundedOverall = Math.max(0, Math.min(1, overall - seedClosureBonus));
     const gatedOverall = Math.max(boundedOverall, gapPressure, verifiableGoal ? 0 : 0.45);
 
     const milestone: AmbiguityMilestone =
@@ -705,8 +709,7 @@ export class UltraPlanModeEngine {
    * Extracts Goal, Constraints, AC, and Ontology from Q&A.
    */
   autoGenerateSeedSpecFromInterview(ontologyName: string): SeedSpec {
-    const rounds = this._interviewState.rounds;
-    const allText = rounds.map((r) => r.question + ' ' + r.userResponse).join('\n');
+    const allText = this.interviewCorpusText();
 
     // Extract goal from first round or initial context
     const goal = this._extractGoal(allText) || this._interviewState.initialContext;
@@ -734,25 +737,38 @@ export class UltraPlanModeEngine {
     return match?.[1]?.trim() ?? '';
   }
 
-  private interviewCorpus(): string {
+  private interviewCorpusText(): string {
     return [
       this._interviewState.initialContext,
+      ...this.recentUserPromptTexts(),
       ...this._interviewState.rounds.map((r) => `${r.question}\n${r.userResponse}`),
-    ].join('\n').toLowerCase();
+    ].join('\n');
+  }
+
+  private interviewCorpus(): string {
+    return this.interviewCorpusText().toLowerCase();
+  }
+
+  private recentUserPromptTexts(): string[] {
+    return (this.agent.context?.history ?? [])
+      .filter((message) => message.role === 'user' && isRealUserPromptOrigin(message.origin))
+      .slice(-3)
+      .map((message) => extractText(message, '\n').trim())
+      .filter((text) => text.length > 0);
   }
 
   private sectionResolved(section: UltraPlanRequiredSection, text: string): boolean {
     const patterns: Record<UltraPlanRequiredSection, RegExp> = {
-      goal: /\b(goal|objective|ultragoal|목표|완료\s?기준)\b/i,
-      actors: /\b(actor|user|owner|agent|stakeholder|사용자|행위자|담당|주체)\b/i,
-      inputs: /\b(input|source|given|file|prompt|입력|소스|파일|프롬프트)\b/i,
-      outputs: /\b(outputs?|deliverables?|results?|artifacts?|출력|산출물|결과)\b/i,
-      constraints: /\b(constraints?|limits?|must|must not|cannot|제약|금지|반드시|하지\s?말)\b/i,
-      non_goals: /\b(non-goals?|non_goals?|out of scope|not doing|제외|범위\s?밖|하지\s?않)\b/i,
+      goal: /\b(goal|objective|ultragoal|purpose|aim|task|목표|작업|완료\s?기준)\b/i,
+      actors: /\b(actor|user|owner|agent|stakeholder|you|사용자|행위자|담당|주체)\b/i,
+      inputs: /\b(input|source|given|file|prompt|path|입력|소스|파일|프롬프트)\b/i,
+      outputs: /\b(outputs?|deliverables?|results?|artifacts?|report|edit|add|출력|산출물|결과)\b/i,
+      constraints: /\b(constraints?|limits?|must|must not|cannot|exactly|do not|제약|금지|반드시|하지\s?말)\b/i,
+      non_goals: /\b(non-goals?|non_goals?|out of scope|not doing|do not|no other changes|제외|범위\s?밖|하지\s?않)\b/i,
       acceptance_criteria: /\b(acceptance|criteria|requirement|pass|fail|완료\s?조건|수락|검증\s?기준)\b/i,
-      verification_plan: /\b(verify|verification|test|check|검증|테스트|확인)\b/i,
-      failure_modes: /\b(failure|risk|edge case|error|rollback|실패|위험|예외|오류)\b/i,
-      runtime_context: /\b(runtime|environment|cwd|repo|platform|환경|런타임|레포|작업\s?환경)\b/i,
+      verification_plan: /\b(verify|verification|test|check|run|검증|테스트|확인)\b/i,
+      failure_modes: /\b(failure|risk|edge case|error|rollback|must not|do not|실패|위험|예외|오류)\b/i,
+      runtime_context: /\b(runtime|environment|cwd|repo|repository|workspace|worktree|platform|환경|런타임|레포|작업\s?환경)\b/i,
     };
     return patterns[section].test(text);
   }

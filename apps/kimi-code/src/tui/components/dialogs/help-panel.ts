@@ -177,5 +177,8 @@ function compareSlashCommandsForDisplay(
 }
 
 function getSlashCommandDisplayGroup(name: string): number {
+  if (name === 'plan') return -3;
+  if (name === 'swarm') return -2;
+  if (name === 'ultrawork') return -1;
   return name.startsWith('skill:') ? 1 : 0;
 }

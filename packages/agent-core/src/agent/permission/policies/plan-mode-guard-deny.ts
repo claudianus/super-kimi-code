@@ -129,11 +129,13 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
         return;
       }
       case 'exit': {
-        // Only ExitPlanMode allowed
+        // ExitPlanMode may report a missing required section. Allow plan-file
+        // edits so the agent can repair the plan instead of getting trapped.
+        if (toolName === 'Write' || toolName === 'Edit') return;
         if (toolName === 'ExitPlanMode') return;
         return {
           kind: 'deny',
-          message: `${toolName} is blocked in Exit phase. Only ExitPlanMode is allowed.`,
+          message: `${toolName} is blocked in Exit phase. Only ExitPlanMode or plan-file edits are allowed.`,
         };
       }
       default:

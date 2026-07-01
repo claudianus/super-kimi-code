@@ -58,7 +58,10 @@ export function hasUltraworkTaskEntryCopy(output) {
 }
 
 export function hasUltraworkFooterNextAction(output) {
-  return /\bnext:\s*describe task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\b/i.test(output);
+  return [
+    /\bnext:\s*describe task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\b/i,
+    /\bWorkflow\b\s+interview\s*->\s*goal\s*->\s*research\s*->\s*swarm decision\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
+  ].some((pattern) => pattern.test(output));
 }
 
 export function hasUltraworkHelpContract(output) {
@@ -80,15 +83,18 @@ export function hasUltraworkAdvancedHelpContract(output) {
 }
 
 export function hasUltraworkStatusContract(output) {
-  return [
+  const requiredContract = [
     /\bUltrawork\b\s+(?:mode on|mode off|goal active|goal blocked|needs readiness)/i,
     /\bWorkflow\b\s+interview\s*->\s*goal\s*->\s*research\s*->\s*swarm decision\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
     /\bEngine\b\s+UltraPlan\s*\|\s*UltraGoal\s*\|\s*Research\s*\|\s*Swarm decision\s*\|\s*Integrate\s*\|\s*Verify\s*\|\s*Learn/i,
     /\bAuto\b\s+Shift-Tab Ultrawork mode;\s*no regex promotion for plain tasks/i,
     /\bFlow\b\s+[█░]{4}\s+(?:3|4)\/4\s+(?:verify queued|verify blocked|ready to run|verified)/i,
     /\bStages\b\s+Plan (?:on|required|off)\s*\|\s*Goal (?:ready|active|blocked|done)\s*\|\s*Swarm (?:armed|decision pending|off)\s*\|\s*Verify (?:queued|blocked|ready|done)/i,
-    /\bNext\b\s+(?:Type task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\.?|Press Shift-Tab for Ultrawork,\s*or type a normal message\.?)/i,
   ].every((pattern) => pattern.test(output));
+  const taskNextAction =
+    /\bNext\b\s+(?:Type task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\.?|Press Shift-Tab for Ultrawork,\s*or type a normal message\.?)/i.test(output);
+  const setupNextAction = shouldRequireModelSetupAction(output) && hasStatusPanelSetupNextAction(output);
+  return requiredContract && (taskNextAction || setupNextAction);
 }
 
 export function hasHarnessRadarStatusContract(output) {

@@ -125,10 +125,34 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork will interview before goal, swarm, and edits',
+      'Workflow interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
     );
     expect(strip(line2 ?? '')).not.toContain('Ultrawork plans, sets goal, swarms, verifies');
     expect(strip(line2 ?? '')).not.toContain('helpers');
+  });
+
+  it('keeps the Ultrawork pipeline visible after plan mode exits', () => {
+    const footer = new FooterComponent(baseState({ planMode: false, ultraworkMode: true }));
+
+    const [line1, line2] = footer.render(120);
+
+    expect(strip(line1 ?? '')).toContain('ultrawork');
+    expect(strip(line1 ?? '')).not.toContain('plan');
+    expect(strip(line2 ?? '')).toContain(
+      'Workflow interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
+    );
+  });
+
+  it('keeps the Ultrawork pipeline visible while streaming', () => {
+    const footer = new FooterComponent(
+      baseState({ planMode: false, ultraworkMode: true, streamingPhase: 'thinking' }),
+    );
+
+    const [, line2] = footer.render(120);
+
+    expect(strip(line2 ?? '')).toContain(
+      'Workflow interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
+    );
   });
 
   it('renders transient hints on the context line', () => {

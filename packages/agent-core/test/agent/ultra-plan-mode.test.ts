@@ -6,7 +6,26 @@ import {
 } from '../../src/agent/plan/ultra-plan-mode';
 
 // Minimal mock agent
-const mockAgent = {} as any;
+const mockAgent = {
+  context: {
+    history: [],
+  },
+} as any;
+
+function mockAgentWithUserPrompt(prompt: string): any {
+  return {
+    context: {
+      history: [
+        {
+          role: 'user',
+          origin: { kind: 'user' },
+          content: [{ type: 'text', text: prompt }],
+          toolCalls: [],
+        },
+      ],
+    },
+  };
+}
 
 describe('UltraPlanModeEngine', () => {
   describe('Seed Spec', () => {
@@ -102,6 +121,31 @@ describe('UltraPlanModeEngine', () => {
       expect(readiness.openGaps).toContain('runtime_context');
       expect(readiness.ambiguityScore.overallScore).toBeGreaterThan(0.2);
       expect(engine.readinessBlockerMessage()).toContain('open_gaps=');
+    });
+
+    it('uses the current user prompt as interview context for already-bounded tasks', () => {
+      const engine = new UltraPlanModeEngine(mockAgentWithUserPrompt([
+        'Use Ultrawork for this bounded source/test verification task.',
+        'You are the implementation agent and verification owner.',
+        'Task: edit apps/kimi-code/src/tui/commands/ultrawork-contract.ts and apps/kimi-code/test/tui/commands/ultrawork.test.ts.',
+        'Inputs: the named source file, test file, and prompt.',
+        'Outputs: add SUPER_KIMI_REAL_WORKFLOW_EVIDENCE and report concise evidence.',
+        'Constraints: do not edit the harness verifier and make no other changes.',
+        'Non-goals: no broad refactor and no unrelated provider changes.',
+        'Acceptance Criteria: the check script and targeted test pass.',
+        'Verification Plan: run node .super-kimi-real-workflow/check.mjs and the targeted vitest command.',
+        'Failure Modes: wrong file edited, verifier edited, or tests fail.',
+        'Runtime Context: disposable repository worktree.',
+        'Completion Criterion: true when both verification commands pass, false otherwise.',
+      ].join('\n')));
+      engine.startInterview('');
+
+      const readiness = engine.interviewReadiness();
+
+      expect(readiness.ready).toBe(true);
+      expect(readiness.openGaps).toEqual([]);
+      expect(readiness.verifiableGoal).toBe(true);
+      expect(readiness.ambiguityScore.overallScore).toBeLessThanOrEqual(0.2);
     });
   });
 

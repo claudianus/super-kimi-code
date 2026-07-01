@@ -150,27 +150,6 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
       }
     }
 
-    // Ultra Plan Mode: enforce phase workflow
-    if (isUltra) {
-      const phase = this.agent.planMode.phase;
-      if (phase !== 'write' && phase !== 'exit') {
-        return {
-          isError: true,
-          output: 'ExitPlanMode is blocked in ' + phase + ' phase. Complete the current phase and use NextPhase to advance through the workflow: interview -> design -> review -> write -> exit.',
-        };
-      }
-
-      // Verify plan file contains the full UltraPlan Seed contract.
-      const planData = await this.agent.planMode.data();
-      const planContent = planData?.content ?? '';
-      const missing = missingUltraPlanSections(planContent);
-      if (missing.length > 0) {
-        return {
-          isError: true,
-          output: `ExitPlanMode blocked: the Ultra Plan file is missing required sections: ${missing.join(', ')}. Write the complete verifiable UltraGoal Seed contract before exiting.`,
-        };
-      }
-    }
     const resolvedPlan = await this.resolvePlan();
     if (!resolvedPlan.ok) return resolvedPlan.error;
 
@@ -238,36 +217,137 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
 }
 
 function missingUltraPlanSections(plan: string): string[] {
+  const missing: string[] = [];
   const requiredHeadings = [
     'Seed Spec',
-    'Swarm Decision',
+    'AC Tree',
     'Evaluation Plan',
     'Execution Plan',
   ];
-  const requiredFields = [
-    'Verifiable UltraGoal',
-    'Completion Criterion',
-    'Actors',
-    'Inputs',
-    'Outputs',
-    'Constraints',
-    'Non-goals',
-    'Acceptance Criteria',
-    'Verification Plan',
-    'Failure Modes',
-    'Runtime Context',
-    'Decision',
-    'Reason',
-    'Specialist value',
-    'Verification owner',
+  const fieldRequirements: readonly FieldRequirement[] = [
+    { label: 'Verifiable UltraGoal', aliases: ['Verifiable UltraGoal'] },
+    { label: 'Completion Criterion', aliases: ['Completion Criterion'] },
+    { label: 'Actors', aliases: ['Actors'] },
+    { label: 'Inputs', aliases: ['Inputs'] },
+    { label: 'Outputs', aliases: ['Outputs'] },
+    { label: 'Constraints', aliases: ['Constraints'] },
+    { label: 'Non-goals', aliases: ['Non-goals', 'Non goals'] },
+    { label: 'Acceptance Criteria', aliases: ['Acceptance Criteria'] },
+    { label: 'Verification Plan', aliases: ['Verification Plan'] },
+    { label: 'Failure Modes', aliases: ['Failure Modes'] },
+    { label: 'Runtime Context', aliases: ['Runtime Context'] },
   ];
-  const lower = plan.toLowerCase();
-  const missing = requiredHeadings.filter((section) => !lower.includes(section.toLowerCase()));
-  for (const field of requiredFields) {
-    const pattern = new RegExp(`^\\s*-\\s*${escapeRegExp(field)}\\s*:\\s*\\S`, 'im');
-    if (!pattern.test(plan)) missing.push(field);
+
+  for (const heading of requiredHeadings) {
+    if (!hasHeading(plan, heading)) missing.push(heading);
   }
+  if (!hasHeading(plan, 'Swarm Decision') && !hasSwarmDecisionLine(plan)) {
+    missing.push('Swarm Decision');
+  }
+  for (const requirement of fieldRequirements) {
+    if (!hasFieldContent(plan, requirement.aliases)) missing.push(requirement.label);
+  }
+  if (!hasSwarmDecisionField(plan, 'Decision')) missing.push('Decision');
+  if (!hasSwarmDecisionField(plan, 'Reason')) missing.push('Reason');
+  if (!hasSwarmDecisionField(plan, 'Specialist value')) missing.push('Specialist value');
+  if (!hasSwarmDecisionField(plan, 'Verification owner')) missing.push('Verification owner');
   return missing;
+}
+
+interface FieldRequirement {
+  readonly label: string;
+  readonly aliases: readonly string[];
+}
+
+const ALL_ULTRA_PLAN_FIELD_LABELS = [
+  'Verifiable UltraGoal',
+  'Completion Criterion',
+  'Actors',
+  'Inputs',
+  'Outputs',
+  'Constraints',
+  'Non-goals',
+  'Acceptance Criteria',
+  'Verification Plan',
+  'Failure Modes',
+  'Runtime Context',
+  'Decision',
+  'Reason',
+  'Specialist value',
+  'Verification owner',
+];
+
+function hasHeading(plan: string, heading: string): boolean {
+  return new RegExp(`^\\s*#{2,}\\s+${escapeRegExp(heading)}\\b`, 'im').test(plan);
+}
+
+function hasFieldContent(plan: string, labels: readonly string[]): boolean {
+  const lines = plan.split(/\r?\n/);
+  const labelPattern = fieldLabelPattern(labels);
+  const anyFieldPattern = fieldLabelPattern(ALL_ULTRA_PLAN_FIELD_LABELS);
+  const headingPattern = headingLabelPattern(labels);
+  const anyHeadingPattern = headingLabelPattern(ALL_ULTRA_PLAN_FIELD_LABELS);
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index] ?? '';
+    const match = labelPattern.exec(line);
+    if (match === null) continue;
+    if ((match.groups?.['value'] ?? '').trim().length > 0) return true;
+    if (hasFollowingFieldContent(lines, index, anyFieldPattern, anyHeadingPattern)) return true;
+  }
+  for (let index = 0; index < lines.length; index++) {
+    if (!headingPattern.test(lines[index] ?? '')) continue;
+    if (hasFollowingFieldContent(lines, index, anyFieldPattern, anyHeadingPattern)) return true;
+  }
+  return false;
+}
+
+function hasSwarmDecisionLine(plan: string): boolean {
+  return /\bswarm decision\s*:\s*(?:ENGAGE|DEFER)\b/i.test(plan);
+}
+
+function hasSwarmDecisionField(plan: string, label: string): boolean {
+  if (hasFieldContent(plan, [label])) return true;
+  switch (label) {
+    case 'Decision':
+      return /\bswarm decision\s*:\s*(?:ENGAGE|DEFER)\b/i.test(plan);
+    case 'Reason':
+      return /\bswarm decision\s*:\s*(?:ENGAGE|DEFER)\s*(?:[.:\-—]\s*\S|.*\breason\s*:)/i.test(plan);
+    case 'Specialist value':
+      return /\bvalue\s*:\s*\S/i.test(plan);
+    case 'Verification owner':
+      return /\bowner\s*:\s*\S/i.test(plan);
+    default:
+      return false;
+  }
+}
+
+function hasFollowingFieldContent(
+  lines: readonly string[],
+  startIndex: number,
+  anyFieldPattern: RegExp,
+  anyHeadingPattern: RegExp,
+): boolean {
+  for (let next = startIndex + 1; next < lines.length; next++) {
+    const line = lines[next] ?? '';
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    if (anyFieldPattern.test(line) || anyHeadingPattern.test(line)) break;
+    return true;
+  }
+  return false;
+}
+
+function fieldLabelPattern(labels: readonly string[]): RegExp {
+  const labelAlternation = labels.map(escapeRegExp).join('|');
+  return new RegExp(
+    `^\\s*(?:[-*+•]|\\d+[.)])?\\s*(?:\\*\\*)?(?:${labelAlternation})(?:\\*\\*)?\\s*:\\s*(?<value>.*)$`,
+    'i',
+  );
+}
+
+function headingLabelPattern(labels: readonly string[]): RegExp {
+  const labelAlternation = labels.map(escapeRegExp).join('|');
+  return new RegExp(`^\\s*#{2,}\\s+(?:${labelAlternation})\\b`, 'i');
 }
 
 function escapeRegExp(value: string): string {

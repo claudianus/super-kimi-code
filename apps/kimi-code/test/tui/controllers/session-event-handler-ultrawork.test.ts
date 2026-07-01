@@ -21,6 +21,8 @@ function makeHost() {
         streamingPhase: 'waiting',
         model: 'kimi-model',
         permissionMode: 'auto',
+        planMode: false,
+        ultraworkMode: false,
       },
       queuedMessages: [],
       theme: { palette: getBuiltInPalette('dark') },
@@ -75,6 +77,22 @@ function renderedTheatre(host: ReturnType<typeof makeHost>): string {
 }
 
 describe('SessionEventHandler Ultrawork theatre events', () => {
+  it('keeps Ultrawork mode visible when UltraPlan exits into execution', () => {
+    const host = makeHost();
+    host.state.appState.planMode = true;
+    host.state.appState.ultraworkMode = true;
+    const handler = new SessionEventHandler(host);
+
+    handler.handleEvent({
+      type: 'agent.status.updated',
+      agentId: 'main',
+      sessionId: 's1',
+      planMode: false,
+    } satisfies Event, vi.fn());
+
+    expect(host.setAppState).toHaveBeenCalledWith({ planMode: false });
+  });
+
   it('renders one live theatre panel and updates it across research, team, verify, and learn', () => {
     const host = makeHost();
     const handler = new SessionEventHandler(host);

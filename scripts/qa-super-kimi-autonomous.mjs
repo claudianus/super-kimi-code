@@ -9535,14 +9535,20 @@ async function validateTuiLaunchUltraworkUnifiedSurface(captures) {
     validateTuiLaunchSurfaceScenario(
       capturesByScenario,
       'startup',
-      'startup screen task-entry copy',
-      hasUltraworkTaskEntryCopy,
+      'startup screen task-entry or setup copy',
+      (output) =>
+        shouldRequireModelSetupAction(output)
+          ? hasLoggedOutSetupNextAction(output)
+          : hasUltraworkTaskEntryCopy(output),
     ),
     validateTuiLaunchSurfaceScenario(
       capturesByScenario,
       'startup',
       'startup footer next action',
-      hasUltraworkFooterNextAction,
+      (output) =>
+        shouldRequireModelSetupAction(output)
+          ? hasLoggedOutSetupNextAction(output)
+          : hasUltraworkFooterNextAction(output),
     ),
     validateTuiLaunchSurfaceScenario(
       capturesByScenario,

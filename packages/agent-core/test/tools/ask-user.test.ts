@@ -80,7 +80,14 @@ describe('AskUserQuestionTool', () => {
     expect(
       AskUserQuestionInputSchema.safeParse(
         input({
-          options: [{ label: 'Only one', description: 'Not enough choices' }],
+          options: [{ label: 'Proceed', description: 'Explicit confirmation' }],
+        }),
+      ).success,
+    ).toBe(true);
+    expect(
+      AskUserQuestionInputSchema.safeParse(
+        input({
+          options: [],
         }),
       ).success,
     ).toBe(false);
@@ -104,6 +111,7 @@ describe('AskUserQuestionTool', () => {
     };
 
     const optionsSchema = params.properties.questions.items.properties.options;
+    expect(optionsSchema.description).toContain('Prefer 2-4 for real choices');
     expect(optionsSchema.description).toContain("Do NOT include an 'Other' option");
     expect(optionsSchema.description).toContain('the system adds one automatically');
 
