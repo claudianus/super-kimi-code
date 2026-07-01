@@ -209,11 +209,11 @@ Each round rotates through 5 perspectives:
 4. Breadth-keeper — Edge cases, non-goals, scope
 5. Seed-closer — Precision, measurable criteria
 
-## Ambiguity Scoring (real-time)
-The system evaluates 3 dimensions after each round:
-- Goal Clarity (40%): How well the goal is defined
-- Constraint Clarity (30%): How clearly constraints are specified
-- Success Criteria Clarity (30%): How measurable the success criteria are
+  ## Ambiguity + Seed Gap Gate (real-time)
+  The system evaluates clarity and required Seed sections:
+  - UltraGoal must be judgeable as complete/incomplete, true/false, or pass/fail.
+  - Required sections: goal, actors, inputs, outputs, constraints, non-goals, acceptance criteria, verification plan, failure modes, runtime context.
+  - NextPhase to Design is blocked until ambiguity <= 0.2, no required gaps remain, and the UltraGoal is verifiable.
 
 Current interview round: {{round}}
 Current perspective: {{perspective}}
@@ -223,10 +223,9 @@ Completion streak: {{streak}}
 
 Next milestone target: {{nextMilestone}}
 
-Ask 1-3 focused questions only when a missing decision blocks correctness.
-If the task is already actionable, or AskUserQuestion is unavailable or rejected by policy, call NextPhase({ phase: 'design' }) and proceed with best judgment.
+Ask 1-3 focused questions per AskUserQuestion call when a missing decision blocks a true/false-verifiable UltraGoal or a required Seed section.
+Do not advance just because the task feels actionable. If AskUserQuestion is unavailable or rejected by policy, surface the unresolved gap instead of pretending the interview is complete.
 Do not call EnterPlanMode while already in Ultra Plan. EnterPlanMode starts planning; NextPhase advances phases. Do not pass a phase argument to EnterPlanMode.
-Score ≤ 0.2 for 2 consecutive rounds can still auto-advance to Design.
 Your turn MUST end with AskUserQuestion or NextPhase.`,
 
   design: `## Design Phase

@@ -15,11 +15,11 @@ The product is built for project work where context quality, provider availabili
 
 | Capability | What it supports |
 | --- | --- |
-| UltraPlan | Turns requirements, constraints, and risks into an executable plan. |
+| UltraPlan | Interviews requirements, constraints, risks, and missing facts until the future goal is true/false verifiable. |
 | UltraResearch | Checks APIs, papers, release notes, and security issues, then keeps the evidence available. |
-| UltraGoal | Keeps objectives, budgets, and done criteria explicit during long work. |
-| UltraSwarm | Splits exploration, implementation, review, and documentation across specialist subagents. |
-| UltraWork | Connects planning, research, staffing, integration, verification, and learning in one flow. |
+| UltraGoal | Starts after UltraPlan pins a concrete objective, completion criterion, and verification plan. |
+| UltraSwarm | Engages specialist subagents only after a visible ENGAGE/DEFER Swarm decision. |
+| UltraWork | Routes goal-driven work through UltraPlan, UltraGoal, research, Swarm decision, integration, verification, and learning. |
 | Provider routing | Registers API keys and OAuth accounts, then selects fallback candidates by quota, cooldown, latency, and route health. |
 | Kimi Recall | Preserves project facts, decisions, procedures, follow-up work, and governance rules. |
 | LLM Wiki | Turns codebase knowledge, evidence, and verification results into reusable project documentation. |
@@ -71,7 +71,7 @@ skimi provider route preview <modelAlias>
 skimi provider route status <sessionId>
 ```
 
-For larger implementation work, start with UltraWork:
+For larger implementation work, start with UltraWork. In the TUI, press `Shift-Tab` to turn on Ultrawork mode; normal prompts stay lightweight unless the mode is on or you explicitly request UltraWork.
 
 ```sh
 skimi -p "/ultrawork Audit this repo, plan the migration, implement it, run verification, and summarize the release risk."

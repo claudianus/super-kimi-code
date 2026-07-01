@@ -16,11 +16,13 @@ import {
 
 describe('TUI surface leak checks', () => {
   it('allows Ultrawork brand copy while still blocking manual slash commands', () => {
-    const brandCopy = 'Describe task; Ultrawork runs the full workflow, then verifies.';
+    const brandCopy = 'Shift-Tab enables Ultrawork mode for goal-driven work.';
 
     expect(defaultUserSurfaceLeakFailures('help', brandCopy)).toEqual([]);
     expect(defaultUserSurfaceLeakFailures('status', brandCopy)).toEqual([]);
-    expect(defaultUserSurfaceLeakFailures('status', 'auto ultrawork-ready')).toEqual([]);
+    expect(defaultUserSurfaceLeakFailures('status', 'auto ultrawork-ready')).toContain(
+      'default status capture exposes legacy Ultrawork ready badge',
+    );
     expect(defaultUserSurfaceLeakFailures('help', 'Turn UltraPlan mode on')).toContain(
       'default help capture exposes mode-like UltraPlan wording',
     );
@@ -69,7 +71,7 @@ describe('TUI surface leak checks', () => {
   it('recognizes the unified Ultrawork task-entry, help, and status surface contract', () => {
     expect(
       hasUltraworkTaskEntryCopy(
-        'Describe task; Ultrawork runs the full workflow, then verifies.',
+        'Shift-Tab enables Ultrawork mode for goal-driven work.',
       ),
     ).toBe(true);
     expect(
@@ -77,31 +79,31 @@ describe('TUI surface leak checks', () => {
     ).toBe(false);
     expect(
       hasUltraworkFooterNextAction(
-        'next: describe task; Ultrawork runs the full workflow, then verifies',
+        'next: describe task; Ultrawork will interview before goal, swarm, and edits',
       ),
     ).toBe(true);
     expect(
       hasUltraworkHelpContract(
         [
-          'Describe task; Ultrawork runs the full workflow, then verifies.',
-          'Advanced controls are optional.',
+          'Shift-Tab enables Ultrawork mode for goal-driven work.',
+          'Normal messages stay lightweight unless Ultrawork is on.',
         ].join('\n'),
       ),
     ).toBe(true);
     expect(
       hasUltraworkStatusContract(
         [
-          'Ultrawork    auto-link ready',
-          'Workflow      task -> research -> team -> integrate -> verify -> learn',
-          'Engine        UltraPlan | UltraResearch | UltraGoal | UltraSwarm | Integrate | Verify | Learn',
-          'Auto          ask if needed | plan | research | goal | swarm | integrate | verify | learn',
+          'Ultrawork    mode on',
+          'Workflow      interview -> goal -> research -> swarm decision -> integrate -> verify -> learn',
+          'Engine        UltraPlan | UltraGoal | Research | Swarm decision | Integrate | Verify | Learn',
+          'Auto          Shift-Tab Ultrawork mode; no regex promotion for plain tasks',
           'Autonomy      bounded now -> headless target',
           'Recovery      resumable evidence ready -> durable target',
           'Tools         search first; load tools on demand',
           'Memory        prefs | session recall | long-run notes',
           'Flow          ███░ 3/4 verify queued',
-          'Stages        Plan on | Goal ready | Swarm auto | Verify queued',
-          'Next          Type task; Ultrawork runs the full workflow, then verifies.',
+          'Stages        Plan on | Goal ready | Swarm armed | Verify queued',
+          'Next          Type task; Ultrawork will interview before goal, swarm, and edits.',
         ].join('\n'),
       ),
     ).toBe(true);
@@ -125,11 +127,11 @@ describe('TUI surface leak checks', () => {
     expect(
       hasUltraworkAdvancedHelpContract(
         [
-          'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.',
-          'Plain tasks start it automatically. Controls below are optional steering.',
+          'Ultrawork is one workflow: UltraPlan, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn.',
+          'Shift-Tab starts the mode; controls below are explicit steering.',
           'Advanced Ultrawork controls',
           '/plan Advanced steering for UltraPlan; Ultrawork auto-enables it',
-          '/swarm Advanced steering for UltraSwarm; Ultrawork auto-arms it',
+          '/swarm Advanced steering for UltraSwarm; Ultrawork decides after UltraGoal',
         ].join('\n'),
       ),
     ).toBe(true);
@@ -137,11 +139,11 @@ describe('TUI surface leak checks', () => {
     expect(
       hasUltraworkAdvancedHelpContract(
         [
-          'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.',
-          'Plain tasks start it automatically. Controls below are optional steering.',
+          'Ultrawork is one workflow: UltraPlan, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn.',
+          'Shift-Tab starts the mode; controls below are explicit steering.',
           'Advanced Ultrawork controls',
           '/plan Steer UltraPlan stage; Ultrawork enables it automatically',
-          '/swarm Advanced steering for UltraSwarm; Ultrawork auto-arms it',
+          '/swarm Advanced steering for UltraSwarm; Ultrawork decides after UltraGoal',
         ].join('\n'),
       ),
     ).toBe(false);
@@ -155,7 +157,7 @@ describe('TUI surface leak checks', () => {
       'Coverage      test public behavior changes',
       'Screen check  open changed screen before finishing',
       'Done gate     tests + typecheck/lint/build + clean diff + TUI',
-      'next: describe task; Ultrawork runs the full workflow, then verifies',
+      'next: Shift-Tab for Ultrawork, or type a normal message',
     ].join('\n');
     const setupScreen = [
       'Model: not set',

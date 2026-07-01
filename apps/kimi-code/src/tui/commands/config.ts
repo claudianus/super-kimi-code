@@ -176,7 +176,7 @@ function formatThinkingStatus(host: SlashCommandHost): string {
 async function applyPlanMode(host: SlashCommandHost, session: Session, enabled: boolean, ultra = false): Promise<void> {
   try {
     await session.setPlanMode(enabled, ultra);
-    host.setAppState({ planMode: enabled, activityTip: null });
+    host.setAppState({ planMode: enabled, ultraworkMode: false, activityTip: null });
     if (enabled) {
       const plan = await session.getPlan().catch(() => null);
       host.showNotice(

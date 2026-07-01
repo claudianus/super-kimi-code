@@ -138,13 +138,14 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
         };
       }
 
-      // Verify plan file contains Seed Spec
+      // Verify plan file contains the full UltraPlan Seed contract.
       const planData = await this.agent.planMode.data();
       const planContent = planData?.content ?? '';
-      if (!planContent.includes('## Seed Spec') && !planContent.includes('Seed Spec')) {
+      const missing = missingUltraPlanSections(planContent);
+      if (missing.length > 0) {
         return {
           isError: true,
-          output: 'ExitPlanMode blocked: the plan file must contain a Seed Spec section. Write the complete Seed Spec (Goal, Constraints, Acceptance Criteria, Ontology) to the plan file before exiting.',
+          output: `ExitPlanMode blocked: the Ultra Plan file is missing required sections: ${missing.join(', ')}. Write the complete verifiable UltraGoal Seed contract before exiting.`,
         };
       }
     }
@@ -159,13 +160,14 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
         };
       }
 
-      // Verify plan file contains Seed Spec
+      // Verify plan file contains the full UltraPlan Seed contract.
       const planData = await this.agent.planMode.data();
       const planContent = planData?.content ?? '';
-      if (!planContent.includes('## Seed Spec') && !planContent.includes('Seed Spec')) {
+      const missing = missingUltraPlanSections(planContent);
+      if (missing.length > 0) {
         return {
           isError: true,
-          output: 'ExitPlanMode blocked: the plan file must contain a Seed Spec section. Write the complete Seed Spec (Goal, Constraints, Acceptance Criteria, Ontology) to the plan file before exiting.',
+          output: `ExitPlanMode blocked: the Ultra Plan file is missing required sections: ${missing.join(', ')}. Write the complete verifiable UltraGoal Seed contract before exiting.`,
         };
       }
     }
@@ -233,6 +235,43 @@ export class ExitPlanModeTool implements BuiltinTool<ExitPlanModeInput> {
       },
     };
   }
+}
+
+function missingUltraPlanSections(plan: string): string[] {
+  const requiredHeadings = [
+    'Seed Spec',
+    'Swarm Decision',
+    'Evaluation Plan',
+    'Execution Plan',
+  ];
+  const requiredFields = [
+    'Verifiable UltraGoal',
+    'Completion Criterion',
+    'Actors',
+    'Inputs',
+    'Outputs',
+    'Constraints',
+    'Non-goals',
+    'Acceptance Criteria',
+    'Verification Plan',
+    'Failure Modes',
+    'Runtime Context',
+    'Decision',
+    'Reason',
+    'Specialist value',
+    'Verification owner',
+  ];
+  const lower = plan.toLowerCase();
+  const missing = requiredHeadings.filter((section) => !lower.includes(section.toLowerCase()));
+  for (const field of requiredFields) {
+    const pattern = new RegExp(`^\\s*-\\s*${escapeRegExp(field)}\\s*:\\s*\\S`, 'im');
+    if (!pattern.test(plan)) missing.push(field);
+  }
+  return missing;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function hasUniqueOptionLabels(options: readonly ExitPlanModeOption[]): boolean {

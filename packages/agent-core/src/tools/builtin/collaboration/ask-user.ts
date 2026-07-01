@@ -165,6 +165,7 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
         this.agent.telemetry.track('question_dismissed');
         return dismissedQuestionResult();
       }
+      this.recordUltraInterviewAnswers(args.questions, normalized.answers);
 
       const properties: Record<string, TelemetryPropertyValue> = {
         answered: Object.keys(normalized.answers).length,
@@ -236,6 +237,19 @@ export class AskUserQuestionTool implements BuiltinTool<AskUserQuestionInput> {
         'human_shell_hint: The pending question is also visible in /tasks.',
       message: `Started ${taskId}`,
     };
+  }
+
+  private recordUltraInterviewAnswers(
+    questions: AskUserQuestionInput['questions'],
+    answers: QuestionAnswers,
+  ): void {
+    const planMode = (this.agent as Partial<Pick<Agent, 'planMode'>>).planMode;
+    if (planMode?.isUltraMode !== true || planMode.phase !== 'interview') return;
+    try {
+      planMode.recordUltraInterviewAnswers(questions, answers);
+    } catch {
+      // Recording interview context must not turn a valid user answer into a dismissal.
+    }
   }
 }
 

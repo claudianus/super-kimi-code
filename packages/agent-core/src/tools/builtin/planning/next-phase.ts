@@ -25,7 +25,7 @@ export class NextPhaseTool implements BuiltinTool<NextPhaseInput> {
   readonly description = `Advance to the next phase in Ultra Plan Mode workflow.
 
 Usage: call this tool when you have completed the current phase.
-- From interview: call NextPhase({ phase: 'design' }) when blocking ambiguity is resolved, or immediately when the task is already actionable
+- From interview: call NextPhase({ phase: 'design' }) only after UltraPlan says the future UltraGoal is true/false verifiable and all required Seed gaps are closed
 - From design: call NextPhase({ phase: 'review' })
 - From review: call NextPhase({ phase: 'write' })
 - From write: call NextPhase({ phase: 'exit' })
@@ -76,6 +76,20 @@ You can only advance forward, never backward.`;
         isError: true,
         output: `Invalid phase transition: cannot go from ${currentPhase} to ${targetPhase}. Valid transitions from ${currentPhase}: ${validTransitions[currentPhase]?.join(', ') ?? 'none'}.`,
       };
+    }
+
+    if (currentPhase === 'interview' && targetPhase === 'design') {
+      const readiness = this.agent.planMode.ultraEngine.interviewReadiness();
+      if (!readiness.ready) {
+        return {
+          isError: true,
+          output: this.agent.planMode.ultraEngine.readinessBlockerMessage(),
+        };
+      }
+      if (this.agent.planMode.ultraEngine.seedSpec === null) {
+        const seed = this.agent.planMode.ultraEngine.autoGenerateSeedSpecFromInterview('UltraGoal');
+        this.agent.planMode.ultraEngine.setSeedSpec(seed);
+      }
     }
 
     this.agent.planMode.setPhase(targetPhase);

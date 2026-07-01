@@ -210,6 +210,7 @@ function createInitialAppState(input: KimiTUIStartupInput): AppState {
     sessionId: '',
     permissionMode: startupPermission,
     planMode: input.cliOptions.plan,
+    ultraworkMode: false,
     inputMode: 'prompt',
     swarmMode: false,
     thinking: false,
@@ -925,6 +926,10 @@ export class KimiTUI {
     void slashCommands.handlePlanCommand(this, next ? (ultra ? 'ultra' : 'on') : 'off');
   }
 
+  handleUltraworkModeToggle(next: boolean): void {
+    void slashCommands.handleUltraworkModeToggle(this, next);
+  }
+
   handleInputModeChange(mode: 'prompt' | 'bash'): void {
     this.setAppState({ inputMode: mode });
     this.updateEditorBorderHighlight();
@@ -1386,7 +1391,7 @@ export class KimiTUI {
       !sameStringArrays(this.state.appState.additionalDirs, patch.additionalDirs ?? []);
     const busyChanged = 'streamingPhase' in patch || 'isCompacting' in patch;
     Object.assign(this.state.appState, patch);
-    if ('planMode' in patch) this.updateEditorBorderHighlight();
+    if ('planMode' in patch || 'ultraworkMode' in patch) this.updateEditorBorderHighlight();
     if ('appearance' in patch) this.appearanceController.apply();
     this.state.footer.setState(this.state.appState);
     this.updateActivityPane();
@@ -1464,6 +1469,7 @@ export class KimiTUI {
       thinking: status.thinkingLevel !== 'off',
       permissionMode: status.permission,
       planMode: status.planMode,
+      ultraworkMode: status.planMode ? this.state.appState.ultraworkMode : false,
       swarmMode: status.swarmMode ?? false,
       contextTokens: status.contextTokens,
       maxContextTokens: status.maxContextTokens,
@@ -2474,7 +2480,11 @@ export class KimiTUI {
   updateEditorBorderHighlight(text?: string): void {
     const trimmed = (text ?? this.state.editor.getText()).trimStart();
     const isBash = this.state.appState.inputMode === 'bash';
-    const highlighted = this.state.appState.planMode || isBash || trimmed.startsWith('/');
+    const highlighted =
+      this.state.appState.planMode ||
+      this.state.appState.ultraworkMode ||
+      isBash ||
+      trimmed.startsWith('/');
     this.state.editor.borderHighlighted = highlighted;
     // Shell mode gets its own hue; plan-mode and slash context stay primary.
     const borderToken = isBash ? 'shellMode' : highlighted ? 'primary' : 'border';

@@ -15,11 +15,11 @@ Super Kimi Code 是面向长周期软件任务的独立 AI 编码 Agent。它将
 
 | 能力 | 支持内容 |
 | --- | --- |
-| UltraPlan | 将需求、约束和风险整理成可执行计划。 |
+| UltraPlan | 通过访谈澄清需求、约束、风险和缺失事实，直到未来目标可以按 true/false 判断。 |
 | UltraResearch | 检查 API、论文、发布说明和安全议题，并保留证据。 |
-| UltraGoal | 让目标、预算和完成标准在长任务中保持明确。 |
-| UltraSwarm | 将探索、实现、审查和文档交给不同角色的 subagent 处理。 |
-| UltraWork | 将规划、研究、角色分配、集成、验证和学习连接成同一流程。 |
+| UltraGoal | 在 UltraPlan 固定具体目标、完成标准和验证计划之后启动。 |
+| UltraSwarm | 只有在可见的 ENGAGE/DEFER Swarm decision 之后才投入 specialist subagent。 |
+| UltraWork | 将目标型工作按 UltraPlan、UltraGoal、research、Swarm decision、integration、verification、learning 的顺序路由。 |
 | Provider routing | 注册 API key 与 OAuth account，并按 quota、cooldown、latency 和 route health 选择 fallback 候选。 |
 | Kimi Recall | 保存项目事实、决策、流程、后续任务和 governance rule。 |
 | LLM Wiki | 将代码库知识、证据和验证结果整理成可复用的项目文档。 |
@@ -71,7 +71,7 @@ skimi provider route preview <modelAlias>
 skimi provider route status <sessionId>
 ```
 
-大型实现任务可以从 UltraWork 开始：
+大型实现任务可以从 UltraWork 开始。在 TUI 中按 `Shift-Tab` 开启 Ultrawork mode；除非该模式已开启，或你明确要求 UltraWork，否则普通 prompt 会保持轻量处理。
 
 ```sh
 skimi -p "/ultrawork Audit this repo, plan the migration, implement it, run verification, and summarize the release risk."

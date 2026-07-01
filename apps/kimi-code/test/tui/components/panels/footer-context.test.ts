@@ -114,17 +114,18 @@ describe('FooterComponent — context NaN resilience', () => {
     expect(strip(off.render(120)[0]!)).not.toContain('thinking');
   });
 
-  it('labels plan mode as ultrawork-ready in the footer', () => {
-    const footer = new FooterComponent(baseState({ planMode: true }));
+  it('labels Ultrawork mode separately from plain plan mode in the footer', () => {
+    const footer = new FooterComponent(baseState({ planMode: true, ultraworkMode: true }));
 
     const [line1, line2] = footer.render(120);
     const out = strip(line1 ?? '');
 
-    expect(out).toContain('ultrawork-ready');
+    expect(out).toContain('ultrawork');
+    expect(out).not.toContain('ultrawork-ready');
     expect(out).not.toContain('plan-first');
     expect(out).not.toContain('plan  k2');
     expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork runs the full workflow, then verifies',
+      'next: describe task; Ultrawork will interview before goal, swarm, and edits',
     );
     expect(strip(line2 ?? '')).not.toContain('Ultrawork plans, sets goal, swarms, verifies');
     expect(strip(line2 ?? '')).not.toContain('helpers');
@@ -145,9 +146,7 @@ describe('FooterComponent — context NaN resilience', () => {
 
     const [, line2] = footer.render(120);
 
-    expect(strip(line2 ?? '')).toContain(
-      'next: describe task; Ultrawork runs the full workflow, then verifies',
-    );
+    expect(strip(line2 ?? '')).toContain('next: Shift-Tab for Ultrawork, or type a normal message');
     expect(strip(line2 ?? '')).not.toContain('Ultrawork plans, sets goal, swarms, verifies');
     expect(strip(line2 ?? '')).not.toContain('helpers');
     expect(strip(line2 ?? '')).toContain('context: 0.0%');

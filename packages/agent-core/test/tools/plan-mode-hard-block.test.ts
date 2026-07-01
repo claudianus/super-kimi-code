@@ -221,7 +221,7 @@ describe('Plan mode permission policy', () => {
     expect(evaluatePlanPolicy(agent, 'Grep', { pattern: 'TODO', path: '/workspace' })).toBeUndefined();
   });
 
-  it('advances ultra interview after three question rounds when engine has no stored answers', async () => {
+  it('keeps ultra interview in interview after repeated question rounds when seed gaps remain', async () => {
     const { agent, planMode } = await activePlanAgent({ ultra: true });
 
     expect(
@@ -239,12 +239,45 @@ describe('Plan mode permission policy', () => {
     expect(
       evaluatePlanPolicy(agent, 'AskUserQuestion', { question: 'What can wait?' }),
     ).toBeUndefined();
-    expect(planMode.phase).toBe('design');
+    expect(planMode.phase).toBe('interview');
     expect(planMode.interviewRoundCount).toBe(3);
   });
 
-  it('lets actionable ultra plans advance from interview without forced question rounds', async () => {
+  it('blocks actionable ultra plans from advancing until the seed ledger is ready', async () => {
     const { agent, planMode } = await activePlanAgent({ ultra: true });
+
+    const result = await executeTool(new NextPhaseTool(agent), {
+      turnId: '0',
+      toolCallId: 'call_next_phase',
+      args: { phase: 'design' },
+      signal,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain('UltraPlan interview is not ready for Design.');
+    expect(result.output).toContain('open_gaps=');
+    expect(planMode.phase).toBe('interview');
+    expect(planMode.interviewRoundCount).toBe(0);
+  });
+
+  it('lets ultra interview advance once the seed ledger and verifiable goal are closed', async () => {
+    const { agent, planMode } = await activePlanAgent({ ultra: true });
+    planMode.ultraEngine.addInterviewRound(
+      'Close the UltraPlan seed ledger.',
+      [
+        'Goal: implement guarded Ultrawork mode with a verifiable UltraGoal.',
+        'Actors: CLI user, agent, verification owner.',
+        'Inputs: user prompt, TUI state, session status, and focused tests.',
+        'Outputs: updated TUI mode, prompt contract, and passing tests.',
+        'Constraints: no regex promotion for plain tasks, no product edits before plan approval, no unrelated refactors.',
+        'Non-goals: do not rewrite the full app or change provider auth.',
+        'Acceptance Criteria: Shift-Tab mode routes tasks through UltraPlan; plain prompts stay normal; tests pass.',
+        'Verification Plan: run focused TUI and agent-core tests.',
+        'Failure Modes: stale badges, premature goal creation, skipped Swarm decision, and blocked existing goals.',
+        'Runtime Context: local TypeScript monorepo CLI workspace.',
+        'Completion Criterion: true when the checks pass and the mode follows the gated order, false otherwise.',
+      ].join('\n'),
+    );
 
     const result = await executeTool(new NextPhaseTool(agent), {
       turnId: '0',
@@ -257,7 +290,7 @@ describe('Plan mode permission policy', () => {
     expect(result.output).toContain('Advanced from interview phase to design phase');
     expect(result.output).toContain("call NextPhase({ phase: 'review' })");
     expect(planMode.phase).toBe('design');
-    expect(planMode.interviewRoundCount).toBe(0);
+    expect(planMode.ultraEngine.seedSpec?.goal).toContain('implement guarded Ultrawork mode');
   });
 
   it('tells Ultra Plan review to advance to write after verification', async () => {

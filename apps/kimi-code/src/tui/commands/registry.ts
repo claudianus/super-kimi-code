@@ -268,7 +268,7 @@ export const BUILTIN_SLASH_COMMANDS = [
   {
     name: 'swarm',
     aliases: [],
-    description: 'Advanced steering for UltraSwarm; Ultrawork auto-arms it',
+    description: 'Advanced steering for UltraSwarm; Ultrawork decides after UltraGoal',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[on|off] | <task>',
@@ -279,7 +279,7 @@ export const BUILTIN_SLASH_COMMANDS = [
     name: 'ultrawork',
     aliases: ['uw'],
     hiddenAliases: ['ultraplan', 'up', 'ultraresearch', 'ur', 'ultragoal', 'ug', 'ultraswarm', 'us'],
-    description: 'Run Ultrawork: auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn',
+    description: 'Run Ultrawork: UltraPlan interview, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn',
     priority: 100,
     visibility: 'advanced',
     argumentHint: '[replace] <objective>',

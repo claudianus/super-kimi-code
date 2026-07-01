@@ -39,6 +39,7 @@ function makeHost(
         model: overrides.model ?? 'kimi-model',
         permissionMode: overrides.permissionMode ?? 'auto',
         planMode: overrides.planMode ?? false,
+        ultraworkMode: false,
         swarmMode: overrides.swarmMode ?? false,
       },
       theme: currentTheme,
@@ -85,24 +86,24 @@ describe('shouldAutoActivateUltrawork', () => {
       ),
     ).toBe(true);
     expect(shouldAutoActivateUltrawork('울트라워크로 이 기능 구현하고 검증까지 끝내줘')).toBe(true);
+  });
+
+  it('does not activate for plain actionable requests without Ultrawork mode or explicit branding', () => {
+    expect(shouldAutoActivateUltrawork('Implement the settings panel and verify it works')).toBe(false);
+    expect(shouldAutoActivateUltrawork('Fix the TUI status panel bug and run tests')).toBe(false);
+    expect(shouldAutoActivateUltrawork('Add a login screen')).toBe(false);
+    expect(shouldAutoActivateUltrawork('Create an API endpoint for checkout')).toBe(false);
+    expect(shouldAutoActivateUltrawork('Install the latest version and make a Galaga game')).toBe(false);
+    expect(shouldAutoActivateUltrawork('이 기능 만들어서 테스트까지 돌려줘')).toBe(false);
+    expect(shouldAutoActivateUltrawork('TUI 자동완성 버그 고치고 검수해줘')).toBe(false);
+    expect(shouldAutoActivateUltrawork('로그인 화면 만들어줘')).toBe(false);
+    expect(shouldAutoActivateUltrawork('최신버전 깔아서 갤러그 만들어줘')).toBe(false);
+    expect(shouldAutoActivateUltrawork('브라우저 게임 만들어줘')).toBe(false);
     expect(
       shouldAutoActivateUltrawork(
         'Research latest best practices, design the architecture, implement it, run tests, and finish the goal automatically',
       ),
-    ).toBe(true);
-  });
-
-  it('activates for plain actionable vibe-coding requests', () => {
-    expect(shouldAutoActivateUltrawork('Implement the settings panel and verify it works')).toBe(true);
-    expect(shouldAutoActivateUltrawork('Fix the TUI status panel bug and run tests')).toBe(true);
-    expect(shouldAutoActivateUltrawork('Add a login screen')).toBe(true);
-    expect(shouldAutoActivateUltrawork('Create an API endpoint for checkout')).toBe(true);
-    expect(shouldAutoActivateUltrawork('Install the latest version and make a Galaga game')).toBe(true);
-    expect(shouldAutoActivateUltrawork('이 기능 만들어서 테스트까지 돌려줘')).toBe(true);
-    expect(shouldAutoActivateUltrawork('TUI 자동완성 버그 고치고 검수해줘')).toBe(true);
-    expect(shouldAutoActivateUltrawork('로그인 화면 만들어줘')).toBe(true);
-    expect(shouldAutoActivateUltrawork('최신버전 깔아서 갤러그 만들어줘')).toBe(true);
-    expect(shouldAutoActivateUltrawork('브라우저 게임 만들어줘')).toBe(true);
+    ).toBe(false);
   });
 
   it('does not activate for simple prompts', () => {
@@ -125,22 +126,21 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('<ultrawork_flow>');
     expect(prompt).toContain('Ship feature X');
     expect(prompt).toContain('Ultrawork orchestration');
-    expect(prompt).toContain('UltraPlan -> UltraResearch -> UltraGoal -> UltraSwarm -> Integrate -> Verify -> Learn');
+    expect(prompt).toContain('UltraPlan -> UltraGoal -> Research -> Swarm decision -> Integrate -> Verify -> Learn');
     expect(prompt).toContain('one workflow, not separate user-facing modes');
-    expect(prompt).toContain('Ultrawork is the product workflow; UltraPlan, UltraResearch, UltraGoal, and UltraSwarm are internal stages');
+    expect(prompt).toContain('Ultrawork is the product workflow; UltraPlan, UltraGoal, Research, and Swarm decision are internal stages');
     expect(prompt).toContain('normalize it into the same Ultrawork run');
-    expect(prompt).toContain('automatically links and activates UltraPlan, UltraResearch, UltraGoal, UltraSwarm');
-    expect(prompt).toContain('create or replace the UltraGoal, enable UltraPlan, run UltraResearch');
-    expect(prompt).toContain('Normal task text is the preferred entry point');
-    expect(prompt).toContain('/ultrawork is an advanced steering override');
-    expect(prompt).toContain('UltraPlan: clarify ambiguous or large requests');
+    expect(prompt).toContain('forces UltraPlan first, creates a verifiable UltraGoal only after the plan gate');
+    expect(prompt).toContain('force UltraPlan first');
+    expect(prompt).toContain('Shift-Tab Ultrawork mode is the normal task entry point');
+    expect(prompt).toContain('/ultrawork is an explicit steering override');
+    expect(prompt).toContain('UltraPlan: clarify the request until the future UltraGoal can be judged complete or incomplete as 1 or 0');
     expect(prompt).toContain('UltraPlan must produce and surface the Ouroboros plan before implementation');
     expect(prompt).toContain('Do not skip directly from one interview question into implementation');
     expect(prompt).toContain('UltraResearch: when latest APIs, papers, security, benchmarks');
-    expect(prompt).toContain('UltraGoal: keep the active goal as the durable execution contract');
-    expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
-    expect(prompt).toContain('UltraSwarm is armed by Ultrawork setup');
-    expect(prompt).toContain('proactively invoke specialist agents');
+    expect(prompt).toContain('UltraGoal: create or replace the active goal only after UltraPlan has produced the verifiable objective');
+    expect(prompt).toContain('UltraSwarm: decide ENGAGE or DEFER after the verifiable UltraGoal exists');
+    expect(prompt).toContain('UltraSwarm is not proof by badge');
     expect(prompt).toContain('Write a Swarm decision before implementation');
     expect(prompt).toContain('Swarm decision: ENGAGE|DEFER');
     expect(prompt).toContain('ENGAGE when parallel PM, architecture, TUI, QA, security, performance');
@@ -148,7 +148,7 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('value: <specialist value or none>; owner: <verification owner>');
     expect(prompt).toContain('include the reason, expected specialist value or none, and verification owner');
     expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultraresearch, /ultragoal, or /ultraswarm');
-    expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
+    expect(prompt).toContain('When the task looks actionable, still pass the UltraPlan gate');
     expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라리서치, 울트라골, and 울트라 스웜 as the same internal stages');
     expect(prompt).toContain('ultra-plan');
     expect(prompt).toContain('kanban');
@@ -220,10 +220,10 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('use only AskUserQuestion or NextPhase');
     expect(prompt).toContain('If AskUserQuestion is unavailable or rejected by policy');
     expect(prompt).toContain('at most 4 options per question');
-    expect(prompt).toContain('Never ask more than 3 total interview questions');
-    expect(prompt).toContain('continue the same Ultrawork turn toward implementation');
+    expect(prompt).toContain('Do not cap the interview by an arbitrary question count');
+    expect(prompt).toContain('continue the same Ultrawork turn toward a complete plan');
     expect(prompt).toContain('call NextPhase before any search, read, edit, shell, or skill tool');
-    expect(prompt).toContain('Product-file edits are forbidden until Ultra Plan has reached Write or Exit phase');
+    expect(prompt).toContain('UltraGoal has been created from that plan');
     expect(prompt).toContain('UpdateGoal');
   });
 });
@@ -260,32 +260,28 @@ describe('parseUltraworkCommand', () => {
 });
 
 describe('handleUltraworkCommand', () => {
-  it('creates an ultragoal, enables ultra plan and swarm, then sends the workflow prompt', async () => {
+  it('forces ultra plan first and sends the workflow prompt without creating the goal upfront', async () => {
     const { host, session } = makeHost();
 
     await handleUltraworkCommand(host, 'Ship feature X', 'manual');
 
-    expect(session.createGoal).toHaveBeenCalledWith({
-      objective: 'Ship feature X',
-      replace: false,
-    });
     expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
-    expect(session.setSwarmMode).toHaveBeenCalledWith(true, 'task');
-    expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
-    expect(host.setAppState).toHaveBeenCalledWith({ swarmMode: true });
+    expect(host.setAppState).toHaveBeenCalledWith({ planMode: true, ultraworkMode: true });
+    expect(session.createGoal).not.toHaveBeenCalled();
+    expect(session.setSwarmMode).not.toHaveBeenCalled();
     expect(host.setAppState).toHaveBeenCalledWith({
-      activityTip: 'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn',
+      activityTip: 'Ultrawork mode: UltraPlan interview first, then verifiable UltraGoal, Swarm decision, verify',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
-    expect(renderedMarker(host)).toContain('UltraPlan>UltraResearch>UltraGoal>UltraSwarm>Integrate>Verify>Learn');
+    expect(renderedMarker(host)).toContain('UltraPlan>UltraGoal>Research>Swarm?>Integrate>Verify>Learn');
     expect(renderedMarker(host)).toContain(
-      'One Ultrawork: plan, research, team, integrate, verify, learn',
+      'One Ultrawork: interview, set verifiable goal, decide team, verify',
     );
     expect(renderedMarker(host)).toContain(
       'Research: local fallback + provider/MCP accelerators; verified sources only',
     );
     expect(renderedMarker(host)).toContain(
-      'Next: Research + Swarm decision: ENGAGE|DEFER reason + value + owner',
+      'Next: UltraPlan interview must close before UltraGoal or Swarm',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(
@@ -304,25 +300,23 @@ describe('handleUltraworkCommand', () => {
 
     await handleUltraworkCommand(host, 'Ship feature X', 'manual');
 
-    expect(session.setSwarmMode).toHaveBeenCalledWith(true, 'task');
     expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
     expect(session.createGoal).not.toHaveBeenCalled();
-    expect(session.setSwarmMode).toHaveBeenLastCalledWith(false, 'task');
     expect(host.state.appState.swarmMode).toBe(false);
     expect(host.sendNormalUserInput).not.toHaveBeenCalled();
   });
 
   it('continues when plan mode is already active', async () => {
     const { host, session } = makeHost({ planMode: true });
+    session.setPlanMode.mockRejectedValueOnce(new Error('Already in plan mode'));
 
     await handleUltraworkCommand(host, 'Ship feature X', 'manual');
 
-    expect(session.setPlanMode).not.toHaveBeenCalled();
-    expect(session.setSwarmMode).toHaveBeenCalledWith(true, 'task');
-    expect(session.createGoal).toHaveBeenCalledWith({
-      objective: 'Ship feature X',
-      replace: false,
-    });
+    expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
+    expect(session.setPlanMode).toHaveBeenCalledWith(false, false);
+    expect(session.setPlanMode).toHaveBeenLastCalledWith(true, true);
+    expect(session.setSwarmMode).not.toHaveBeenCalled();
+    expect(session.createGoal).not.toHaveBeenCalled();
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(
       expect.stringContaining('<ultrawork_flow>'),
       { displayText: 'Ship feature X' },
@@ -336,30 +330,27 @@ describe('handleUltraworkCommand', () => {
     await handleUltraworkCommand(host, 'Ship feature X', 'manual');
 
     expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
-    expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
-    expect(session.createGoal).toHaveBeenCalledWith({
-      objective: 'Ship feature X',
-      replace: false,
-    });
+    expect(session.setPlanMode).toHaveBeenCalledWith(false, false);
+    expect(session.setPlanMode).toHaveBeenLastCalledWith(true, true);
+    expect(host.setAppState).toHaveBeenCalledWith({ planMode: true, ultraworkMode: true });
+    expect(session.createGoal).not.toHaveBeenCalled();
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(
       expect.stringContaining('<ultrawork_flow>'),
       { displayText: 'Ship feature X' },
     );
   });
 
-  it('rolls back ultrawork setup when goal creation fails', async () => {
+  it('does not create the goal upfront even if the goal API would reject', async () => {
     const { host, session } = makeHost();
     session.createGoal.mockRejectedValueOnce(new Error('goal denied'));
 
     await handleUltraworkCommand(host, 'Ship feature X', 'manual');
 
-    expect(session.setSwarmMode).toHaveBeenCalledWith(true, 'task');
     expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
-    expect(session.setPlanMode).toHaveBeenLastCalledWith(false, false);
-    expect(session.setSwarmMode).toHaveBeenLastCalledWith(false, 'task');
-    expect(host.state.appState.planMode).toBe(false);
+    expect(session.createGoal).not.toHaveBeenCalled();
+    expect(host.state.appState.planMode).toBe(true);
     expect(host.state.appState.swarmMode).toBe(false);
-    expect(host.sendNormalUserInput).not.toHaveBeenCalled();
+    expect(host.sendNormalUserInput).toHaveBeenCalled();
   });
 
   it('supports replace mode for /ultragoal', async () => {
@@ -367,9 +358,10 @@ describe('handleUltraworkCommand', () => {
 
     await handleUltraworkCommand(host, 'replace Ship feature Y', 'manual');
 
-    expect(session.createGoal).toHaveBeenCalledWith({
-      objective: 'Ship feature Y',
-      replace: true,
-    });
+    expect(session.createGoal).not.toHaveBeenCalled();
+    expect(host.sendNormalUserInput).toHaveBeenCalledWith(
+      expect.stringContaining('goal_replace_requested: true'),
+      { displayText: 'Ship feature Y' },
+    );
   });
 });

@@ -211,10 +211,10 @@ describe('built-in slash command registry', () => {
     expect(plan?.description).toBe('Advanced steering for UltraPlan; Ultrawork auto-enables it');
     expect(goal?.description).toBe('Manage the active Ultrawork goal');
     expect(goal?.description).not.toContain('/goal');
-    expect(swarm?.description).toBe('Advanced steering for UltraSwarm; Ultrawork auto-arms it');
+    expect(swarm?.description).toBe('Advanced steering for UltraSwarm; Ultrawork decides after UltraGoal');
     expect(swarm?.description).not.toContain('/swarm');
     expect(ultrawork?.description).toBe(
-      'Run Ultrawork: auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn',
+      'Run Ultrawork: UltraPlan interview, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn',
     );
     expect(ultrawork?.description).not.toContain('/ultrawork');
     expect((ultrawork as KimiSlashCommand | undefined)?.hiddenAliases).toEqual([

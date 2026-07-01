@@ -57,6 +57,7 @@ export class PlanMode {
         await this.writeEmptyPlanFile(planFilePath);
       }
       if (ultra) {
+        this.ultraEngine.startInterview('');
         await this.writeUltraPlanTemplate(planFilePath);
       }
     } catch (error) {
@@ -151,6 +152,15 @@ export class PlanMode {
     this._interviewRoundCount += 1;
   }
 
+  recordUltraInterviewAnswers(
+    questions: ReadonlyArray<{ readonly question: string; readonly header?: string }>,
+    answers: Record<string, string | true>,
+  ): void {
+    if (!this._isActive || !this._isUltraMode || this._phase !== 'interview') return;
+    this.ultraEngine.recordInterviewAnswers(questions, answers);
+    this._interviewRoundCount = this.ultraEngine.interviewState.rounds.length;
+  }
+
   async data(): Promise<PlanData> {
     if (!this._planId || !this._planFilePath) return null;
     let content = '';
@@ -184,7 +194,7 @@ export class PlanMode {
 
   private async writeUltraPlanTemplate(path: string): Promise<void> {
     await this.ensurePlanDirectory(path);
-    const template = `# Ultra Plan\n\n## Seed Spec\n- Goal: \n- Constraints: \n- Acceptance Criteria: \n\n## Ontology\n- Name: \n- Fields: \n\n## Evaluation Plan\n- Stage 1 (Mechanical): lint, build, test\n- Stage 2 (Semantic): compliance, quality\n- Stage 3 (Consensus): if needed\n\n## Execution Plan\n<!-- Write your step-by-step plan here -->\n`;
+    const template = `# Ultra Plan\n\n## Seed Spec\n- Verifiable UltraGoal: \n- Completion Criterion: \n- Actors: \n- Inputs: \n- Outputs: \n- Constraints: \n- Non-goals: \n- Acceptance Criteria: \n- Verification Plan: \n- Failure Modes: \n- Runtime Context: \n\n## Ontology\n- Name: \n- Fields: \n\n## Swarm Decision\n- Decision: \n- Reason: \n- Specialist value: \n- Verification owner: \n\n## Evaluation Plan\n- Stage 1 (Mechanical): lint, build, test\n- Stage 2 (Semantic): compliance, quality\n- Stage 3 (Consensus): if needed\n\n## Execution Plan\n<!-- Write your step-by-step plan here -->\n`;
     await this.agent.kaos.writeText(path, template);
   }
 

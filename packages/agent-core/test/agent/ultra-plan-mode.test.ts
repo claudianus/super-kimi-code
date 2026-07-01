@@ -53,15 +53,15 @@ describe('UltraPlanModeEngine', () => {
 
       engine.addInterviewRound(
         'What is the goal and scope?',
-        'Goal: preserve the Super Kimi premium CLI workflow. Scope: TUI help, theme, UltraPlan, UltraGoal, UltraSwarm, and Verify surfaces.',
+        'Goal: preserve the Super Kimi premium CLI workflow with a verifiable UltraGoal. Actors: CLI user, TUI agent, verification owner. Scope: TUI help, theme, UltraPlan, UltraGoal, Research, Swarm decision, and Verify surfaces.',
       );
       engine.addInterviewRound(
         'What constraints and risks must be protected?',
-        'Constraints: must keep the Ultrawork brand visible, cannot hide advanced commands, and should avoid unrelated refactors. Risk: regression that removes terminal themes or weakens slash command access.',
+        'Inputs: current repository files, TUI prompt, tests, and user request. Outputs: patched TUI flow, updated tests, and verification evidence. Constraints: must keep the Ultrawork brand visible, cannot hide advanced commands, and should avoid unrelated refactors. Non-goals: do not redesign unrelated provider setup or rewrite the whole TUI. Failure modes: regression that removes terminal themes, weakens slash command access, or claims Swarm without a decision.',
       );
       engine.addInterviewRound(
         'What acceptance criteria should verify success?',
-        'Criteria: /help advanced shows Ultra access paths, /theme lists bundled themes, /plan ultra starts UltraPlan, /ultrawork connects the workflow, and tests verify each requirement.',
+        'Acceptance Criteria: /help advanced shows Ultra access paths, /theme lists bundled themes, /plan ultra starts UltraPlan, /ultrawork connects the workflow, and tests verify each requirement. Verification Plan: run unit tests and inspect rendered TUI copy. Runtime Context: TypeScript monorepo in a local CLI workspace. Completion Criterion: true when tests pass and the workflow is visibly complete, false otherwise.',
       );
 
       const scored = engine.calculateAmbiguityScore();
@@ -82,6 +82,26 @@ describe('UltraPlanModeEngine', () => {
 
       expect(engine.interviewState.completionCandidateStreak).toBe(2);
       expect(engine.canAutoComplete()).toBe(true);
+    });
+
+    it('keeps interview blocked until every required seed ledger gap is closed', () => {
+      const engine = new UltraPlanModeEngine(mockAgent);
+      engine.startInterview('Implement a guarded Ultrawork mode');
+
+      engine.addInterviewRound(
+        'What is the goal?',
+        'Goal: implement a verifiable UltraGoal that is true when Shift-Tab starts Ultrawork and false otherwise. Acceptance Criteria: status and footer tests pass. Verification Plan: run the focused TUI tests.',
+      );
+
+      const readiness = engine.interviewReadiness();
+
+      expect(readiness.ready).toBe(false);
+      expect(readiness.verifiableGoal).toBe(true);
+      expect(readiness.openGaps).toContain('actors');
+      expect(readiness.openGaps).toContain('inputs');
+      expect(readiness.openGaps).toContain('runtime_context');
+      expect(readiness.ambiguityScore.overallScore).toBeGreaterThan(0.2);
+      expect(engine.readinessBlockerMessage()).toContain('open_gaps=');
     });
   });
 

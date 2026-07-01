@@ -8,6 +8,7 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
   { label: 'legacy plan mode label', pattern: /\bPlan mode\b/i },
   { label: 'mode-like UltraPlan wording', pattern: /\bUltraPlan\s+mode\b/i },
   { label: 'legacy planning status row', pattern: /\bPlanning\s+Ultrawork\s+(?:on|off)\b/i },
+  { label: 'legacy Ultrawork ready badge', pattern: /\bultrawork-ready\b/i },
   { label: 'mode-like Ultrawork shortcut', pattern: /\bToggle\s+Ultrawork\s+planning\b/i },
   { label: 'mode-like Ultrawork notice', pattern: /\bUltrawork\s+planning:\s+(?:ON|OFF)\b/i },
   {
@@ -53,40 +54,40 @@ export function hasXpDodReadinessContract(output) {
 }
 
 export function hasUltraworkTaskEntryCopy(output) {
-  return /\bDescribe task;\s*Ultrawork runs the full workflow,\s*then verifies\.?/i.test(output);
+  return /\bShift-Tab enables Ultrawork mode for goal-driven work\.?/i.test(output);
 }
 
 export function hasUltraworkFooterNextAction(output) {
-  return /\bnext:\s*describe task;\s*Ultrawork runs the full workflow,\s*then verifies\b/i.test(output);
+  return /\bnext:\s*describe task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\b/i.test(output);
 }
 
 export function hasUltraworkHelpContract(output) {
   return (
     hasUltraworkTaskEntryCopy(output) &&
-    /\bAdvanced controls are optional\.?/i.test(output)
+    /\bNormal messages stay lightweight unless Ultrawork is on\.?/i.test(output)
   );
 }
 
 export function hasUltraworkAdvancedHelpContract(output) {
   return [
-    /\bUltrawork is one workflow:\s*UltraPlan,\s*UltraResearch,\s*UltraGoal,\s*UltraSwarm,\s*Integrate,\s*Verify,\s*Learn\.?/i,
-    /\bPlain tasks start it automatically\.?/i,
-    /\bControls below are optional steering\.?/i,
+    /\bUltrawork is one workflow:\s*UltraPlan,\s*UltraGoal,\s*Research,\s*Swarm decision,\s*Integrate,\s*Verify,\s*Learn\.?/i,
+    /\bShift-Tab starts the mode\b/i,
+    /\bcontrols below are explicit steering\.?/i,
     /\bAdvanced Ultrawork controls\b/i,
     /\bAdvanced steering for UltraPlan;\s*Ultrawork auto-enables it\b/i,
-    /\bAdvanced steering for UltraSwarm;\s*Ultrawork auto-arms it\b/i,
+    /\bAdvanced steering for UltraSwarm;\s*Ultrawork decides after UltraGoal\b/i,
   ].every((pattern) => pattern.test(output));
 }
 
 export function hasUltraworkStatusContract(output) {
   return [
-    /\bUltrawork\b\s+auto-link ready/i,
-    /\bWorkflow\b\s+task\s*->\s*research\s*->\s*team\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
-    /\bEngine\b\s+UltraPlan\s*\|\s*UltraResearch\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Integrate\s*\|\s*Verify\s*\|\s*Learn/i,
-    /\bAuto\b\s+ask if needed\s*\|\s*plan\s*\|\s*research\s*\|\s*goal\s*\|\s*swarm\s*\|\s*integrate\s*\|\s*verify\s*\|\s*learn/i,
+    /\bUltrawork\b\s+(?:mode on|mode off|goal active|goal blocked|needs readiness)/i,
+    /\bWorkflow\b\s+interview\s*->\s*goal\s*->\s*research\s*->\s*swarm decision\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
+    /\bEngine\b\s+UltraPlan\s*\|\s*UltraGoal\s*\|\s*Research\s*\|\s*Swarm decision\s*\|\s*Integrate\s*\|\s*Verify\s*\|\s*Learn/i,
+    /\bAuto\b\s+Shift-Tab Ultrawork mode;\s*no regex promotion for plain tasks/i,
     /\bFlow\b\s+[█░]{4}\s+(?:3|4)\/4\s+(?:verify queued|verify blocked|ready to run|verified)/i,
-    /\bStages\b\s+Plan on\s*\|\s*Goal ready\s*\|\s*Swarm auto\s*\|\s*Verify queued/i,
-    /\bNext\b\s+Type task;\s*Ultrawork runs the full workflow,\s*then verifies\.?/i,
+    /\bStages\b\s+Plan (?:on|required|off)\s*\|\s*Goal (?:ready|active|blocked|done)\s*\|\s*Swarm (?:armed|decision pending|off)\s*\|\s*Verify (?:queued|blocked|ready|done)/i,
+    /\bNext\b\s+(?:Type task;\s*Ultrawork will interview before goal,\s*swarm,\s*and edits\.?|Press Shift-Tab for Ultrawork,\s*or type a normal message\.?)/i,
   ].every((pattern) => pattern.test(output));
 }
 

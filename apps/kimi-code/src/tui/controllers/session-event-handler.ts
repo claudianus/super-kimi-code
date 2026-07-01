@@ -618,7 +618,10 @@ export class SessionEventHandler {
     if (event.contextUsage !== undefined) patch.contextUsage = event.contextUsage;
     if (event.contextTokens !== undefined) patch.contextTokens = event.contextTokens;
     if (event.maxContextTokens !== undefined) patch.maxContextTokens = event.maxContextTokens;
-    if (event.planMode !== undefined) patch.planMode = event.planMode;
+    if (event.planMode !== undefined) {
+      patch.planMode = event.planMode;
+      if (!event.planMode) patch.ultraworkMode = false;
+    }
     if (event.swarmMode !== undefined) patch.swarmMode = event.swarmMode;
     if (event.permission !== undefined) {
       patch.permissionMode = event.permission;

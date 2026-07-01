@@ -101,7 +101,7 @@ describe('PlanModeInjector content', () => {
     expect(history(agent)).toHaveLength(0);
   });
 
-  it('lets Ultra Plan interview advance when the task is already actionable', async () => {
+  it('keeps Ultra Plan interview gated on seed gaps even when the task is actionable', async () => {
     const agent = planAgent({
       isActive: true,
       isUltraMode: true,
@@ -113,10 +113,12 @@ describe('PlanModeInjector content', () => {
     await injector.inject();
 
     const text = lastReminder(agent);
-    expect(text).toContain('Ask 1-3 focused questions only when a missing decision blocks correctness');
-    expect(text).toContain("call NextPhase({ phase: 'design' })");
+    expect(text).toContain('UltraGoal must be judgeable as complete/incomplete, true/false, or pass/fail');
+    expect(text).toContain('NextPhase to Design is blocked until ambiguity <= 0.2, no required gaps remain, and the UltraGoal is verifiable');
+    expect(text).toContain('Ask 1-3 focused questions per AskUserQuestion call');
+    expect(text).toContain('Your turn MUST end with AskUserQuestion or NextPhase');
     expect(text).toContain('Do not call EnterPlanMode while already in Ultra Plan');
-    expect(text).not.toContain('You MUST ask at least 3 rounds');
+    expect(text).toContain('Do not advance just because the task feels actionable');
   });
 
   it('routes Ultra Plan design to review before write', async () => {

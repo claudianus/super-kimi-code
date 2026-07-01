@@ -197,7 +197,7 @@ function dedupeBundledThemes(
 function themePaletteSignature(theme: CustomThemeDefinition): string {
   const parsed = parseThemeDefinition(theme);
   const base = parsed?.base ?? 'dark';
-  const palette = { ...getBuiltInPalette(base), ...(parsed?.colors ?? {}) };
+  const palette = { ...getBuiltInPalette(base), ...parsed?.colors };
   const colors = Object.entries(palette)
     .toSorted(([a], [b]) => a.localeCompare(b))
     .map(([token, color]) => [token, color.toUpperCase()]);

@@ -31,6 +31,8 @@ export interface AppState {
   sessionId: string;
   permissionMode: PermissionMode;
   planMode: boolean;
+  /** Local TUI mode: normal prompts are routed into the Ultrawork workflow. */
+  ultraworkMode?: boolean;
   /** 'bash' when the editor is in `!` shell-command mode. */
   inputMode: 'prompt' | 'bash';
   swarmMode: boolean;

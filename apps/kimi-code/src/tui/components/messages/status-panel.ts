@@ -55,6 +55,7 @@ export interface StatusReportOptions {
   readonly thinking: boolean;
   readonly permissionMode: PermissionMode;
   readonly planMode: boolean;
+  readonly ultraworkMode?: boolean;
   readonly swarmMode?: boolean;
   readonly goalStatus?: StatusGoalStatus;
   readonly contextUsage: number;
@@ -118,9 +119,9 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
-const WORKFLOW_GATE = 'task -> research -> team -> integrate -> verify -> learn';
-const ENGINE_GATE = 'UltraPlan | UltraResearch | UltraGoal | UltraSwarm | Integrate | Verify | Learn';
-const AUTO_GATE = 'ask if needed | plan | research | goal | swarm | integrate | verify | learn';
+const WORKFLOW_GATE = 'interview -> goal -> research -> swarm decision -> integrate -> verify -> learn';
+const ENGINE_GATE = 'UltraPlan | UltraGoal | Research | Swarm decision | Integrate | Verify | Learn';
+const AUTO_GATE = 'Shift-Tab Ultrawork mode; no regex promotion for plain tasks';
 const AUTONOMY_GATE = 'bounded now -> headless target';
 const TOOLS_GATE = 'search first; load tools on demand';
 const RESEARCH_GATE = 'LocalResearchStack + WebSearch + FetchURL; provider/MCP optional';
@@ -153,9 +154,9 @@ function formatUltraworkStageStatus(options: StatusReportOptions): string {
   const planMode = options.status?.planMode ?? options.planMode;
   const blocked = verifyBlockedByReadiness(options);
   const canAutoOrchestrate = options.goalStatus === undefined && !blocked;
-  const plan = planMode ? 'Plan on' : canAutoOrchestrate ? 'Plan auto' : 'Plan off';
+  const plan = planMode ? 'Plan on' : options.ultraworkMode ? 'Plan required' : 'Plan off';
   const goal = `Goal ${formatGoalStatus(options.goalStatus)}`;
-  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'auto' : 'ready'}`;
+  const swarm = `Swarm ${options.swarmMode === true ? 'armed' : canAutoOrchestrate ? 'decision pending' : 'off'}`;
   const verify = `Verify ${formatVerifyStatus(options.goalStatus, planMode, blocked)}`;
   return `${plan} | ${goal} | ${swarm} | ${verify}`;
 }
@@ -181,6 +182,7 @@ function formatUltraworkFlow(options: StatusReportOptions): FieldRow {
 function formatUltraworkStatus(options: StatusReportOptions): string {
   const blocked = verifyBlockedByReadiness(options);
   if (blocked && options.goalStatus !== 'blocked') return 'needs readiness';
+  if (options.ultraworkMode === true) return 'mode on';
 
   switch (options.goalStatus) {
     case 'active':
@@ -192,7 +194,7 @@ function formatUltraworkStatus(options: StatusReportOptions): string {
     case 'complete':
       return 'verified';
     case undefined:
-      return 'auto-link ready';
+      return 'mode off';
   }
 }
 
@@ -450,7 +452,9 @@ function readinessRows(options: StatusReportOptions): readonly FieldRow[] {
     ...gateRows,
     {
       label: 'Next',
-      value: 'Type task; Ultrawork runs the full workflow, then verifies.',
+      value: options.ultraworkMode === true
+        ? 'Type task; Ultrawork will interview before goal, swarm, and edits.'
+        : 'Press Shift-Tab for Ultrawork, or type a normal message.',
     },
   ];
 }

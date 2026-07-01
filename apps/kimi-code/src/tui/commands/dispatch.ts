@@ -56,7 +56,11 @@ import {
   handleTitleCommand,
 } from './session';
 import { handleSwarmCommand } from './swarm';
-import { handleUltraworkCommand, shouldAutoActivateUltrawork } from './ultrawork';
+import {
+  handleUltraworkCommand,
+  handleUltraworkModeToggle,
+  shouldAutoActivateUltrawork,
+} from './ultrawork';
 import { handleUndoCommand } from './undo';
 
 // ---------------------------------------------------------------------------
@@ -83,7 +87,7 @@ export {
   showSettingsSelector,
 } from './config';
 export { handleSwarmCommand } from './swarm';
-export { handleUltraworkCommand } from './ultrawork';
+export { handleUltraworkCommand, handleUltraworkModeToggle } from './ultrawork';
 export { handleFeedbackCommand, showMcpServers, showStatusReport, showUsage } from './info';
 export { handleMemoryCommand } from './memory';
 export { handlePluginsCommand } from './plugins';
@@ -176,7 +180,7 @@ export function dispatchInput(host: SlashCommandHost, text: string): void {
   if (
     host.state.appState.streamingPhase === 'idle' &&
     !host.state.appState.isCompacting &&
-    shouldAutoActivateUltrawork(text)
+    (host.state.appState.ultraworkMode || shouldAutoActivateUltrawork(text))
   ) {
     void handleUltraworkCommand(host, text, 'auto');
     return;

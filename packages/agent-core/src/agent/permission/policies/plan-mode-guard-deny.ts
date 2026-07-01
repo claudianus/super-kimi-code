@@ -2,8 +2,6 @@ import type { Agent } from '../..';
 import type { PermissionPolicy, PermissionPolicyContext, PermissionPolicyResult } from '../types';
 import { writeFileAccesses } from './file-access-ask';
 
-const MIN_ULTRA_INTERVIEW_ROUNDS = 3;
-
 export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
   readonly name = 'plan-mode-guard-deny';
 
@@ -62,22 +60,10 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
     switch (phase) {
       case 'interview': {
         if (toolName === 'AskUserQuestion') {
-          const engine = this.agent.planMode.ultraEngine;
-          const rounds = this.agent.planMode.interviewRoundCount + 1;
           this.agent.planMode.incrementInterviewRound();
-          if (rounds >= MIN_ULTRA_INTERVIEW_ROUNDS) {
-            const score = engine.calculateAmbiguityScore();
-            if (score.isReadyForSeed && engine.canAutoComplete()) {
-              this.agent.planMode.setPhase('design');
-              const seed = engine.autoGenerateSeedSpecFromInterview('AutoOntology');
-              engine.setSeedSpec(seed);
-            } else if (engine.interviewState.rounds.length === 0) {
-              this.agent.planMode.setPhase('design');
-            }
-          }
           return;
         }
-        if (toolName === 'NextPhase') return; // Allow manual phase advance
+        if (toolName === 'NextPhase') return;
         if (toolName === 'EnterPlanMode') {
           return {
             kind: 'deny',
@@ -88,12 +74,12 @@ export class PlanModeGuardDenyPermissionPolicy implements PermissionPolicy {
         if (toolName === 'ExitPlanMode') {
           return {
             kind: 'deny',
-            message: 'ExitPlanMode is blocked in Interview phase. Use AskUserQuestion only for blocking ambiguity, or call NextPhase to advance to Design when the task is already actionable.',
+            message: 'ExitPlanMode is blocked in Interview phase. Use AskUserQuestion until the UltraGoal is true/false verifiable, then call NextPhase.',
           };
         }
         return {
           kind: 'deny',
-          message: `${toolName} is blocked in Interview phase. Only AskUserQuestion and NextPhase are allowed. Ask only for blocking ambiguity; otherwise call NextPhase to advance to Design.`,
+          message: `${toolName} is blocked in Interview phase. Only AskUserQuestion and NextPhase are allowed. NextPhase will remain blocked until the UltraGoal is true/false verifiable and required Seed gaps are closed.`,
         };
       }
       case 'design': {

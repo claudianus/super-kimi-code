@@ -2,7 +2,7 @@
  * Footer/status bar — multi-line status display at the bottom of the TUI.
  *
  * Layout:
- *   Line 1: [yolo] [ultrawork-ready] <model> <cwd>  <git-badge>  <shortcut hints>
+ *   Line 1: [yolo] [ultrawork] [plan] <model> <cwd>  <git-badge>  <shortcut hints>
  *   Line 2: context: XX.X% (tokens/max)
  */
 
@@ -188,7 +188,10 @@ function footerNextAction(state: AppState, git: GitStatus | null): string | null
   if (safeUsage(state.contextUsage) >= 0.85) return 'next: /compact before long work';
   if (state.streamingPhase !== 'idle') return null;
   if (git?.dirty === true) return 'next: review changes';
-  return 'next: describe task; Ultrawork runs the full workflow, then verifies';
+  if (state.ultraworkMode) {
+    return 'next: describe task; Ultrawork will interview before goal, swarm, and edits';
+  }
+  return 'next: Shift-Tab for Ultrawork, or type a normal message';
 }
 
 export function formatFooterGitBadge(status: GitStatus, colors: ColorPalette): string {
@@ -274,8 +277,9 @@ export class FooterComponent implements Component {
     const modes: string[] = [];
     if (state.permissionMode === 'auto') modes.push(chalk.hex(colors.warning).bold('auto'));
     if (state.permissionMode === 'yolo') modes.push(chalk.hex(colors.warning).bold('yolo'));
-    if (state.planMode) modes.push(chalk.hex(colors.primary).bold('ultrawork-ready'));
-    if (state.swarmMode) modes.push(chalk.hex(colors.accent).bold('swarm'));
+    if (state.ultraworkMode) modes.push(chalk.hex(colors.primary).bold('ultrawork'));
+    else if (state.planMode) modes.push(chalk.hex(colors.primary).bold('plan'));
+    if (state.swarmMode) modes.push(chalk.hex(colors.accent).bold('swarm-armed'));
     if (modes.length > 0) left.push(modes.join(' '));
 
     const goalBadge = formatGoalBadge(state.goal, colors, this.goalWallClockMs(state.goal));

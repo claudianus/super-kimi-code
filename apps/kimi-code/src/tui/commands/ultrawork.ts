@@ -19,13 +19,14 @@ import {
 interface UltraworkSetupState {
   readonly planModeWasEnabled: boolean;
   readonly swarmModeWasEnabled: boolean;
+  readonly ultraworkModeWasEnabled: boolean;
   readonly previousSwarmModeEntry: 'manual' | 'task' | undefined;
   planChanged: boolean;
   swarmEnabled: boolean;
 }
 
 const ULTRAWORK_ACTIVITY_TIP =
-  'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn';
+  'Ultrawork mode: UltraPlan interview first, then verifiable UltraGoal, Swarm decision, verify';
 
 export {
   buildUltraworkPrompt,
@@ -72,6 +73,41 @@ export async function handleUltraworkCommand(
   await startUltrawork(host, parsed, source);
 }
 
+export async function handleUltraworkModeToggle(
+  host: SlashCommandHost,
+  enabled: boolean,
+): Promise<void> {
+  if (host.session === undefined) {
+    host.showError(NO_ACTIVE_SESSION_MESSAGE);
+    return;
+  }
+  if (host.state.appState.model.trim().length === 0) {
+    host.showError(LLM_NOT_SET_MESSAGE);
+    return;
+  }
+  try {
+    if (enabled) {
+      await forceUltraPlanMode(host.requireSession());
+    } else {
+      await host.requireSession().setPlanMode(false, false);
+    }
+  } catch (error) {
+    host.showError(`Failed to ${enabled ? 'enable' : 'disable'} Ultrawork mode: ${formatErrorMessage(error)}`);
+    return;
+  }
+  host.setAppState({
+    planMode: enabled,
+    ultraworkMode: enabled,
+    activityTip: enabled ? ULTRAWORK_ACTIVITY_TIP : null,
+  });
+  host.showNotice(
+    enabled ? 'Ultrawork mode: ON' : 'Ultrawork mode: OFF',
+    enabled
+      ? 'Shift-Tab routes the next task through UltraPlan before any UltraGoal or Swarm work.'
+      : undefined,
+  );
+}
+
 function showUltraworkStartPermissionPrompt(
   host: SlashCommandHost,
   commandText: string,
@@ -110,20 +146,16 @@ async function startUltrawork(
   request: UltraworkCreateRequest,
   source: UltraworkActivationSource,
 ): Promise<void> {
-  const session = host.requireSession();
   const setup: UltraworkSetupState = {
     planModeWasEnabled: host.state.appState.planMode,
     swarmModeWasEnabled: host.state.appState.swarmMode,
+    ultraworkModeWasEnabled: host.state.appState.ultraworkMode ?? false,
     previousSwarmModeEntry: host.state.swarmModeEntry,
     planChanged: false,
     swarmEnabled: false,
   };
   try {
     await prepareUltraworkSetup(host, setup);
-    await session.createGoal({
-      objective: request.objective,
-      replace: request.replace,
-    });
   } catch (error) {
     await rollbackUltraworkSetup(host, setup);
     host.showError(`Failed to start ultrawork: ${formatErrorMessage(error)}`);
@@ -136,7 +168,7 @@ async function startUltrawork(
     new UltraworkModeMarkerComponent('active', request.objective),
   );
   host.state.ui.requestRender();
-  host.sendNormalUserInput(buildUltraworkPrompt(request.objective, source), {
+  host.sendNormalUserInput(buildUltraworkPrompt(request.objective, source, request.replace), {
     displayText: request.objective,
   });
 }
@@ -160,23 +192,19 @@ async function prepareUltraworkSetup(
   setup: UltraworkSetupState,
 ): Promise<void> {
   const session = host.requireSession();
-  if (!setup.swarmModeWasEnabled) {
-    await session.setSwarmMode(true, 'task');
-    setup.swarmEnabled = true;
-    host.setAppState({ swarmMode: true });
-    host.state.swarmModeEntry = 'task';
-  }
-  if (setup.planModeWasEnabled) {
-    host.setAppState({ planMode: true });
-    return;
-  }
+  await forceUltraPlanMode(session);
+  setup.planChanged = true;
+  host.setAppState({ planMode: true, ultraworkMode: true });
+}
+
+async function forceUltraPlanMode(session: ReturnType<SlashCommandHost['requireSession']>): Promise<void> {
   try {
     await session.setPlanMode(true, true);
-    setup.planChanged = true;
   } catch (error) {
     if (!formatErrorMessage(error).includes('Already in plan mode')) throw error;
+    await session.setPlanMode(false, false);
+    await session.setPlanMode(true, true);
   }
-  host.setAppState({ planMode: true });
 }
 
 async function rollbackUltraworkSetup(
@@ -186,7 +214,10 @@ async function rollbackUltraworkSetup(
   const session = host.requireSession();
   if (setup.planChanged) {
     await session.setPlanMode(setup.planModeWasEnabled, false).catch(() => {});
-    host.setAppState({ planMode: setup.planModeWasEnabled });
+    host.setAppState({
+      planMode: setup.planModeWasEnabled,
+      ultraworkMode: setup.ultraworkModeWasEnabled,
+    });
   }
   if (setup.swarmEnabled) {
     await session.setSwarmMode(false, 'task').catch(() => {});

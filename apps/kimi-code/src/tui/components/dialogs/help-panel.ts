@@ -32,7 +32,7 @@ export interface HelpPanelCommand {
 /** Static list — keep in sync with the global editor bindings. */
 const ULTRAWORK_PLANNING_SHORTCUT: KeyboardShortcut = {
   keys: 'Shift-Tab',
-  description: 'Steer Ultrawork plan',
+  description: 'Toggle Ultrawork mode',
 };
 
 export const DEFAULT_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
@@ -55,9 +55,9 @@ export const ADVANCED_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   ...DEFAULT_KEYBOARD_SHORTCUTS.slice(1),
 ];
 const DEFAULT_HELP_INTRO =
-  'Describe task; Ultrawork runs the full workflow, then verifies.\nAdvanced controls are optional.';
+  'Shift-Tab enables Ultrawork mode for goal-driven work.\nNormal messages stay lightweight unless Ultrawork is on.';
 export const ADVANCED_HELP_INTRO =
-  'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.\nPlain tasks start it automatically. Controls below are optional steering.';
+  'Ultrawork is one workflow: UltraPlan, UltraGoal, Research, Swarm decision, Integrate, Verify, Learn.\nShift-Tab starts the mode; controls below are explicit steering.';
 
 export interface HelpPanelOptions {
   readonly commands: readonly HelpPanelCommand[];

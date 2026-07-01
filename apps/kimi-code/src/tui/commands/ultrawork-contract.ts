@@ -18,20 +18,10 @@ const EXPLICIT_ULTRAWORK_PATTERN = new RegExp(
   'i',
 );
 
-const RESEARCH_PATTERN =
-  /\b(?:research|latest|paper|papers|best practice|best practices|survey|benchmark)\b|(?:논문|최신|조사|리서치|베스트프랙티스)/i;
 const BUILD_PATTERN =
   /\b(?:build|ship|implement|design|develop|refactor|integrate)\b|(?:구현|개발|설계|통합|작업|진행|완수|완성|만들|고도화)/i;
 const AUTONOMY_PATTERN =
   /\b(?:end[-\s]?to[-\s]?end|autonomous|automatically|auto|finish|verify|tests?|plan|swarm|goal)\b|(?:자동|자율|연동|발동|완료|검증|테스트|계획|스웜|골)/i;
-const ENGLISH_CODING_ACTION_PATTERN =
-  /\b(?:implement|build|create|make|add|update|refactor|integrate|ship|fix|debug|improve)\b/i;
-const ENGLISH_CODING_TARGET_PATTERN =
-  /\b(?:app|game|site|website|webapp|feature|bug|workflow|screen|page|view|component|button|form|modal|dialog|command|panel|api|endpoint|tui|ui|cli|harness|test|error|ux)\b/i;
-const KOREAN_CODING_ACTION_PATTERN =
-  /(?:만들|구현|고치|수정|개선|추가|연동|검증|테스트|돌려|끝내)/i;
-const KOREAN_CODING_TARGET_PATTERN =
-  /(?:앱|게임|사이트|웹앱|웹사이트|프로그램|스크립트|갤러그|기능|버그|화면|페이지|뷰|컴포넌트|버튼|폼|모달|다이얼로그|명령어|패널|API|엔드포인트|UI|CLI|TUI|워크플로우|하네스|테스트|오류|에러|자동완성|검수)/i;
 const SIMPLE_COPY_EDIT_PATTERN =
   /\b(?:typo|spelling|sentence|wording|copy)\b|(?:오타|맞춤법|문장|문구만|표현만)/i;
 const QUESTION_ONLY_ULTRAWORK_PATTERN =
@@ -49,18 +39,18 @@ const ULTRAWORK_OPT_OUT_PATTERN =
   );
 const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   'Ultrawork orchestration:',
-  '- Treat Ultrawork as one workflow, not separate user-facing modes: it automatically links and activates UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, and Learn inside one continuous run.',
-  '- Ultrawork is the product workflow; UltraPlan, UltraResearch, UltraGoal, and UltraSwarm are internal stages that auto-link and auto-activate inside that workflow.',
-  '- Workflow spine: UltraPlan -> UltraResearch -> UltraGoal -> UltraSwarm -> Integrate -> Verify -> Learn.',
-  '- Activation sequence: create or replace the UltraGoal, enable UltraPlan, run UltraResearch when current knowledge matters, arm UltraSwarm, integrate specialist work, Verify, then Learn by saving only verified durable findings.',
-  '- Normal task text is the preferred entry point; /ultrawork is an advanced steering override for operators who want to explicitly start the full workflow.',
-  '- UltraPlan: clarify ambiguous or large requests, ask only blocking questions, identify knowledge gaps, and turn the request into a concrete verified goal.',
+  '- Treat Ultrawork as one workflow, not separate user-facing modes: it forces UltraPlan first, creates a verifiable UltraGoal only after the plan gate, then runs Research, Swarm decision, Integrate, Verify, and Learn inside one continuous run.',
+  '- Ultrawork is the product workflow; UltraPlan, UltraGoal, Research, and Swarm decision are internal stages with enforced order, not separate badges or user-facing modes.',
+  '- Workflow spine: UltraPlan -> UltraGoal -> Research -> Swarm decision -> Integrate -> Verify -> Learn.',
+  '- Activation sequence: force UltraPlan first; use the interview to define one true/false-verifiable UltraGoal objective and completion criterion; create or replace UltraGoal only after the plan is approved; then research, decide Swarm ENGAGE/DEFER, integrate, verify, and learn.',
+  '- Shift-Tab Ultrawork mode is the normal task entry point; /ultrawork is an explicit steering override for operators who want to start the same workflow from text.',
+  '- UltraPlan: clarify the request until the future UltraGoal can be judged complete or incomplete as 1 or 0. Ask blocking questions, reduce ambiguity, identify knowledge gaps, and turn the request into a concrete verified goal.',
   '- UltraPlan must produce and surface the Ouroboros plan before implementation: Seed Spec, AC Tree, Evaluation Plan, and Execution Plan must be written to the active Ultra Plan file and approved through ExitPlanMode before code edits.',
   '- Do not skip directly from one interview question into implementation. After the last blocking question, advance through Design, Review, Write, and Exit phases with NextPhase and ExitPlanMode before editing product files.',
   '- UltraResearch: when latest APIs, papers, security, benchmarks, release notes, or OSS examples can affect correctness, produce an evidence pack before implementation. Search multiple focused angles in parallel, fetch primary sources, label candidate vs verified findings, and never rely on snippets alone for implementation-affecting claims.',
-  '- UltraGoal: keep the active goal as the durable execution contract; update or replace it only when the clarified objective materially changes.',
-  '- UltraSwarm: auto-engage specialist agents only when parallel research, PM, architecture, TUI, QA, security, performance, integration, or verification materially improves outcome or speed.',
-  '- UltraSwarm is armed by Ultrawork setup; proactively invoke specialist agents for cross-domain, current-knowledge, risky, UI/UX, QA, security, performance, or long-horizon tasks, and otherwise note why single-agent execution is enough.',
+  '- UltraGoal: create or replace the active goal only after UltraPlan has produced the verifiable objective. The goal objective must be concrete, bounded, and paired with acceptance criteria that can be judged true or false.',
+  '- UltraSwarm: decide ENGAGE or DEFER after the verifiable UltraGoal exists. Engage specialist agents when parallel research, PM, architecture, TUI, QA, security, performance, integration, or verification materially improves outcome or speed.',
+  '- UltraSwarm is not proof by badge. Make the Swarm decision visible, then invoke specialist agents only when the decision says ENGAGE; otherwise state why single-agent execution is lower-risk.',
   '- Integrate: appoint an integration owner to merge specialist output, resolve conflicts, and reduce duplicate or contradictory recommendations before editing.',
   '- Verify: run the relevant mechanical checks and real TUI/CLI surface checks; verify research claims against fetched sources when they affect behavior.',
   '- Learn: persist only verified durable findings, decisions, and source-backed project knowledge to Kimi Recall or LLM Wiki. Do not store raw pages, transient logs, secrets, or unverified snippets.',
@@ -69,7 +59,7 @@ const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   '- For every Swarm decision, include the reason, expected specialist value or none, and verification owner so the harness can audit the orchestration choice.',
   '- Do not ask the user to choose /ultraplan, /ultraresearch, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
   '- If the user names an individual Ultra stage, normalize it into the same Ultrawork run instead of exposing a separate mode choice.',
-  '- When the task is already actionable, do not stall in UltraPlan; advance into UltraGoal, UltraSwarm when useful, and verification with best judgment.',
+  '- When the task looks actionable, still pass the UltraPlan gate: explicitly record the verifiable UltraGoal, non-goals, acceptance criteria, verification plan, and Swarm decision before implementation.',
   '- Treat Korean brand mentions such as 울트라플랜, 울트라리서치, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',
 ].join('\n');
 const ULTRAWORK_LEAN_CONTEXT_GUIDANCE = [
@@ -179,7 +169,6 @@ export function shouldAutoActivateUltrawork(prompt: string): boolean {
   if (ULTRAWORK_OPT_OUT_PATTERN.test(text)) return false;
   if (QUESTION_ONLY_ULTRAWORK_PATTERN.test(text)) return false;
   if (SIMPLE_COPY_EDIT_PATTERN.test(text) && !EXPLICIT_ULTRAWORK_PATTERN.test(text)) return false;
-  const actionableCodingTask = isActionableCodingTask(text);
   if (QUESTION_MARK_PATTERN.test(text) && QUESTION_WORD_PATTERN.test(text) && !EXPLICIT_ULTRAWORK_PATTERN.test(text)) {
     return false;
   }
@@ -192,27 +181,20 @@ export function shouldAutoActivateUltrawork(prompt: string): boolean {
     }
     return true;
   }
-  if (actionableCodingTask) return true;
-  if (text.split(/\s+/).length < 10 && text.length < 80) return false;
-  return RESEARCH_PATTERN.test(text) && BUILD_PATTERN.test(text) && AUTONOMY_PATTERN.test(text);
-}
-
-function isActionableCodingTask(text: string): boolean {
-  return (
-    (ENGLISH_CODING_ACTION_PATTERN.test(text) && ENGLISH_CODING_TARGET_PATTERN.test(text)) ||
-    (KOREAN_CODING_ACTION_PATTERN.test(text) && KOREAN_CODING_TARGET_PATTERN.test(text))
-  );
+  return false;
 }
 
 export function buildUltraworkPrompt(
   objective: string,
   source: UltraworkActivationSource,
+  replaceGoal = false,
 ): string {
   const escapedObjective = escapeUntrustedText(objective);
   return [
     '<ultrawork_flow>',
     `activation: ${source}`,
     'brand: Ultrawork',
+    `goal_replace_requested: ${replaceGoal ? 'true' : 'false'}`,
     'mission: run a complete Kimi harness workflow from interview to verified finish.',
     '',
     '<untrusted_objective>',
@@ -232,14 +214,14 @@ export function buildUltraworkPrompt(
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_XP_DOD_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_HUMAN_WRITING_GUIDANCE.replaceAll('\n', '\n  ')}`,
-    '- Interview the user only when a missing decision blocks correctness; otherwise proceed with best judgment.',
+    '- Interview the user when the future UltraGoal cannot yet be judged true or false, or when a missing decision blocks correctness; otherwise record the safe assumption in the plan.',
     '- During the Ultra Plan interview phase, use only AskUserQuestion or NextPhase; do not call search, read, edit, or shell tools until the interview advances.',
-    '- If AskUserQuestion is unavailable or rejected by policy, do not retry it; call NextPhase and continue with best judgment.',
+    '- If AskUserQuestion is unavailable or rejected by policy, do not fabricate closure; write the unresolved gap into the plan and keep NextPhase blocked until the goal is verifiable.',
     '- When using AskUserQuestion, ask 1-3 focused questions and provide at most 4 options per question.',
-    '- Never ask more than 3 total interview questions for one Ultrawork turn; after 3 answered questions, call NextPhase and proceed with best judgment.',
-    '- After an AskUserQuestion response, continue the same Ultrawork turn toward implementation and verification; do not wait for a new user message unless another missing decision blocks correctness.',
+    '- Do not cap the interview by an arbitrary question count. Continue until the UltraGoal objective, non-goals, acceptance criteria, verification plan, failure modes, and runtime context are resolved or explicitly blocked.',
+    '- After an AskUserQuestion response, continue the same Ultrawork turn toward a complete plan; do not implement until the plan is approved and UltraGoal exists.',
     '- After the final needed AskUserQuestion response, call NextPhase before any search, read, edit, shell, or skill tool.',
-    '- Product-file edits are forbidden until Ultra Plan has reached Write or Exit phase, the complete plan has been saved, and ExitPlanMode has surfaced the approved plan.',
+    '- Product-file edits are forbidden until Ultra Plan has reached Write or Exit phase, the complete plan has been saved, ExitPlanMode has surfaced the approved plan, and UltraGoal has been created from that plan.',
     '- Finish by verifying the real surface, reporting concise evidence, and calling UpdateGoal complete or blocked.',
     '</ultrawork_flow>',
   ].join('\n');

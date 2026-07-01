@@ -6185,8 +6185,9 @@ async function waitForUltraworkWorkflowOutcome(context, tmuxSession, workflowPat
 function inspectUltraworkWorkflowSignals(output) {
   const activated = matchesAny(output, [
     /Ultrawork activated/i,
-    /ultrawork-ready/i,
-    /\[goal\s+.*\bactive\b/i,
+    /Ultrawork mode/i,
+    /Ultrawork will interview before goal/i,
+    /Shift-Tab routes the next task through UltraPlan/i,
     /<ultrawork_flow>/i,
     /activation:\s*auto/i,
     /Ultrawork:\s*autonomous plan/i,
@@ -6260,13 +6261,11 @@ function inspectUltraworkWorkflowSignals(output) {
     /Invalid phase transition:\s*cannot go from/i,
   ]);
   const linkedStagesVisible = matchesAny(output, [
-    /Tip:\s*Ultrawork\s+auto-orchestrates\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify/i,
-    /Tip:\s*Ultrawork\s+links\s+UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*and\s*Verify\s+automatically/i,
-    /UltraPlan\s*->\s*UltraGoal\s*->\s*UltraSwarm\s*->\s*Verify/i,
-    /Auto-orchestrated:\s*UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
-    /One workflow:\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm\s+auto-link/i,
-    /One workflow:\s*(?:stages are chosen and linked automatically|stages and Swarm decision are linked automatically)/i,
-    /auto\s+ultrawork-ready\s+swarm\s+\[goal\s+.*\bactive\b/i,
+    /UltraPlan\s*->\s*UltraGoal\s*->\s*Research\s*->\s*Swarm decision\s*->\s*Integrate\s*->\s*Verify\s*->\s*Learn/i,
+    /One Ultrawork:\s*interview,\s*set verifiable goal,\s*decide team,\s*verify/i,
+    /Workflow\s+interview\s*->\s*goal\s*->\s*research\s*->\s*swarm decision\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
+    /Engine\s+UltraPlan\s*\|\s*UltraGoal\s*\|\s*Research\s*\|\s*Swarm decision\s*\|\s*Integrate\s*\|\s*Verify\s*\|\s*Learn/i,
+    /Next:\s*UltraPlan interview must close before UltraGoal or Swarm/i,
   ]);
   const swarmDecisionVisible = matchesAny(output, [
     /Swarm decision:\s*(?:pending\s+)?(?:ENGAGE|DEFER)(?:\s*(?:[|/]|\bor\b)\s*(?:ENGAGE|DEFER))?/i,
@@ -6328,7 +6327,7 @@ function inspectUltraworkWorkflowSignals(output) {
       ? 'screen shows an invalid Ultra Plan phase transition'
       : 'screen does not show an invalid Ultra Plan phase transition',
     linkedStageReason: linkedStagesVisible
-      ? 'screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow'
+      ? 'screen shows UltraPlan, UltraGoal, Research, Swarm decision, and Verify as one Ultrawork workflow'
       : 'screen does not show the linked Ultrawork stage pipeline yet',
     swarmDecisionReason: swarmDecisionVisible
       ? 'screen shows an auditable ENGAGE/DEFER Swarm decision cue'
@@ -6579,8 +6578,8 @@ function validateUltraworkLinkedStages(waitResult) {
     status: count > 0 ? 'PASS' : 'FAIL',
     reason:
       count > 0
-        ? 'Live TUI screen shows UltraPlan, UltraGoal, UltraSwarm, and Verify as one Ultrawork workflow.'
-        : 'Live TUI screen did not show UltraPlan, UltraGoal, UltraSwarm, and Verify as one linked Ultrawork workflow.',
+        ? 'Live TUI screen shows UltraPlan, UltraGoal, Research, Swarm decision, and Verify as one Ultrawork workflow.'
+        : 'Live TUI screen did not show UltraPlan, UltraGoal, Research, Swarm decision, and Verify as one linked Ultrawork workflow.',
     evidenceCount: count,
   };
 }
@@ -6633,8 +6632,8 @@ async function validateUltraworkResultScreenLinkedStages(captures) {
   return {
     status: signals.linkedStagesVisible ? 'PASS' : 'FAIL',
     reason: signals.linkedStagesVisible
-      ? 'Final Ultrawork result screen keeps the linked UltraPlan, UltraGoal, UltraSwarm, and Verify workflow visible.'
-      : 'Final Ultrawork result screen does not keep the linked UltraPlan, UltraGoal, UltraSwarm, and Verify workflow visible.',
+      ? 'Final Ultrawork result screen keeps the linked UltraPlan, UltraGoal, Research, Swarm decision, and Verify workflow visible.'
+      : 'Final Ultrawork result screen does not keep the linked UltraPlan, UltraGoal, Research, Swarm decision, and Verify workflow visible.',
     path: resultCapture.path,
   };
 }
@@ -7352,7 +7351,7 @@ function validateTuiUltraworkOperatorTrajectory(summary) {
     status: failedSteps.length === 0 ? 'PASS' : 'FAIL',
     reason:
       failedSteps.length === 0
-        ? 'Ultrawork TUI workflow includes visible activation, linked UltraPlan/UltraGoal/UltraSwarm/Verify stages, optional interview handling, source/test completion, agent-run verification, no question tool contract error, and no policy-deadlock evidence.'
+        ? 'Ultrawork TUI workflow includes visible activation, linked UltraPlan/UltraGoal/Research/Swarm-decision/Verify stages, optional interview handling, source/test completion, agent-run verification, no question tool contract error, and no policy-deadlock evidence.'
         : `Ultrawork TUI workflow is missing operator evidence: ${failedSteps
             .map((step) => step.name)
             .join(', ')}.`,
@@ -9560,7 +9559,7 @@ async function validateTuiLaunchUltraworkUnifiedSurface(captures) {
     validateTuiLaunchSurfaceScenario(
       capturesByScenario,
       'status',
-      'status screen auto-link readiness contract',
+      'status screen Ultrawork readiness contract',
       hasUltraworkStatusContract,
     ),
   ]);
@@ -9569,7 +9568,7 @@ async function validateTuiLaunchUltraworkUnifiedSurface(captures) {
     status: failures.length === 0 ? 'PASS' : 'FAIL',
     reason:
       failures.length === 0
-        ? 'Live TUI startup, help, and status screens show Ultrawork as one auto-linked workflow.'
+        ? 'Live TUI startup, help, and status screens show Ultrawork as one gated workflow.'
         : `TUI launch is missing Ultrawork unified workflow surface evidence: ${failures
             .map((failure) => failure.scenario)
             .join(', ')}`,

@@ -972,17 +972,18 @@ command = "vim"
     expect(failedSession.onEvent).toHaveBeenCalledOnce();
   });
 
-  it('tracks Shift-Tab mode switches through the editor handler', async () => {
+  it('tracks Shift-Tab Ultrawork mode switches through the editor handler', async () => {
     const { driver, session, harness } = await makeDriver();
     harness.track.mockClear();
 
     driver.state.editor.onShiftTab?.();
 
     await vi.waitFor(() => {
-      expect(session.setPlanMode).toHaveBeenCalledWith(true, false);
+      expect(session.setPlanMode).toHaveBeenCalledWith(true, true);
+      expect(driver.state.appState.ultraworkMode).toBe(true);
     });
-    expect(harness.track).toHaveBeenCalledWith('shortcut_plan_toggle', { enabled: true });
-    expect(harness.track).toHaveBeenCalledWith('shortcut_mode_switch', { to_mode: 'plan' });
+    expect(harness.track).toHaveBeenCalledWith('shortcut_ultrawork_toggle', { enabled: true });
+    expect(harness.track).toHaveBeenCalledWith('shortcut_mode_switch', { to_mode: 'ultrawork' });
   });
 
   it('routes /yolo through session permission state without app-layer telemetry duplication', async () => {
@@ -3654,7 +3655,7 @@ command = "vim"
       expect(output).toContain('thinking high');
       expect(output).toContain('Permissions  auto');
       expect(output).toMatch(/Ultrawork\s+needs readiness/);
-      expect(output).toMatch(/Stages\s+Plan on \| Goal ready \| Swarm ready \| Verify blocked/);
+      expect(output).toMatch(/Stages\s+Plan on \| Goal ready \| Swarm off \| Verify blocked/);
       expect(output).not.toMatch(/Planning\s+Ultrawork/);
       expect(output).toContain('Context window');
       expect(output).toContain('25.0%');

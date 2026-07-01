@@ -108,6 +108,28 @@ export interface InterviewState {
   readonly completionCandidateStreak: number;
 }
 
+export const ULTRA_PLAN_REQUIRED_SECTIONS = [
+  'goal',
+  'actors',
+  'inputs',
+  'outputs',
+  'constraints',
+  'non_goals',
+  'acceptance_criteria',
+  'verification_plan',
+  'failure_modes',
+  'runtime_context',
+] as const;
+
+export type UltraPlanRequiredSection = typeof ULTRA_PLAN_REQUIRED_SECTIONS[number];
+
+export interface UltraPlanReadiness {
+  readonly ready: boolean;
+  readonly openGaps: readonly UltraPlanRequiredSection[];
+  readonly ambiguityScore: AmbiguityScoreResult;
+  readonly verifiableGoal: boolean;
+}
+
 export type StagnationPatternType =
   | 'spinning'
   | 'oscillation'
@@ -532,6 +554,21 @@ export class UltraPlanModeEngine {
     };
   }
 
+  recordInterviewAnswers(
+    questions: ReadonlyArray<{ readonly question: string; readonly header?: string }>,
+    answers: Record<string, string | true>,
+  ): void {
+    const answerText = Object.entries(answers)
+      .map(([key, value]) => `${key}: ${value === true ? 'true' : value}`)
+      .join('\n');
+    const questionText = questions
+      .map((q) => q.header === undefined || q.header.length === 0
+        ? q.question
+        : `${q.header}: ${q.question}`)
+      .join('\n');
+    this.addInterviewRound(questionText, answerText);
+  }
+
   /**
    * Calculate ambiguity score from interview state.
    * This is a heuristic based on the content of Q&A, not an LLM call.
@@ -578,12 +615,17 @@ export class UltraPlanModeEngine {
 
     const boundedOverall = Math.max(0, Math.min(1, overall));
 
-    const milestone: AmbiguityMilestone =
-      boundedOverall <= 0.2 ? 'ready' :
-      boundedOverall <= 0.3 ? 'refined' :
-      boundedOverall <= 0.4 ? 'progress' : 'initial';
+    const openGaps = this.openSeedGaps();
+    const gapPressure = openGaps.length / ULTRA_PLAN_REQUIRED_SECTIONS.length;
+    const verifiableGoal = this.hasVerifiableGoal();
+    const gatedOverall = Math.max(boundedOverall, gapPressure, verifiableGoal ? 0 : 0.45);
 
-    const isReady = boundedOverall <= 0.2 && totalRounds >= 3;
+    const milestone: AmbiguityMilestone =
+      gatedOverall <= 0.2 ? 'ready' :
+      gatedOverall <= 0.3 ? 'refined' :
+      gatedOverall <= 0.4 ? 'progress' : 'initial';
+
+    const isReady = gatedOverall <= 0.2 && openGaps.length === 0 && verifiableGoal;
 
     // Track completion streak
     if (isReady) {
@@ -599,11 +641,13 @@ export class UltraPlanModeEngine {
     }
 
     const result: AmbiguityScoreResult = {
-      overallScore: boundedOverall,
+      overallScore: gatedOverall,
       breakdown: [
         { name: 'goal_clarity', clarityScore: goalClarity, weight: 0.4, justification: `Based on ${totalRounds} interview rounds and keyword coverage` },
         { name: 'constraint_clarity', clarityScore: constraintClarity, weight: 0.3, justification: `Response detail and constraint keywords present` },
         { name: 'success_criteria_clarity', clarityScore: criteriaClarity, weight: 0.3, justification: `Criteria keywords and verification mentions` },
+        { name: 'seed_ledger_gaps', clarityScore: 1 - gapPressure, weight: 1, justification: `Open required sections: ${openGaps.length === 0 ? 'none' : openGaps.join(', ')}` },
+        { name: 'verifiable_goal', clarityScore: verifiableGoal ? 1 : 0, weight: 1, justification: 'UltraGoal must be judgeable as complete or incomplete.' },
       ],
       isReadyForSeed: isReady,
       milestone,
@@ -625,6 +669,35 @@ export class UltraPlanModeEngine {
       this._interviewState.ambiguityScore?.isReadyForSeed === true &&
       this._interviewState.completionCandidateStreak >= 2
     );
+  }
+
+  interviewReadiness(): UltraPlanReadiness {
+    const ambiguityScore = this.calculateAmbiguityScore();
+    const openGaps = this.openSeedGaps();
+    const verifiableGoal = this.hasVerifiableGoal();
+    return {
+      ready: ambiguityScore.isReadyForSeed && openGaps.length === 0 && verifiableGoal,
+      openGaps,
+      ambiguityScore,
+      verifiableGoal,
+    };
+  }
+
+  openSeedGaps(): readonly UltraPlanRequiredSection[] {
+    const text = this.interviewCorpus();
+    return ULTRA_PLAN_REQUIRED_SECTIONS.filter((section) => !this.sectionResolved(section, text));
+  }
+
+  readinessBlockerMessage(): string {
+    const readiness = this.interviewReadiness();
+    const gaps = readiness.openGaps.length === 0 ? 'none' : readiness.openGaps.join(', ');
+    return [
+      'UltraPlan interview is not ready for Design.',
+      `ambiguity=${readiness.ambiguityScore.overallScore.toFixed(3)}`,
+      `verifiable_goal=${readiness.verifiableGoal ? 'true' : 'false'}`,
+      `open_gaps=${gaps}`,
+      'Continue AskUserQuestion until the UltraGoal objective can be judged true/false and every required Seed section is resolved.',
+    ].join('\n');
   }
 
   /**
@@ -659,6 +732,36 @@ export class UltraPlanModeEngine {
   private _extractGoal(text: string): string {
     const match = text.match(/goal[:\s]+(.+?)(?:\n|$)/i);
     return match?.[1]?.trim() ?? '';
+  }
+
+  private interviewCorpus(): string {
+    return [
+      this._interviewState.initialContext,
+      ...this._interviewState.rounds.map((r) => `${r.question}\n${r.userResponse}`),
+    ].join('\n').toLowerCase();
+  }
+
+  private sectionResolved(section: UltraPlanRequiredSection, text: string): boolean {
+    const patterns: Record<UltraPlanRequiredSection, RegExp> = {
+      goal: /\b(goal|objective|ultragoal|목표|완료\s?기준)\b/i,
+      actors: /\b(actor|user|owner|agent|stakeholder|사용자|행위자|담당|주체)\b/i,
+      inputs: /\b(input|source|given|file|prompt|입력|소스|파일|프롬프트)\b/i,
+      outputs: /\b(outputs?|deliverables?|results?|artifacts?|출력|산출물|결과)\b/i,
+      constraints: /\b(constraints?|limits?|must|must not|cannot|제약|금지|반드시|하지\s?말)\b/i,
+      non_goals: /\b(non-goals?|non_goals?|out of scope|not doing|제외|범위\s?밖|하지\s?않)\b/i,
+      acceptance_criteria: /\b(acceptance|criteria|requirement|pass|fail|완료\s?조건|수락|검증\s?기준)\b/i,
+      verification_plan: /\b(verify|verification|test|check|검증|테스트|확인)\b/i,
+      failure_modes: /\b(failure|risk|edge case|error|rollback|실패|위험|예외|오류)\b/i,
+      runtime_context: /\b(runtime|environment|cwd|repo|platform|환경|런타임|레포|작업\s?환경)\b/i,
+    };
+    return patterns[section].test(text);
+  }
+
+  private hasVerifiableGoal(): boolean {
+    const text = this.interviewCorpus();
+    const hasGoal = this.sectionResolved('goal', text);
+    const hasBinaryLanguage = /\b(true|false|pass|fail|complete|incomplete|done|not done|1|0)\b|(?:참|거짓|통과|실패|완료|미완료|된다|안된다)/i.test(text);
+    return hasGoal && this.sectionResolved('acceptance_criteria', text) && this.sectionResolved('verification_plan', text) && hasBinaryLanguage;
   }
 
   private _extractConstraints(text: string): string[] {
