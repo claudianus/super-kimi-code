@@ -114,4 +114,5 @@ Latest audit: 2026-07-01 after fetching `upstream/main` at `c2fd9f04`.
 - `#1231` GUI store API: server support for mirroring browser `localStorage`. Defer because no TUI or harness consumer needs it, and adding a persistence API without a Super Kimi use case increases surface area.
 - `#1214` all-user compaction rebuild: do not port wholesale. Super Kimi intentionally preserves a recent verbatim tail for continuity; keep selective safety fixes only. Current tests already cover deferred prompt replay, background task re-surfacing, provider-overflow guards, real-user prompt classification, and retained-tail token accounting.
 - `#1132` model-picker effort selector UI: defer. Super Kimi now carries effort metadata, `/thinking` runtime control, default-effort resolution, and model-aware autocomplete. A separate model-picker effort selector should wait for an UltraWork-centered UX pass.
-- `#1250` 0.21.0 changelog sync: docs-only upstream update. No product code to port.
+- `#1197`, `#1224`: upstream release-package commits. No Super Kimi product code to port directly; keep Super Kimi versioning and changesets independent.
+- `#1216`, `#1250`: upstream changelog syncs for `0.20.3` and `0.21.0`. Docs-only upstream updates; no product code to port.
