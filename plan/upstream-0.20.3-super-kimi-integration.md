@@ -1,4 +1,4 @@
-# Upstream 0.20.3 Super Kimi Integration
+# Upstream 0.20.3-0.21.0 Super Kimi Integration
 
 Source: `upstream/main` fetched from `MoonshotAI/kimi-code` on 2026-07-01.
 Latest checked upstream HEAD: `c2fd9f04` (`0.21.0` changelog sync only; no code changes after `f2c7ec75`).
@@ -103,3 +103,15 @@ Super Kimi adaptation:
 - `#1214` compaction strategy remainder: potential token-efficiency win, but large behavioral surface.
 - `#1132` thinking config/model effort overhaul: metadata carrier pieces and session-level effort command are integrated; defer any default-thinking semantic rewrite or model-picker effort selector UI until it can be designed around Super Kimi's UltraWork UX.
 - `#1207` remainder: optional richer freshness timestamps if the server API grows real last-refresh metadata; do not invent freshness claims from config-only state.
+
+## Audited Deferred Upstream Changes
+
+Latest audit: 2026-07-01 after fetching `upstream/main` at `c2fd9f04`.
+
+- `#1210` vis full-session debugging: useful diagnostics ideas, but the implementation is a large vis web/server feature set. Defer wholesale import; consider only narrow TUI-readable log/task summaries if UltraWork QA needs them.
+- `#1212`, `#1221`, `#1226`, `#1232`, `#1234`, `#1236`: web UI fixes and Markdown/UI features. Defer while Super Kimi treats web UI as retired technical debt.
+- `#1230`, `#1235`, `#1237`, `#1242`: Electron/Kimi Desktop packaging, signing, and web-shell polish. Defer; it expands the web/desktop product surface instead of improving the TUI harness.
+- `#1231` GUI store API: server support for mirroring browser `localStorage`. Defer because no TUI or harness consumer needs it, and adding a persistence API without a Super Kimi use case increases surface area.
+- `#1214` all-user compaction rebuild: do not port wholesale. Super Kimi intentionally preserves a recent verbatim tail for continuity; keep selective safety fixes only. Current tests already cover deferred prompt replay, background task re-surfacing, provider-overflow guards, real-user prompt classification, and retained-tail token accounting.
+- `#1132` model-picker effort selector UI: defer. Super Kimi now carries effort metadata, `/thinking` runtime control, default-effort resolution, and model-aware autocomplete. A separate model-picker effort selector should wait for an UltraWork-centered UX pass.
+- `#1250` 0.21.0 changelog sync: docs-only upstream update. No product code to port.
