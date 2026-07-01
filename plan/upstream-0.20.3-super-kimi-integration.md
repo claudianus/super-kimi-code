@@ -37,7 +37,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1170`, `#1186` selective: route managed Kimi Code Anthropic-protocol model aliases through the Anthropic beta Messages API.
 - Upstream `#1203` selective: track when Glob/Grep search tools use a non-system ripgrep fallback.
 - Upstream `#1207` selective: share provider model refresh orchestration between the CLI/TUI path and runtime model catalog service.
-- Upstream `#1196`: normalize telemetry event fields for compaction, session start, update prompts, login, server start, and ACP question answers.
+- Upstream `#1184`, `#1196`: normalize telemetry event fields for compaction, session start, update prompts, login, server start, and ACP question answers.
 - Upstream `#1207` selective: expose broad provider model refresh through the model catalog service and publish model-catalog changed events.
 - Upstream `#1207` selective: start a server-side provider model catalog refresh scheduler with config and environment controls.
 - Upstream `#1132` selective: preserve and expose model-declared thinking effort metadata without changing Super Kimi's thinking-mode semantics.
@@ -108,11 +108,13 @@ Super Kimi adaptation:
 
 Latest audit: 2026-07-01 after fetching `upstream/main` at `c2fd9f04`.
 
+- `#1155`, `#1159`, `#1161`, `#1162`, `#1163`, `#1165`, `#1166`, `#1167`, `#1179`, `#1181`, `#1212`, `#1221`, `#1226`, `#1232`, `#1234`, `#1236`: web UI fixes, web dependencies, browser notifications, Markdown/UI features, and composer/session polish. Defer while Super Kimi treats web UI as retired technical debt.
 - `#1210` vis full-session debugging: useful diagnostics ideas, but the implementation is a large vis web/server feature set. Defer wholesale import; consider only narrow TUI-readable log/task summaries if UltraWork QA needs them.
-- `#1212`, `#1221`, `#1226`, `#1232`, `#1234`, `#1236`: web UI fixes and Markdown/UI features. Defer while Super Kimi treats web UI as retired technical debt.
 - `#1230`, `#1235`, `#1237`, `#1242`: Electron/Kimi Desktop packaging, signing, and web-shell polish. Defer; it expands the web/desktop product surface instead of improving the TUI harness.
 - `#1231` GUI store API: server support for mirroring browser `localStorage`. Defer because no TUI or harness consumer needs it, and adding a persistence API without a Super Kimi use case increases surface area.
 - `#1214` all-user compaction rebuild: do not port wholesale. Super Kimi intentionally preserves a recent verbatim tail for continuity; keep selective safety fixes only. Current tests already cover deferred prompt replay, background task re-surfacing, provider-overflow guards, real-user prompt classification, and retained-tail token accounting.
 - `#1132` model-picker effort selector UI: defer. Super Kimi now carries effort metadata, `/thinking` runtime control, default-effort resolution, and model-aware autocomplete. A separate model-picker effort selector should wait for an UltraWork-centered UX pass.
-- `#1197`, `#1224`: upstream release-package commits. No Super Kimi product code to port directly; keep Super Kimi versioning and changesets independent.
-- `#1216`, `#1250`: upstream changelog syncs for `0.20.3` and `0.21.0`. Docs-only upstream updates; no product code to port.
+- `#1144`: upstream CI-only Windows test job change. No Super Kimi runtime or TUI behavior to port.
+- `#1190`, `#1194`: upstream changeset/test-expectation maintenance. No standalone product code to port after the telemetry normalization selective port.
+- `#1154`, `#1197`, `#1224`: upstream release-package commits. No Super Kimi product code to port directly; keep Super Kimi versioning and changesets independent.
+- `#1142`, `#1198`, `#1216`, `#1250`: upstream docs/changelog syncs for `0.20.1`, `0.20.2`, `0.20.3`, and `0.21.0`. Docs-only upstream updates; no product code to port.
