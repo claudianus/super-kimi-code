@@ -71,7 +71,7 @@ describe('HelpPanelComponent', () => {
   it('renders the advanced Ultrawork help framing when provided', () => {
     const panel = new HelpPanelComponent({
       commands: [
-        cmd('ultrawork', 'Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify', ['uw']),
+        cmd('ultrawork', 'Run Ultrawork: auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn', ['uw']),
       ],
       intro: ADVANCED_HELP_INTRO,
       shortcuts: ADVANCED_KEYBOARD_SHORTCUTS,
@@ -79,7 +79,7 @@ describe('HelpPanelComponent', () => {
       onClose: () => {},
     });
     const out = strip(panel.render(120).join('\n'));
-    expect(out).toMatch(/Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify\./);
+    expect(out).toMatch(/Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn\./);
     expect(out).toMatch(/Plain tasks start it automatically/);
     expect(out).toMatch(/Controls below are optional steering/);
     expect(out).toMatch(/Ctrl-Shift-Tab/);
@@ -88,7 +88,7 @@ describe('HelpPanelComponent', () => {
     expect(out).toMatch(/Open undo selector/);
     expect(out).toMatch(/Advanced Ultrawork controls/);
     expect(out).toMatch(/\/ultrawork \(\/uw\)/);
-    expect(out).toMatch(/auto-link UltraPlan, UltraGoal, UltraSwarm, Verify/);
+    expect(out).toMatch(/auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn/);
   });
 
   it('keeps default help simple while advanced help exposes Ultra access paths', () => {
@@ -104,7 +104,7 @@ describe('HelpPanelComponent', () => {
     expect(primaryOut).not.toMatch(/\/plan/);
     expect(primaryOut).not.toMatch(/\/swarm/);
     expect(primaryOut).not.toMatch(/\/ultrawork/);
-    expect(primaryOut).not.toMatch(/UltraPlan, UltraGoal, UltraSwarm, Verify/);
+    expect(primaryOut).not.toMatch(/UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn/);
 
     const advancedPanel = new HelpPanelComponent({
       commands: slashCommandsForHelp(BUILTIN_SLASH_COMMANDS, 'advanced'),
@@ -116,7 +116,7 @@ describe('HelpPanelComponent', () => {
     });
     const advancedOut = strip(advancedPanel.render(160).join('\n'));
 
-    expect(advancedOut).toMatch(/Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify\./);
+    expect(advancedOut).toMatch(/Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn\./);
     expect(advancedOut).toMatch(/Plain tasks start it automatically/);
     expect(advancedOut).toMatch(/Advanced Ultrawork controls/);
     expect(advancedOut).toMatch(/\/plan/);
@@ -124,7 +124,7 @@ describe('HelpPanelComponent', () => {
     expect(advancedOut).toMatch(/\/swarm/);
     expect(advancedOut).toMatch(/Advanced steering for UltraSwarm; Ultrawork auto-arms it/);
     expect(advancedOut).toMatch(/\/ultrawork \(\/uw\)/);
-    expect(advancedOut).toMatch(/Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify/);
+    expect(advancedOut).toMatch(/Run Ultrawork: auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn/);
   });
 
   it('Escape fires onClose', () => {

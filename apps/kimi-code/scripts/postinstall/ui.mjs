@@ -428,12 +428,19 @@ export function logNewCliNotOnPath(detection, pm) {
   const binCmd = pmGlobalBinCommand(pm);
   const reinstallCmd = pmGlobalInstallCommand(pm, '@moonshot-ai/kimi-code');
 
-  const newPathHint = isWindows
-    ? `$env:Path = "$(${binCmd});$env:Path"`
-    : pm === 'npm'
-      ? `export PATH="$(${binCmd})/bin:$PATH"`
-      : `export PATH="$(${binCmd}):$PATH"`;
-  const rcLabel = isWindows ? 'PowerShell profile' : 'shell rc';
+  const posixPathExpr = pm === 'npm' ? `$(${binCmd})/bin` : `$(${binCmd})`;
+  const fishPathExpr = pm === 'npm' ? `(${binCmd})/bin` : `(${binCmd})`;
+  const newPathHints = isWindows
+    ? [
+        pathInBox('$env:Path = "$(' + binCmd + ');$env:Path"'),
+      ]
+    : [
+        pathInBox('# bash / zsh / sh:'),
+        pathInBox(`export PATH="${posixPathExpr}:$PATH"`),
+        pathInBox('# fish:'),
+        pathInBox(`fish_add_path ${fishPathExpr}`),
+      ];
+  const rcLabel = isWindows ? 'PowerShell profile' : 'shell startup file';
 
   emit(
     renderBox([
@@ -449,7 +456,7 @@ export function logNewCliNotOnPath(detection, pm) {
       '',
       pad('   Add the new kimi\'s folder to your PATH (and save the change'),
       pad('   in your ' + rcLabel + ' so it sticks), then install again:'),
-      pathInBox(newPathHint),
+      ...newPathHints,
       pathInBox(reinstallCmd),
       '',
       pad('   The old kimi is still where it was.'),

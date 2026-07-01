@@ -49,10 +49,15 @@ extra_skill_dirs = ["~/team-skills", ".agents/team-skills"]
 type = "kimi"
 base_url = "https://api.kimi.com/coding/v1"
 api_key = "sk-xxx"
+oauth = { storage = "file", key = "oauth/primary" }
 custom_headers = { "X-Custom-Header" = "value" }
 
 [providers.kimi-for-coding.env]
 GOOGLE_CLOUD_PROJECT = "project-1"
+
+[[providers.kimi-for-coding.oauths]]
+storage = "file"
+key = "oauth/backup"
 
 [models.kimi-for-coding]
 provider = "kimi-for-coding"
@@ -136,6 +141,8 @@ max_context_size = "large"
       type: 'kimi',
       baseUrl: 'https://api.kimi.com/coding/v1',
       apiKey: 'sk-xxx',
+      oauth: { storage: 'file', key: 'oauth/primary' },
+      oauths: [{ storage: 'file', key: 'oauth/backup' }],
       customHeaders: { 'X-Custom-Header': 'value' },
       env: { GOOGLE_CLOUD_PROJECT: 'project-1' },
     });
@@ -188,6 +195,8 @@ max_context_size = "large"
     expect(text).toContain('default_model = "kimi-for-coding"');
     expect(text).toContain('default_permission_mode = "auto"');
     expect(text).toContain('extra_skill_dirs = [ "~/team-skills", ".agents/team-skills" ]');
+    expect(text).toContain('[[providers.kimi-for-coding.oauths]]');
+    expect(text).toContain('key = "oauth/backup"');
     expect(text).not.toContain('default_yolo');
     expect(text).toContain('max_steps_per_turn = 42');
     expect(text).toContain('display_name = "Kimi for Coding"');

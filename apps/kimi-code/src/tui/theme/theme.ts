@@ -17,6 +17,7 @@ export type ColorToken = keyof ColorPalette;
 
 export class Theme {
   private _palette: ColorPalette;
+  private _canvasBackgroundEnabled = true;
 
   constructor(palette: ColorPalette) {
     this._palette = palette;
@@ -28,6 +29,14 @@ export class Theme {
 
   setPalette(palette: ColorPalette): void {
     this._palette = palette;
+  }
+
+  get canvasBackgroundEnabled(): boolean {
+    return this._canvasBackgroundEnabled;
+  }
+
+  setCanvasBackgroundEnabled(enabled: boolean): void {
+    this._canvasBackgroundEnabled = enabled;
   }
 
   color(token: ColorToken): string {

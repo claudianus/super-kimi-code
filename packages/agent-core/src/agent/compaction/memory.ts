@@ -60,6 +60,10 @@ export function parseStructuredCompactionMemory(summary: string): StructuredComp
       }
       continue;
     }
+    if (/^\s*#{1,6}\s+/.test(line)) {
+      currentSection = null;
+      continue;
+    }
 
     const item = normalizeMemoryItem(line);
     if (item.length === 0) continue;
@@ -99,10 +103,11 @@ export function extractFactsFromSummary(summary: string): readonly ExtractedFact
       continue;
     }
 
-    const errorMatch = trimmed.match(
-      /^(?:[-*]?\s*)?(?:ERROR|FAILED|BUG|CRASH|EXCEPTION|FIXED|RESOLVED)[\s:]/i,
-    );
-    if (errorMatch && !trimmed.match(/^\s*\[(?:pending|in_progress|done)\]/i)) {
+    const errorMatch =
+      /^(?:[-*]?\s*)?(?:ERROR|FAILED|BUG|CRASH|EXCEPTION|FIXED|RESOLVED)[\s:]/i.test(
+        trimmed,
+      );
+    if (errorMatch && !/^\s*\[(?:pending|in_progress|done)\]/i.test(trimmed)) {
       facts.push({
         category: 'error',
         subject: trimmed.slice(0, 80),
@@ -277,9 +282,9 @@ function sectionKeyForLabel(label: string): 'currentGoal' | StructuredListKey | 
 function normalizeSectionLabel(label: string): string {
   return label
     .trim()
-    .replace(/[`*_]/g, '')
-    .replace(/[^A-Za-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
+    .replaceAll(/[`*]/g, '')
+    .replaceAll(/[^A-Za-z0-9]+/g, '_')
+    .replaceAll(/^_+|_+$/g, '')
     .toLowerCase();
 }
 

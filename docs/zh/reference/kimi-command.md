@@ -310,13 +310,13 @@ kimi vis --host 0.0.0.0 --port 8123 --no-open
 
 ### `kimi provider`
 
-在 shell 中管理供应商，相当于 TUI 中 `/provider` 的非交互版本。适合脚本化部署、CI 初始化，以及在新机器上一行完成配置。
+在 shell 中管理供应商，相当于 TUI 中 `/provider` 的非交互版本。适合脚本化部署、CI 初始化、账号池设置，以及在新机器上检查 route 状态。
 
 ```sh
 kimi provider <action> [options]
 ```
 
-包含五个动作：
+命令分为设置、凭证和 route 几组。
 
 #### `kimi provider add <url>`
 
@@ -353,6 +353,39 @@ kimi provider list
 kimi provider list --json | jq '.providers | keys'
 ```
 
+#### `kimi provider doctor`
+
+校验 provider auth、环境变量引用、凭证池和 route，且不会打印 secret。发现错误时命令会以非零状态退出，适合 CI 或 dotfile 初始化脚本。
+
+```sh
+kimi provider doctor
+kimi provider doctor --json
+```
+
+#### `kimi provider custom add <providerId>`
+
+不依赖 registry，直接添加一个 endpoint。它适合本地模型、私有 OpenAI 兼容网关，以及只暴露单个模型的企业 endpoint。
+
+| 参数 / 选项 | 说明 |
+| --- | --- |
+| `<providerId>` | 要创建的 provider id |
+| `--base-url <url>` | Endpoint base URL |
+| `--model <modelId>` | 上游模型 id |
+| `--api-key <key>` | 原始 provider API key |
+| `--api-key-env <name>` | 存储 `{env:NAME}`，而不是原始 key |
+| `--keyless` | 本地无鉴权 endpoint 使用占位 key |
+| `--alias <alias>` | 要创建的模型 alias |
+| `--type <type>` | Provider wire type，默认 `openai` |
+| `--context <tokens>` | 上下文窗口 |
+| `--output <tokens>` | 最大输出 token |
+| `--display-name <name>` | 友好模型名 |
+| `--thinking` | 标记该模型支持 thinking |
+| `--set-default` | 把创建的 alias 设为默认模型 |
+
+```sh
+kimi provider custom add local --base-url http://localhost:11434/v1 --model qwen --keyless --set-default
+```
+
 #### `kimi provider catalog list [providerId]`
 
 在不修改任何配置的情况下浏览公开的 [models.dev](https://models.dev/) 模型目录。不传参数时列出所有供应商及协议类型和模型数量；传 `providerId` 时列出该供应商下所有模型的上下文窗口和能力。
@@ -378,12 +411,68 @@ kimi provider catalog list anthropic
 | --- | --- |
 | `<providerId>` | catalog 中的供应商 id，如 `anthropic`、`openai` |
 | `--api-key <key>` | 供应商 API key。未传时回退到 `KIMI_REGISTRY_API_KEY`，必填 |
+| `--api-key-env <name>` | 存储 `{env:NAME}`，而不是原始 provider API key |
 | `--default-model <modelId>` | 可选，导入后把 `default_model` 设为 `<providerId>/<modelId>` |
 | `--url <url>` | 覆盖 catalog 地址，默认 `https://models.dev/api.json` |
 
 ```sh
 kimi provider catalog list anthropic          # 先看可选的模型
-kimi provider catalog add anthropic --api-key sk-ant-... --default-model claude-opus-4-7
+kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY --default-model claude-opus-4-7
+```
+
+#### `kimi provider key`
+
+管理已有 provider 的 API key 池。`list`、`promote`、`label` 和 route 命令都不会打印 secret 值。
+
+```sh
+kimi provider key add openai --api-key-env OPENAI_PRIMARY_KEY --label primary
+kimi provider key add openai --api-key-envs OPENAI_A,OPENAI_B --labels work,backup --rpm 60 --tpm 120000 --auto-route
+kimi provider key list openai
+kimi provider key limit openai 2 --rpm 30
+kimi provider key promote openai 2
+kimi provider key label openai 2 backup
+kimi provider key remove openai 2
+```
+
+`key add` 常用选项：
+
+| 选项 | 说明 |
+| --- | --- |
+| `--api-key <key>` / `--api-keys <keys>` | 原始 key 或逗号分隔的多个原始 key |
+| `--api-key-env <name>` / `--api-key-envs <names>` | 存储一个或多个 `{env:NAME}` 引用 |
+| `--base-url <url>` | Per-credential endpoint override |
+| `--label <label>` / `--labels <labels>` | 友好 credential label |
+| `--rpm <count>` | 本地 requests-per-minute limit |
+| `--tpm <tokens>` | 本地 tokens-per-minute limit |
+| `--auto-route` | 为使用该 provider 的模型 alias 启用 auto routing |
+
+#### `kimi provider oauth`
+
+管理使用托管 OAuth 凭证的 provider 账号引用。如果需要独立账号槽位，先运行 `kimi login --oauth-key <storageKey>`。
+
+```sh
+kimi login --oauth-key kimi-work
+kimi provider oauth add kimi --key kimi-work --label work --auto-route
+kimi provider oauth list kimi
+kimi provider oauth promote kimi 2
+kimi provider oauth label kimi 2 backup
+kimi provider oauth remove kimi 2
+```
+
+#### `kimi provider route`
+
+配置和检查模型 fallback 与 load-balancing route。一个 route 会把模型 alias 展开为多个 provider/key/account/endpoint 候选槽位，并可附加 fallback model alias。
+
+```sh
+kimi provider route auto openai/gpt-4.1
+kimi provider route set openai/gpt-4.1 --fallback anthropic/claude-opus --strategy rate_limit_aware --session-affinity on
+kimi provider route set openai/gpt-4.1 --strategy weighted_round_robin --weights openai/gpt-4.1=3,anthropic/claude-opus=1
+kimi provider route preview openai/gpt-4.1
+kimi provider route status <sessionId>
+kimi provider route reset <sessionId>
+```
+
+支持的策略包括 `auto`、`fallback`、`fill_first`、`round_robin`、`weighted_round_robin`、`least_used`、`lowest_latency`、`rate_limit_aware` 和 `random`。长会话前用 `route preview` 检查候选，启动后用 `route status` 查看实时 cooldown、rate-limit bucket、latency、pinned candidate 和 preferred credential label。
 ```
 
 ## 下一步

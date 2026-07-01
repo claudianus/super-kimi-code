@@ -67,8 +67,15 @@ Only set tokens from this set — unknown keys are silently ignored at load. If 
 | `textStrong` | Emphasized / bold text: input dialogs, status messages |
 | `textDim` | Secondary, dimmed text (the most widely used dim shade): thinking, hints, descriptions, completed todos, Markdown quotes, footer status bar |
 | `textMuted` | Faintest text: counters, scroll info, descriptions, Markdown link URLs, code-block borders |
+| `background` | Root TUI canvas background |
+| `surface` | Default panel and dialog surface |
+| `surfaceRaised` | Raised surface for focused or premium chrome |
+| `surfaceSunken` | Sunken surface for inactive panes and recessed areas |
 | `border` | Pane and editor borders, Markdown horizontal rule |
 | `borderFocus` | Focus / attention border (currently only the approval panel) |
+| `selectionBg` | Selection background for pickers and imported terminal palettes |
+| `selectionText` | Selection text |
+| `cursor` | Cursor color for opt-in terminal palette mutation |
 | `success` | Success state: `✓`, "enabled", completed |
 | `warning` | Warning state: auto/yolo badges, stale markers, plan-mode hint |
 | `error` | Error state: error messages, failed tool output |
@@ -80,6 +87,20 @@ Only set tokens from this set — unknown keys are silently ignored at load. If 
 | `diffMeta` | Diff meta / hunk headers |
 | `roleUser` | User message bullet and text, skill-activation name (the one role color with its own hue) |
 | `shellMode` | Shell mode (`!`) prompt, editor border, and the echoed `$ command` line |
+| `glow` | Glow / halo accent for premium mascot and focus effects |
+| `particle` | Particle accent for event bursts and ambient effects |
+| `gradientStart` | Start of premium gradient treatments |
+| `gradientEnd` | End of premium gradient treatments |
+| `syntaxText` | Code highlight default / identifiers |
+| `syntaxKeyword` | Code highlight keywords, constants, and built-ins |
+| `syntaxFunction` | Code highlight function and method names |
+| `syntaxType` | Code highlight class/type names and attributes |
+| `syntaxString` | Code highlight string literals |
+| `syntaxNumber` | Code highlight numeric and boolean literals |
+| `syntaxComment` | Code highlight comments and doc tags |
+| `syntaxOperator` | Code highlight operators, punctuation, and symbols |
+| `syntaxTag` | Code highlight tags, selectors, and markup names |
+| `syntaxMeta` | Code highlight metadata, decorators, and preprocessor lines |
 
 ## Workflow
 

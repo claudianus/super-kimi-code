@@ -48,6 +48,10 @@ export interface ChoicePickerOptions {
   readonly searchable?: boolean;
   /** Items per page. Lists longer than this paginate. */
   readonly pageSize?: number;
+  /** Called when the highlighted option changes. */
+  readonly onHighlight?: (value: string) => void;
+  /** Optional preview block for the highlighted option. */
+  readonly renderPreview?: (option: ChoiceOption, width: number) => readonly string[];
   readonly onSelect: (value: string) => void;
   readonly onCancel: () => void;
 }
@@ -79,6 +83,7 @@ export class ChoicePickerComponent extends Container implements Focusable {
   focused = false;
   private readonly opts: ChoicePickerOptions;
   private readonly list: SearchableList<ChoiceOption>;
+  private highlightedValue: string | undefined;
 
   constructor(opts: ChoicePickerOptions) {
     super();
@@ -91,21 +96,27 @@ export class ChoicePickerComponent extends Container implements Focusable {
       initialIndex: Math.max(currentIdx, 0),
       searchable: opts.searchable === true,
     });
+    this.syncHighlight();
   }
 
   handleInput(data: string): void {
     if (matchesKey(data, Key.escape)) {
-      if (this.list.clearQuery()) return;
+      if (this.list.clearQuery()) {
+        this.syncHighlight();
+        return;
+      }
       this.opts.onCancel();
       return;
     }
     // Left/Right page through the list (this picker has no horizontal control).
     if (matchesKey(data, Key.left)) {
       this.list.pageUp();
+      this.syncHighlight();
       return;
     }
     if (matchesKey(data, Key.right)) {
       this.list.pageDown();
+      this.syncHighlight();
       return;
     }
     // Enter always selects. Space selects too — but only when the list is not
@@ -116,7 +127,7 @@ export class ChoicePickerComponent extends Container implements Focusable {
       if (chosen !== undefined) this.opts.onSelect(chosen.value);
       return;
     }
-    this.list.handleKey(data);
+    if (this.list.handleKey(data)) this.syncHighlight();
   }
 
   override render(width: number): string[] {
@@ -193,8 +204,22 @@ export class ChoicePickerComponent extends Container implements Focusable {
         ),
       );
     }
+    const selected = options[view.selectedIndex];
+    if (selected !== undefined && this.opts.renderPreview !== undefined) {
+      lines.push('');
+      for (const previewLine of this.opts.renderPreview(selected, width)) {
+        lines.push(previewLine);
+      }
+    }
     lines.push(currentTheme.fg('primary', '─'.repeat(width)));
     return lines.map((line) => truncateToWidth(line, width));
+  }
+
+  private syncHighlight(): void {
+    const selected = this.list.selected();
+    if (selected === undefined || selected.value === this.highlightedValue) return;
+    this.highlightedValue = selected.value;
+    this.opts.onHighlight?.(selected.value);
   }
 }
 

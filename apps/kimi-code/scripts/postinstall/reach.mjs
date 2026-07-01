@@ -11,9 +11,10 @@
  *     a global install across npm / yarn classic / pnpm.
  *   - Own-package-root location ({@link ownPackageRoot}) — walks up
  *     from `import.meta.dirname` looking for `package.json`.
- *   - User-shell PATH ({@link userShellPath}) — spawns `$SHELL -l` so
- *     we can check reachability from the shell the user will type
- *     `kimi` into, not just the installer's environment.
+ *   - User-shell PATH ({@link userShellPath}) — probes the user's
+ *     likely shells so we can check reachability from the shell the
+ *     user will type `kimi` into, not just the installer's
+ *     environment.
  *   - The combined PATH dispatcher ({@link postinstallPaths}) —
  *     called once by the orchestrator so detection and reachability
  *     stay symmetric and the shell probe doesn't run twice.
@@ -27,11 +28,14 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
-import { delimiter, dirname, join, sep } from 'node:path';
+import { basename, delimiter, dirname, join, sep } from 'node:path';
 
 const LEGACY_BIN = 'kimi';
 const IS_WINDOWS = process.platform === 'win32';
+const SHELL_PROBE_TIMEOUT_MS = 3000;
+const COMMON_POSIX_SHELLS = ['fish', 'zsh', 'bash'];
 
 /**
  * Expand a basename like `kimi` into the set of filenames the OS
@@ -330,42 +334,78 @@ export async function findFirstResolvableKimi(
   return { kind: 'none' };
 }
 
-/**
- * Read the user's default shell's view of `PATH`.
- *
- * Why: `process.env.PATH` reflects the environment of whichever
- * shell the user happened to invoke the package manager from, which
- * may or may not match the daily-driver shell they'll later type
- * `kimi` into. A `~/.zshrc`-only PATH entry, a `~/.bash_profile`
- * that doesn't source `~/.bashrc`, or a sudo'd install that scrubs
- * HOME all break the installer's-PATH heuristic.
- *
- * We spawn `$SHELL -l -c 'printf %s "$PATH"'` so the shell reads
- * its login-profile files (`.profile`, `.bash_profile`, `.zprofile`).
- * `-i` would also pull in interactive rc files (`.bashrc`, `.zshrc`)
- * but it requires a tty for some shells and is much more likely to
- * have side effects (prompts, agent startup) — we accept the
- * narrower view and let `'unknown'` fall through to a gentler
- * check.
- *
- * Outcomes:
- *   { kind: 'ok',      path: string }   — shell printed its PATH.
- *   { kind: 'unknown', reason: string } — `$SHELL` missing, spawn
- *                                         failed, timed out, or
- *                                         shell printed no `PATH`.
- */
-export async function userShellPath() {
-  // Windows has no `$SHELL`/login-shell concept worth probing — cmd.exe
-  // and PowerShell don't have profile files in the rc-chain sense, and
-  // their PATH already comes from the user's persistent registry env
-  // (which is what `process.env.PATH` reflects). Skip the spawn and
-  // let the caller fall back to `process.env.PATH`.
-  if (IS_WINDOWS) return { kind: 'unknown', reason: 'windows skip' };
+function executableOnPath(name) {
+  const pathEnv = process.env['PATH'] ?? '';
+  for (const dir of pathEnv.split(delimiter)) {
+    if (!dir) continue;
+    const candidate = join(dir, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
 
-  const shell = process.env['SHELL'];
-  if (!shell) return { kind: 'unknown', reason: 'no SHELL env var' };
+function knownShellPath(name) {
+  const fromPath = executableOnPath(name);
+  if (fromPath !== null) return fromPath;
+  for (const dir of ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin']) {
+    const candidate = join(dir, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
 
-  return new Promise((resolve) => {
+function shellName(shell) {
+  return basename(shell).replace(/\.exe$/i, '').toLowerCase();
+}
+
+function probeCommandsForShell(shell) {
+  const name = shellName(shell);
+  if (name === 'fish') {
+    return [
+      { label: 'fish-login', args: ['-l', '-c', PATH_PROBE_FISH] },
+      { label: 'fish-interactive', args: ['-i', '-c', PATH_PROBE_FISH] },
+    ];
+  }
+  if (name === 'zsh') {
+    return [
+      { label: 'zsh-login', args: ['-l', '-c', PATH_PROBE_POSIX] },
+      { label: 'zsh-interactive', args: ['-i', '-c', PATH_PROBE_POSIX] },
+    ];
+  }
+  if (name === 'bash') {
+    return [
+      { label: 'bash-login', args: ['-l', '-c', PATH_PROBE_POSIX] },
+      { label: 'bash-interactive', args: ['-i', '-c', PATH_PROBE_POSIX] },
+    ];
+  }
+  return [{ label: `${name || 'shell'}-login`, args: ['-l', '-c', PATH_PROBE_POSIX] }];
+}
+
+function shellProbeCandidates() {
+  const seen = new Set();
+  const out = [];
+  const add = (shell) => {
+    if (!shell) return;
+    const key = shellName(shell);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(shell);
+  };
+
+  add(process.env['SHELL']);
+  for (const name of COMMON_POSIX_SHELLS) add(knownShellPath(name));
+  return out;
+}
+
+const PATH_PROBE_BEGIN = '<<<KIMI_PATH_BEGIN>>>';
+const PATH_PROBE_END = '<<<KIMI_PATH_END>>>';
+const PATH_PROBE_POSIX =
+  `printf "${PATH_PROBE_BEGIN}%s${PATH_PROBE_END}\\n" "$PATH"`;
+const PATH_PROBE_FISH =
+  `printf "${PATH_PROBE_BEGIN}%s${PATH_PROBE_END}\\n" "$PATH"`;
+
+async function probeShellPath(shell, command) {
+  return await new Promise((resolve) => {
     let settled = false;
     const settle = (value) => {
       if (settled) return;
@@ -374,23 +414,22 @@ export async function userShellPath() {
     };
 
     let stdout = '';
-    // Wrap PATH in delimiters we can parse out, defensively, in case
-    // the shell prints anything else (motd, prompt redraw, …).
-    const probe =
-      'printf "<<<KIMI_PATH_BEGIN>>>%s<<<KIMI_PATH_END>>>\\n" "$PATH"';
-    const child = spawn(shell, ['-l', '-c', probe], {
+    const child = spawn(shell, command.args, {
       stdio: ['ignore', 'pipe', 'ignore'],
     });
     child.stdout.on('data', (chunk) => {
       stdout += chunk.toString('utf-8');
     });
 
-    // Bound the wait. Login rc files are usually quick, but a hostile
-    // `.profile` could hang indefinitely.
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      settle({ kind: 'unknown', reason: 'shell spawn timed out' });
-    }, 5000);
+      settle({
+        kind: 'unknown',
+        shell,
+        label: command.label,
+        reason: 'shell spawn timed out',
+      });
+    }, SHELL_PROBE_TIMEOUT_MS);
 
     child.on('close', (code) => {
       clearTimeout(timer);
@@ -398,16 +437,72 @@ export async function userShellPath() {
         /<<<KIMI_PATH_BEGIN>>>([\s\S]*?)<<<KIMI_PATH_END>>>/,
       );
       if (match && match[1].length > 0) {
-        settle({ kind: 'ok', path: match[1] });
+        settle({ kind: 'ok', shell, label: command.label, path: match[1] });
         return;
       }
-      settle({ kind: 'unknown', reason: `no PATH printed (exit ${code})` });
+      settle({
+        kind: 'unknown',
+        shell,
+        label: command.label,
+        reason: `no PATH printed (exit ${code})`,
+      });
     });
     child.on('error', (err) => {
       clearTimeout(timer);
-      settle({ kind: 'unknown', reason: `spawn error: ${err.message}` });
+      settle({
+        kind: 'unknown',
+        shell,
+        label: command.label,
+        reason: `spawn error: ${err.message}`,
+      });
     });
   });
+}
+
+/**
+ * Read the user's likely shells' view of `PATH`.
+ *
+ * Why: `process.env.PATH` reflects the environment of whichever shell
+ * invoked the package manager. That may not match the shell where the
+ * user later types `kimi`: fish uses `config.fish` / universal paths,
+ * zsh has separate login and interactive files, and bash users split
+ * PATH work across `.bash_profile`, `.profile`, and `.bashrc`.
+ *
+ * We probe the declared `$SHELL` first, then installed fish/zsh/bash
+ * shells. For fish, zsh, and bash we check login and interactive modes
+ * because PATH is commonly configured in either profile family.
+ *
+ * Outcomes:
+ *   { kind: 'ok',      path: string }   — a shell printed its PATH.
+ *   { kind: 'unknown', reason: string } — shell missing, spawn
+ *                                         failed, timed out, or
+ *                                         printed no `PATH`.
+ */
+export async function userShellPaths() {
+  // Windows has no `$SHELL`/login-shell concept worth probing — cmd.exe
+  // and PowerShell don't have profile files in the rc-chain sense, and
+  // their PATH already comes from the user's persistent registry env
+  // (which is what `process.env.PATH` reflects). Skip the spawn and
+  // let the caller fall back to `process.env.PATH`.
+  if (IS_WINDOWS) return [{ kind: 'unknown', reason: 'windows skip' }];
+
+  const candidates = shellProbeCandidates();
+  if (candidates.length === 0) {
+    return [{ kind: 'unknown', reason: 'no supported shell found' }];
+  }
+
+  const probes = [];
+  for (const shell of candidates) {
+    for (const command of probeCommandsForShell(shell)) {
+      probes.push(probeShellPath(shell, command));
+    }
+  }
+  return await Promise.all(probes);
+}
+
+export async function userShellPath() {
+  const paths = await userShellPaths();
+  return paths.find((result) => result.kind === 'ok') ?? paths[0];
 }
 
 /**
@@ -422,22 +517,24 @@ export async function userShellPath() {
  *     (e.g. a sanitized lifecycle env from a packaged manager), and
  *     vice versa.
  *
- *   - `reachability`: the user's shell PATH if we can probe it, else
- *     `process.env.PATH`. Used to verify our own shim is on the PATH
- *     the user will actually type `kimi` into. We do NOT union here:
- *     a shim that's only in the installer's PATH wouldn't help the
- *     user after the install, so unioning would mis-classify the
- *     install as reachable.
+ *   - `reachability`: the union of successfully probed shell PATHs
+ *     and `process.env.PATH`. Used to verify our own shim is on at
+ *     least one shell the user is likely to type `kimi` into. We
+ *     include the process PATH because package-manager lifecycle
+ *     scripts inherit the shell that actually ran the install, while
+ *     `$SHELL` may still point at a different login shell.
  *
  * Returns a single object so the (potentially slow) shell-probe runs
  * just once per postinstall.
  */
 export async function postinstallPaths() {
-  const shellResult = await userShellPath();
+  const shellResults = await userShellPaths();
   const processPath = process.env['PATH'] ?? '';
-  const shellPathStr = shellResult.kind === 'ok' ? shellResult.path : null;
-  const reachability = shellPathStr ?? processPath;
-  const detection = unionPaths(shellPathStr, processPath);
+  const shellPathStrings = shellResults
+    .filter((result) => result.kind === 'ok')
+    .map((result) => result.path);
+  const reachability = unionPaths(...shellPathStrings, processPath) || processPath;
+  const detection = unionPaths(...shellPathStrings, processPath);
   return { detection, reachability };
 }
 
@@ -454,4 +551,3 @@ function unionPaths(...paths) {
   }
   return out.join(delimiter);
 }
-

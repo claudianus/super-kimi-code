@@ -1,5 +1,6 @@
 import type { Agent } from '..';
 import { formatTaskList } from '#/tools/background/task-list';
+import { ContextOSInjector } from './context-os';
 import { GoalInjector } from './goal';
 import type { DynamicInjector } from './injector';
 import { MemoryInjector } from './memory';
@@ -24,6 +25,7 @@ export class InjectionManager {
     this.injectors = [
       new PluginSessionStartInjector(agent),
       new MemoryInjector(agent),
+      new ContextOSInjector(agent),
       new TodoListReminderInjector(agent),
       new PlanModeInjector(agent),
       new PermissionModeInjector(agent),

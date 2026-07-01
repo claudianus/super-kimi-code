@@ -127,6 +127,26 @@ custom_headers = { "X-Search" = "1" }
 base_url = "https://api.kimi.com/coding/v1/fetch"
 api_key = "sk-fetch"
 
+[research]
+enabled = true
+intensity = "premium"
+persist_verified_findings = true
+
+[research.local_search]
+enabled = true
+concurrency = 8
+timeout_ms = 15000
+searxng_url = "http://127.0.0.1:8080"
+yacy_url = "http://127.0.0.1:8090"
+offline_mode = "auto"
+
+[research.local_search.direct_sources]
+github = true
+arxiv = true
+npm = true
+pypi = false
+crates = true
+
 [notifications]
 claim_stale_after_ms = 15000
 `;
@@ -203,6 +223,26 @@ describe('harness config TOML loader', () => {
     ]);
     expect(config.services?.moonshotSearch?.customHeaders).toEqual({ 'X-Search': '1' });
     expect(config.services?.moonshotFetch?.apiKey).toBe('sk-fetch');
+    expect(config.research).toEqual({
+      enabled: true,
+      intensity: 'premium',
+      persistVerifiedFindings: true,
+      localSearch: {
+        enabled: true,
+        concurrency: 8,
+        timeoutMs: 15000,
+        searxngUrl: 'http://127.0.0.1:8080',
+        yacyUrl: 'http://127.0.0.1:8090',
+        offlineMode: 'auto',
+        directSources: {
+          github: true,
+          arxiv: true,
+          npm: true,
+          pypi: false,
+          crates: true,
+        },
+      },
+    });
 
     expect('theme' in config).toBe(false);
     expect(config.raw?.['theme']).toBe('dark');
@@ -237,6 +277,83 @@ source = { kind = "apiJson", url = "https://registry.example/api.json", apiKey =
     });
   });
 
+  it('parses and round-trips provider api key pools', async () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, 'provider-api-keys.toml');
+    const toml = `
+[providers.openai]
+type = "openai"
+api_keys = ["sk-primary", "sk-secondary"]
+`;
+    const config = parseConfigString(toml, configPath);
+
+    expect(config.providers['openai']).toMatchObject({
+      type: 'openai',
+      apiKeys: ['sk-primary', 'sk-secondary'],
+    });
+
+    await writeConfigFile(configPath, config);
+    const text = await readFile(configPath, 'utf-8');
+    expect(text).toContain('api_keys = [ "sk-primary", "sk-secondary" ]');
+    expect(parseConfigString(text, configPath).providers['openai']?.apiKeys).toEqual([
+      'sk-primary',
+      'sk-secondary',
+    ]);
+  });
+
+  it('parses and round-trips per-credential endpoint overrides', async () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, 'provider-credentials.toml');
+    const toml = `
+[providers.cloudflare]
+type = "openai"
+base_url = "https://api.cloudflare.com/client/v4/accounts/account-1/ai/v1"
+
+[[providers.cloudflare.credentials]]
+label = "account-1"
+api_key = "{env:CLOUDFLARE_ONE}"
+rpm = 3
+tpm = 1000
+
+[[providers.cloudflare.credentials]]
+label = "account-2"
+api_key = "{env:CLOUDFLARE_TWO}"
+base_url = "https://api.cloudflare.com/client/v4/accounts/account-2/ai/v1"
+`;
+    const config = parseConfigString(toml, configPath);
+
+    expect(config.providers['cloudflare']).toMatchObject({
+      type: 'openai',
+      baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-1/ai/v1',
+      credentials: [
+        {
+          label: 'account-1',
+          apiKey: '{env:CLOUDFLARE_ONE}',
+          rpm: 3,
+          tpm: 1000,
+        },
+        {
+          label: 'account-2',
+          apiKey: '{env:CLOUDFLARE_TWO}',
+          baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-2/ai/v1',
+        },
+      ],
+    });
+
+    await writeConfigFile(configPath, config);
+    const text = await readFile(configPath, 'utf-8');
+    expect(text).toContain('[[providers.cloudflare.credentials]]');
+    expect(text).toContain('api_key = "{env:CLOUDFLARE_TWO}"');
+    expect(text).toContain('rpm = 3');
+    expect(text).toContain('tpm = 1000');
+    expect(text).toContain(
+      'base_url = "https://api.cloudflare.com/client/v4/accounts/account-2/ai/v1"',
+    );
+    expect(parseConfigString(text, configPath).providers['cloudflare']?.credentials).toEqual(
+      config.providers['cloudflare']?.credentials,
+    );
+  });
+
   it('round-trips OAuth refs with scoped OAuth hosts', async () => {
     const dir = makeTempDir();
     const configPath = join(dir, 'oauth-ref.toml');
@@ -245,7 +362,7 @@ source = { kind = "apiJson", url = "https://registry.example/api.json", apiKey =
 type = "kimi"
 base_url = "https://api.dev.example.test/coding/v1"
 api_key = ""
-oauth = { storage = "file", key = "oauth/kimi-code-env-1234", oauth_host = "https://auth.dev.example.test" }
+oauth = { storage = "file", key = "oauth/kimi-code-env-1234", oauth_host = "https://auth.dev.example.test", label = "work" }
 
 [services.moonshot_search]
 base_url = "https://api.dev.example.test/coding/v1/search"
@@ -257,12 +374,14 @@ oauth = { storage = "file", key = "oauth/kimi-code-env-1234", oauth_host = "http
       storage: 'file',
       key: 'oauth/kimi-code-env-1234',
       oauthHost: 'https://auth.dev.example.test',
+      label: 'work',
     });
     expect(config.services?.moonshotSearch?.oauth?.oauthHost).toBe('https://auth.dev.example.test');
 
     await writeConfigFile(configPath, config);
     const text = await readFile(configPath, 'utf-8');
     expect(text).toContain('oauth_host = "https://auth.dev.example.test"');
+    expect(text).toContain('label = "work"');
     const roundTripped = parseConfigString(text, configPath);
     expect(roundTripped.providers['managed:kimi-code']?.oauth?.oauthHost).toBe(
       'https://auth.dev.example.test',
@@ -579,6 +698,70 @@ micro_compaction = false
       },
     });
     expect(parsed.models?.['opus']?.maxOutputSize).toBeUndefined();
+  });
+
+  it('parses and round-trips model fallback routing', async () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, 'routing.toml');
+    const config = parseConfigString(
+      `
+[providers.primary]
+type = "openai"
+api_key = "sk-primary"
+
+[providers.backup]
+type = "anthropic"
+api_key = "sk-backup"
+
+[models.primary]
+provider = "primary"
+model = "gpt-primary"
+max_context_size = 200000
+fallback_models = ["backup"]
+
+[models.primary.routing]
+strategy = "weighted_round_robin"
+cooldown_ms = 120000
+preferred_credential = "primary:api_key:1"
+
+[models.primary.routing.weights]
+primary = 3
+backup = 1
+
+[models.backup]
+provider = "backup"
+model = "claude-backup"
+max_context_size = 200000
+`,
+      configPath,
+    );
+
+    expect(config.models?.['primary']).toMatchObject({
+      fallbackModels: ['backup'],
+      routing: {
+        strategy: 'weighted_round_robin',
+        cooldownMs: 120000,
+        preferredCredential: 'primary:api_key:1',
+        weights: { primary: 3, backup: 1 },
+      },
+    });
+
+    await writeConfigFile(configPath, config);
+    const text = await readFile(configPath, 'utf-8');
+    expect(text).toContain('fallback_models = [ "backup" ]');
+    expect(text).toContain('cooldown_ms = 120000');
+    expect(text).toContain('preferred_credential = "primary:api_key:1"');
+    expect(text).toContain('primary = 3');
+    expect(text).toContain('backup = 1');
+    expect(parseConfigString(text, configPath).models?.['primary']).toMatchObject({
+      fallbackModels: ['backup'],
+      routing: {
+        strategy: 'weighted_round_robin',
+        cooldownMs: 120000,
+        preferredCredential: 'primary:api_key:1',
+        weights: { primary: 3, backup: 1 },
+      },
+    });
   });
 
   it('rejects maxOutputSize <= 0', () => {

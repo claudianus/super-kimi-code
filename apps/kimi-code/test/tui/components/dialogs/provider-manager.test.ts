@@ -25,6 +25,8 @@ function makeComponent(overrides: Partial<ProviderManagerOptions> = {}): Provide
   return new ProviderManagerComponent({
     providers: {} as Record<string, ProviderConfig>,
     onAdd: vi.fn(),
+    onAddApiKey: vi.fn(),
+    onRemoveApiKey: vi.fn(),
     onDeleteSource: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
@@ -101,6 +103,7 @@ describe('ProviderManagerComponent', () => {
     // old `border · title · border` sandwich is gone).
     expect(isBorder(lines[titleIdx + 1])).toBe(false);
     expect(lines[titleIdx + 1]).toContain('navigate');
+    expect(lines[titleIdx + 1]).toContain('R remove key');
     expect(lines[titleIdx + 1]).toContain('Esc cancel');
     // Blank line separates the hint from the body, exactly like the model dialog.
     expect(lines[titleIdx + 2]).toBe('');
@@ -121,6 +124,81 @@ describe('ProviderManagerComponent', () => {
     expect(rendered(component)).toContain('[y/N]');
     component.handleInput('y');
     expect(onDeleteSource).toHaveBeenCalledWith(['acme']);
+  });
+
+  it('adds an API key to the highlighted provider via the A key', () => {
+    const onAddApiKey = vi.fn();
+    const component = makeComponent({
+      providers: {
+        acme: { baseUrl: 'https://acme.test', apiKey: 'sk-one' },
+      } as unknown as Record<string, ProviderConfig>,
+      activeProviderId: 'acme',
+      onAddApiKey,
+    });
+
+    component.handleInput('A');
+
+    expect(onAddApiKey).toHaveBeenCalledWith(['acme']);
+    expect(rendered(component)).toContain('1 key');
+  });
+
+  it('removes an API key from the highlighted provider via the R key', () => {
+    const onRemoveApiKey = vi.fn();
+    const component = makeComponent({
+      providers: {
+        acme: { baseUrl: 'https://acme.test', apiKey: 'sk-one', apiKeys: ['sk-two'] },
+      } as unknown as Record<string, ProviderConfig>,
+      activeProviderId: 'acme',
+      onRemoveApiKey,
+    });
+
+    component.handleInput('R');
+
+    expect(onRemoveApiKey).toHaveBeenCalledWith(['acme']);
+    expect(rendered(component)).toContain('2 keys');
+  });
+
+  it('renders de-duplicated API key counts without exposing keys', () => {
+    const component = makeComponent({
+      providers: {
+        acme: {
+          baseUrl: 'https://acme.test',
+          apiKey: 'sk-one',
+          apiKeys: ['sk-two', 'sk-one'],
+        },
+      } as unknown as Record<string, ProviderConfig>,
+      activeProviderId: 'acme',
+    });
+
+    const plain = rendered(component);
+    expect(plain).toContain('2 keys');
+    expect(plain).not.toContain('sk-one');
+    expect(plain).not.toContain('sk-two');
+  });
+
+  it('renders credential labels and local limits without exposing secrets', () => {
+    const component = makeComponent({
+      providers: {
+        acme: {
+          baseUrl: 'https://acme.test',
+          credentials: [
+            { apiKey: 'sk-work', label: 'work', rpm: 3, tpm: 1000 },
+            { apiKey: 'sk-backup', label: 'backup' },
+          ],
+          oauth: { storage: 'file', key: 'oauth/work-account', label: 'oauth-work' },
+          oauths: [{ storage: 'file', key: 'oauth/backup-account', label: 'oauth-backup' }],
+        },
+      } as unknown as Record<string, ProviderConfig>,
+      activeProviderId: 'acme',
+    });
+
+    const plain = rendered(component);
+    expect(plain).toContain('2 keys: work rpm=3/tpm=1000, backup');
+    expect(plain).toContain('2 OAuth accounts: oauth-work, oauth-backup');
+    expect(plain).not.toContain('sk-work');
+    expect(plain).not.toContain('sk-backup');
+    expect(plain).not.toContain('oauth/work-account');
+    expect(plain).not.toContain('oauth/backup-account');
   });
 
   it('closes on Esc', () => {

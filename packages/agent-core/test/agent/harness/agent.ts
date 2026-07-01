@@ -82,6 +82,7 @@ interface ResumeStateSnapshot {
     readonly systemPrompt: string;
   };
   readonly context: ReturnType<Agent['context']['data']>;
+  readonly contextOS: ReturnType<Agent['contextOS']['data']>;
   readonly permission: ReturnType<Agent['permission']['data']>;
   readonly tools: ReturnType<Agent['tools']['data']>;
   readonly toolStore: ReturnType<Agent['tools']['storeData']>;
@@ -1007,6 +1008,7 @@ function resumeStateSnapshot(agent: Agent): ResumeStateSnapshot {
     background: agent.background.list(false),
     config: configStateSnapshot(agent),
     context: resumeContextSnapshot(agent),
+    contextOS: agent.contextOS.data(),
     permission: agent.permission.data(),
     tools: agent.tools.data(),
     toolStore: agent.tools.storeData(),

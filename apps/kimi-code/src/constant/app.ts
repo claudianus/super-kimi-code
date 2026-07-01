@@ -52,7 +52,7 @@ export const FEEDBACK_VERSION_PREFIX = 'kimi-code-';
 // Telemetry event name; keep stable for dashboard queries.
 export const FEEDBACK_TELEMETRY_EVENT = 'feedback_submitted';
 
-// CDN source of truth: all version checks and native install scripts pull from here.
+// CDN source of truth for upstream-hosted update metadata and managed assets.
 export const KIMI_CODE_CDN_BASE = 'https://code.kimi.com/kimi-code';
 export const KIMI_CODE_CDN_LATEST_URL = `${KIMI_CODE_CDN_BASE}/latest`;
 // Rollout manifest consumed by update checks; the plain-text `/latest` above
@@ -62,8 +62,11 @@ export const KIMI_CODE_CDN_LATEST_JSON_URL = `${KIMI_CODE_CDN_BASE}/latest.json`
 export const KIMI_CODE_TIPS_BANNER_URL = 'https://cdn.kimi.com/kimi-code-tips/tips.json';
 export const KIMI_CODE_PLUGIN_MARKETPLACE_URL = `${KIMI_CODE_CDN_BASE}/plugins/marketplace.json`;
 export const KIMI_CODE_PLUGIN_MARKETPLACE_URL_ENV = 'KIMI_CODE_PLUGIN_MARKETPLACE_URL';
-export const KIMI_CODE_INSTALL_SH_URL = `${KIMI_CODE_CDN_BASE}/install.sh`;
-export const KIMI_CODE_INSTALL_PS1_URL = `${KIMI_CODE_CDN_BASE}/install.ps1`;
+
+// Super Kimi Code is installed from this fork's GitHub source, not the upstream kimi.com CDN.
+export const SUPER_KIMI_GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/claudianus/super-kimi-code/main';
+export const KIMI_CODE_INSTALL_SH_URL = `${SUPER_KIMI_GITHUB_RAW_BASE}/install.sh`;
+export const KIMI_CODE_INSTALL_PS1_URL = `${SUPER_KIMI_GITHUB_RAW_BASE}/install.ps1`;
 
 // Native install commands, split by platform. Use these for prompt copy and spawn calls only; do not assemble the strings elsewhere.
 export const NATIVE_INSTALL_COMMAND_UNIX = `curl -fsSL ${KIMI_CODE_INSTALL_SH_URL} | bash`;

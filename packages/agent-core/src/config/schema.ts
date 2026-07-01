@@ -18,24 +18,62 @@ export const OAuthRefSchema = z.object({
   storage: z.enum(['file', 'keyring']),
   key: z.string().min(1),
   oauthHost: z.string().min(1).optional(),
+  label: z.string().min(1).optional(),
 });
 
 export type OAuthRef = z.infer<typeof OAuthRefSchema>;
 
 const StringRecordSchema = z.record(z.string(), z.string());
 
+export const ProviderCredentialConfigSchema = z.object({
+  apiKey: z.string().min(1),
+  baseUrl: z.string().min(1).optional(),
+  label: z.string().min(1).optional(),
+  rpm: z.number().int().min(1).optional(),
+  tpm: z.number().int().min(1).optional(),
+});
+
+export type ProviderCredentialConfig = z.infer<typeof ProviderCredentialConfigSchema>;
+
 export const ProviderConfigSchema = z.object({
   type: ProviderTypeSchema,
   apiKey: z.string().optional(),
+  apiKeys: z.array(z.string().min(1)).optional(),
+  credentials: z.array(ProviderCredentialConfigSchema).optional(),
   baseUrl: z.string().optional(),
   defaultModel: z.string().optional(),
   oauth: OAuthRefSchema.optional(),
+  oauths: z.array(OAuthRefSchema).optional(),
   env: StringRecordSchema.optional(),
   customHeaders: StringRecordSchema.optional(),
   source: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
+
+export const ModelRoutingStrategySchema = z.enum([
+  'auto',
+  'fallback',
+  'fill_first',
+  'round_robin',
+  'weighted_round_robin',
+  'least_used',
+  'lowest_latency',
+  'rate_limit_aware',
+  'random',
+]);
+
+export type ModelRoutingStrategy = z.infer<typeof ModelRoutingStrategySchema>;
+
+export const ModelRoutingConfigSchema = z.object({
+  strategy: ModelRoutingStrategySchema.optional(),
+  cooldownMs: z.number().int().min(0).optional(),
+  weights: z.record(z.string().min(1), z.number().int().min(1)).optional(),
+  sessionAffinity: z.boolean().optional(),
+  preferredCredential: z.string().min(1).optional(),
+});
+
+export type ModelRoutingConfig = z.infer<typeof ModelRoutingConfigSchema>;
 
 export const ModelAliasSchema = z.object({
   provider: z.string(),
@@ -56,6 +94,8 @@ export const ModelAliasSchema = z.object({
   // standard endpoint. Used by managed Kimi Code models that declare the
   // Anthropic-compatible protocol.
   betaApi: z.boolean().optional(),
+  fallbackModels: z.array(z.string().min(1)).optional(),
+  routing: ModelRoutingConfigSchema.optional(),
 });
 
 export type ModelAlias = z.infer<typeof ModelAliasSchema>;
@@ -123,6 +163,41 @@ export const MemoryConfigSchema = z.object({
 });
 
 export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
+
+export const ResearchIntensitySchema = z.enum(['balanced', 'premium', 'max']);
+export type ResearchIntensity = z.infer<typeof ResearchIntensitySchema>;
+
+export const ResearchLocalDirectSourcesSchema = z.object({
+  github: z.boolean().optional(),
+  arxiv: z.boolean().optional(),
+  npm: z.boolean().optional(),
+  pypi: z.boolean().optional(),
+  crates: z.boolean().optional(),
+});
+
+export type ResearchLocalDirectSources = z.infer<typeof ResearchLocalDirectSourcesSchema>;
+
+export const ResearchLocalSearchConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  concurrency: z.number().int().min(1).max(16).optional(),
+  timeoutMs: z.number().int().min(1000).max(120000).optional(),
+  searxngUrl: z.string().url().optional(),
+  yacyUrl: z.string().url().optional(),
+  directSources: ResearchLocalDirectSourcesSchema.optional(),
+  renderedFetch: z.boolean().optional(),
+  offlineMode: z.enum(['auto', 'always', 'never']).optional(),
+});
+
+export type ResearchLocalSearchConfig = z.infer<typeof ResearchLocalSearchConfigSchema>;
+
+export const ResearchConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  intensity: ResearchIntensitySchema.optional(),
+  localSearch: ResearchLocalSearchConfigSchema.optional(),
+  persistVerifiedFindings: z.boolean().optional(),
+});
+
+export type ResearchConfig = z.infer<typeof ResearchConfigSchema>;
 
 export const ModelCatalogConfigSchema = z.object({
   refreshIntervalMs: z.number().int().min(0).optional(),
@@ -249,6 +324,7 @@ export const KimiConfigSchema = z.object({
   loopControl: LoopControlSchema.optional(),
   background: BackgroundConfigSchema.optional(),
   memory: MemoryConfigSchema.optional(),
+  research: ResearchConfigSchema.optional(),
   modelCatalog: ModelCatalogConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   telemetry: z.boolean().optional(),
@@ -264,6 +340,13 @@ const PermissionConfigPatchSchema = PermissionConfigSchema.partial();
 const LoopControlPatchSchema = LoopControlSchema.partial();
 const BackgroundConfigPatchSchema = BackgroundConfigSchema.partial();
 const MemoryConfigPatchSchema = MemoryConfigSchema.partial();
+const ResearchLocalDirectSourcesPatchSchema = ResearchLocalDirectSourcesSchema.partial();
+const ResearchLocalSearchConfigPatchSchema = ResearchLocalSearchConfigSchema.extend({
+  directSources: ResearchLocalDirectSourcesPatchSchema.optional(),
+}).partial();
+const ResearchConfigPatchSchema = ResearchConfigSchema.extend({
+  localSearch: ResearchLocalSearchConfigPatchSchema.optional(),
+}).partial();
 const ModelCatalogConfigPatchSchema = ModelCatalogConfigSchema.partial();
 const ExperimentalConfigPatchSchema = ExperimentalConfigSchema;
 const MoonshotServiceConfigPatchSchema = MoonshotServiceConfigSchema.partial();
@@ -295,6 +378,7 @@ export const KimiConfigPatchSchema = z
     loopControl: LoopControlPatchSchema.optional(),
     background: BackgroundConfigPatchSchema.optional(),
     memory: MemoryConfigPatchSchema.optional(),
+    research: ResearchConfigPatchSchema.optional(),
     modelCatalog: ModelCatalogConfigPatchSchema.optional(),
     experimental: ExperimentalConfigPatchSchema.optional(),
     telemetry: z.boolean().optional(),

@@ -17,7 +17,7 @@ The `type` field in the `providers` table determines which protocol implementati
 
 All providers communicate with models in streaming mode by default. Capabilities such as thinking, vision, and tool use are matched automatically by model name prefix — you typically do not need to declare them manually.
 
-**Credential priority**: `api_key` direct field > `[providers.<name>.env]` sub-table key > if both are absent, startup fails with an error. The CLI does not fall back to shell environment variables for credentials — see [Config overrides: provider credentials](./overrides.md#provider-credentials).
+**Credential priority**: explicit provider credential fields > `[providers.<name>.env]` sub-table keys > if both are absent, startup fails with an error. A credential value can be a raw key or an environment reference such as `{env:OPENAI_API_KEY}`. The CLI does not silently fall back to shell environment variables; the reference must be written in config or added with a provider command. See [Config overrides: provider credentials](./overrides.md#provider-credentials).
 
 ## `/provider` — interactive provider management
 
@@ -142,6 +142,35 @@ kimi
 ## OAuth and credential injection
 
 The Kimi Code managed service uses OAuth rather than static API keys. After running `/login`, the built-in authentication toolchain automatically writes and refreshes credentials — no manual configuration is needed in `config.toml` for this.
+
+## Credential pools and routing
+
+Provider credentials can be configured as pools when one upstream account is not enough. A pool lets one model alias move between multiple API keys, OAuth accounts, endpoint URLs, or fallback models without exposing secret values in status output.
+
+Use the CLI for the common setup path:
+
+```sh
+kimi provider key add openai --api-key-env OPENAI_PRIMARY_KEY --label primary
+kimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --rpm 60 --tpm 120000 --auto-route
+kimi provider route preview openai/gpt-4.1
+```
+
+For OAuth-backed providers, add account references instead of API keys:
+
+```sh
+kimi login --oauth-key kimi-work
+kimi provider oauth add kimi --key kimi-work --label work --auto-route
+```
+
+Routes can use `auto`, `fallback`, `fill_first`, `round_robin`, `weighted_round_robin`, `least_used`, `lowest_latency`, `rate_limit_aware`, or `random`. The `auto` strategy prefers healthy credentials with available rate-limit headroom, recent low latency, and configured weights before falling back to the next model alias.
+
+```sh
+kimi provider route auto openai/gpt-4.1
+kimi provider route set openai/gpt-4.1 --fallback anthropic/claude-opus --strategy rate_limit_aware --session-affinity on
+kimi provider route status <sessionId>
+```
+
+Run `kimi provider doctor` after editing config or importing providers. It validates missing environment references, malformed per-credential `base_url` values, duplicate labels, broken fallback aliases, and invalid preferred credential labels without printing API keys or OAuth storage keys.
 
 ## Next steps
 

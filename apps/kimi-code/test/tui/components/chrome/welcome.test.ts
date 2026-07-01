@@ -2,6 +2,11 @@ import { visibleWidth } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { DEFAULT_APPEARANCE_PREFERENCES } from '#/tui/config';
+import {
+  PREMIUM_MASCOT_FRAMES,
+  renderKimiMascotIcon,
+} from '#/tui/components/chrome/kimi-mascot-icon';
 import { WelcomeComponent } from '#/tui/components/chrome/welcome';
 import type { AppState } from '#/tui/types';
 
@@ -83,10 +88,35 @@ describe('WelcomeComponent', () => {
   });
 
   it('keeps every line within the requested width on narrow terminals', () => {
-    for (const width of [0, 1, 2, 4, 10, 39, 80]) {
+    for (const width of [0, 1, 2, 4, 10, 39, 60, 80, 100, 120, 160]) {
       for (const line of new WelcomeComponent(appState).render(width)) {
         expect(visibleWidth(line)).toBeLessThanOrEqual(width);
       }
+    }
+  });
+
+  it('keeps every premium mascot animation frame at a fixed visible width', () => {
+    const expectedWidth = visibleWidth(PREMIUM_MASCOT_FRAMES[0]![0]!);
+    for (const frame of PREMIUM_MASCOT_FRAMES) {
+      for (const line of frame) {
+        expect(visibleWidth(line)).toBe(expectedWidth);
+      }
+    }
+  });
+
+  it('uses an ASCII mascot fallback in dumb terminals', () => {
+    const previousTerm = process.env['TERM'];
+    process.env['TERM'] = 'dumb';
+    try {
+      const rows = renderKimiMascotIcon({
+        layout: 'standard',
+        appearance: DEFAULT_APPEARANCE_PREFERENCES,
+      });
+
+      expect(strip(rows.join('\n'))).toContain('/---\\');
+    } finally {
+      if (previousTerm === undefined) delete process.env['TERM'];
+      else process.env['TERM'] = previousTerm;
     }
   });
 });

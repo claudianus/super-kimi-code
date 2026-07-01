@@ -3,6 +3,7 @@ UltraSwarm — Summon a team of expert agents to tackle complex tasks collaborat
 When you need specialized expertise across multiple domains, UltraSwarm automatically assembles the right team of experts from a catalog of 217+ professionals spanning 16 divisions (Engineering, Design, Security, Product, Marketing, Testing, Academic, Finance, Game Development, GIS, Paid Media, Project Management, Sales, Spatial Computing, Specialized, Support).
 
 Each expert is summoned as a subagent with their full persona injected, ensuring domain-specific, high-quality output. All experts run in parallel for maximum efficiency.
+Each UltraSwarm call can launch up to 128 expert subagents; use the concurrency environment variable when provider rate limits require a lower active count.
 
 Usage:
 - Call UltraSwarm with a clear task description

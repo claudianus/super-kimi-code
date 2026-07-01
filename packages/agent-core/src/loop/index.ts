@@ -19,6 +19,7 @@ export type {
   LoopTurnStopReason,
   StopReason,
   RecordStepUsageResult,
+  RecordStepUsageInfo,
   ShouldContinueAfterStopHook,
   ShouldContinueAfterStopResult,
   LoopMessageBuilder,

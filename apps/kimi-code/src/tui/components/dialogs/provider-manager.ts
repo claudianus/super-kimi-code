@@ -14,6 +14,8 @@
  *   - ↑ / ↓             move highlight
  *   - ← / → · PgUp/PgDn page
  *   - Enter             on `[ Add New Platform ]` → `onAdd()`
+ *   - A                 add an API key to the highlighted provider/source
+ *   - R                 remove the newest API key from the highlighted provider/source
  *   - D                 delete with inline `[y/N]` confirmation
  *                         on a source row → `onDeleteSource(providerIds)`
  *                         on `[ Add New Platform ]` → ignored
@@ -61,6 +63,8 @@ export interface ProviderManagerOptions {
   /** Provider id of the currently active model. */
   readonly activeProviderId?: string;
   readonly onAdd: () => void;
+  readonly onAddApiKey: (providerIds: readonly string[]) => void;
+  readonly onRemoveApiKey: (providerIds: readonly string[]) => void;
   /** Delete all providers under a source (Open Platform / custom-registry
    *  fetch / standalone). Passed the full provider-id list so the host
    *  doesn't have to re-derive the source grouping. */
@@ -78,6 +82,10 @@ interface SourceRow {
   readonly hasActive: boolean;
   /** Optional base URL extracted from the provider config. */
   readonly baseUrl?: string;
+  /** Number of configured API keys, without exposing secret values. */
+  readonly apiKeyCount: number;
+  /** Short credential summary, without exposing secret values or OAuth storage keys. */
+  readonly credentialSummary: string;
 }
 
 /** Synthetic `[ Add New Platform ]` action row pinned to the bottom. */
@@ -91,7 +99,7 @@ type Row = SourceRow | AddRow;
 
 const ADD_ROW_LABEL = '[ Add New Platform ]';
 const PAGE_SIZE = 8;
-const HEADER_HINT = '↑↓ navigate · D delete · Esc cancel';
+const HEADER_HINT = '↑↓ navigate · A add key · R remove key · D delete · Esc cancel';
 
 // Narrows a `ProviderConfig` blob to a `CustomRegistrySource` payload.
 // Mirrors `readCustomRegistrySource` in `kimi-tui.ts`. We can't import
@@ -156,6 +164,8 @@ function buildRows(opts: ProviderManagerOptions): readonly Row[] {
         label: platform?.name ?? id,
         providerIds: [id],
         hasActive: isActive,
+        apiKeyCount: providerApiKeyCount(cfg),
+        credentialSummary: providerCredentialSummary(cfg),
       });
       continue;
     }
@@ -179,6 +189,10 @@ function buildRows(opts: ProviderManagerOptions): readonly Row[] {
             providerIds: [...existing.providerIds, id],
             hasActive: existing.hasActive || isActive,
             baseUrl: existing.baseUrl,
+            apiKeyCount: Math.max(existing.apiKeyCount, providerApiKeyCount(cfg)),
+            credentialSummary: groupedCredentialSummary(
+              Math.max(existing.apiKeyCount, providerApiKeyCount(cfg)),
+            ),
           };
         }
         continue;
@@ -191,6 +205,8 @@ function buildRows(opts: ProviderManagerOptions): readonly Row[] {
         providerIds: [id],
         hasActive: isActive,
         baseUrl,
+        apiKeyCount: providerApiKeyCount(cfg),
+        credentialSummary: providerCredentialSummary(cfg),
       });
       continue;
     }
@@ -202,6 +218,8 @@ function buildRows(opts: ProviderManagerOptions): readonly Row[] {
       providerIds: [id],
       hasActive: isActive,
       baseUrl,
+      apiKeyCount: providerApiKeyCount(cfg),
+      credentialSummary: providerCredentialSummary(cfg),
     });
   }
 
@@ -312,8 +330,25 @@ export class ProviderManagerComponent extends Container implements Focusable {
       return;
     }
 
-    // Delete the highlighted provider with the D key.
+    // Add an API key to the highlighted provider/source with the A key.
     const ch = printableChar(data);
+    if (ch === 'a' || ch === 'A') {
+      const selected = rows[this.selectedIndex];
+      if (selected?.kind === 'source') {
+        this.opts.onAddApiKey(selected.providerIds);
+      }
+      return;
+    }
+
+    if (ch === 'r' || ch === 'R') {
+      const selected = rows[this.selectedIndex];
+      if (selected?.kind === 'source') {
+        this.opts.onRemoveApiKey(selected.providerIds);
+      }
+      return;
+    }
+
+    // Delete the highlighted provider with the D key.
     if (ch === 'd' || ch === 'D') {
       this.armDeleteConfirm();
     }
@@ -406,6 +441,79 @@ export class ProviderManagerComponent extends Container implements Focusable {
   }
 }
 
+function providerApiKeyCount(provider: ProviderConfig): number {
+  return providerApiKeyPreviews(provider).length;
+}
+
+function providerCredentialSummary(provider: ProviderConfig): string {
+  const apiKeys = providerApiKeyPreviews(provider);
+  const oauths = providerOAuthPreviews(provider);
+  const parts: string[] = [];
+  if (apiKeys.length > 0) {
+    parts.push(`${apiKeys.length === 1 ? '1 key' : `${String(apiKeys.length)} keys`}: ${previewList(apiKeys)}`);
+  }
+  if (oauths.length > 0) {
+    parts.push(
+      `${oauths.length === 1 ? '1 OAuth account' : `${String(oauths.length)} OAuth accounts`}: ${previewList(oauths)}`,
+    );
+  }
+  return parts.length === 0 ? 'no credentials' : parts.join(' · ');
+}
+
+function groupedCredentialSummary(apiKeyCount: number): string {
+  return apiKeyCount === 1 ? '1 key' : `${String(apiKeyCount)} keys`;
+}
+
+function providerApiKeyPreviews(provider: ProviderConfig): string[] {
+  const previews: string[] = [];
+  const seen = new Set<string>();
+  const pushPreview = (apiKey: string | undefined, preview: string, baseUrl: string | undefined) => {
+    const trimmed = apiKey?.trim();
+    if (trimmed === undefined || trimmed.length === 0) return;
+    const slotId = `${trimmed}\n${baseUrl ?? provider.baseUrl ?? ''}`;
+    if (seen.has(slotId)) return;
+    seen.add(slotId);
+    previews.push(preview);
+  };
+
+  const apiKey = provider.apiKey?.trim();
+  pushPreview(apiKey, '#1', undefined);
+  for (let index = 0; index < (provider.apiKeys ?? []).length; index += 1) {
+    const key = provider.apiKeys?.[index]?.trim();
+    pushPreview(key, `#${String(previews.length + 1)}`, undefined);
+  }
+  for (let index = 0; index < (provider.credentials ?? []).length; index += 1) {
+    const credential = provider.credentials?.[index];
+    const key = credential?.apiKey.trim();
+    if (key === undefined || key.length === 0) continue;
+    const label = credential?.label?.trim();
+    const name = label === undefined || label.length === 0 ? `#${String(previews.length + 1)}` : label;
+    const limits = [
+      credential?.rpm === undefined ? undefined : `rpm=${String(credential.rpm)}`,
+      credential?.tpm === undefined ? undefined : `tpm=${String(credential.tpm)}`,
+    ].filter((part): part is string => part !== undefined);
+    pushPreview(key, limits.length === 0 ? name : `${name} ${limits.join('/')}`, credential?.baseUrl);
+  }
+  return previews;
+}
+
+function providerOAuthPreviews(provider: ProviderConfig): string[] {
+  const refs = [
+    ...(provider.oauth === undefined ? [] : [provider.oauth]),
+    ...(provider.oauths ?? []),
+  ];
+  const previews: string[] = [];
+  for (let index = 0; index < refs.length; index += 1) {
+    const label = refs[index]?.label?.trim();
+    previews.push(label === undefined || label.length === 0 ? `#${String(index + 1)}` : label);
+  }
+  return previews;
+}
+
+function previewList(values: readonly string[]): string {
+  if (values.length <= 3) return values.join(', ');
+  return `${values.slice(0, 3).join(', ')} +${String(values.length - 3)}`;
+}
 
 function renderRow(
   row: Row,
@@ -441,6 +549,9 @@ function renderRow(
   if (row.kind === 'source' && row.baseUrl !== undefined && row.baseUrl.length > 0) {
     const urlText = truncateToWidth(row.baseUrl, Math.max(0, width - 6), '…');
     lines.push(currentTheme.fg('textMuted', `      ${urlText}`));
+  }
+  if (row.kind === 'source') {
+    lines.push(currentTheme.fg('textMuted', `      ${row.credentialSummary}`));
   }
 
   return lines;

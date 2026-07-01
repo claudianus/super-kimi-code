@@ -158,6 +158,26 @@ describe('ChoicePickerComponent', () => {
     });
   });
 
+  it('previews the highlighted theme and notifies focus changes', () => {
+    withThemeHome(() => {
+      const onHighlight = vi.fn();
+      const theme = new ThemeSelectorComponent({
+        currentValue: 'light',
+        onHighlight,
+        onSelect: vi.fn(),
+        onCancel: vi.fn(),
+      });
+
+      const out = theme.render(120).map(strip).join('\n');
+      expect(out).toContain('Preview · Light');
+      expect(out).toContain('const skin = createTheme');
+      expect(onHighlight).toHaveBeenCalledWith('light');
+
+      theme.handleInput('\u001B[B');
+      expect(onHighlight).toHaveBeenLastCalledWith('super-kimi-neon-noir');
+    });
+  });
+
   it('routes Space into the query for searchable lists instead of selecting', () => {
     const onSelect = vi.fn();
     const picker = new ChoicePickerComponent({

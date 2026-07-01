@@ -6,6 +6,7 @@ import type {
   GenerateOptions,
   MaxCompletionTokensOptions,
   ProviderRequestAuth,
+  ResponseHeaders,
   StreamedMessage,
   ThinkingEffort,
   VideoUploadInput,
@@ -35,6 +36,7 @@ import {
   requireProviderApiKey,
   resolveAuthBackedClient,
 } from './request-auth';
+import { awaitWithResponseHeaders } from './response-headers';
 import {
   normalizeToolCallIdsForProvider,
   sanitizeToolCallId,
@@ -226,6 +228,7 @@ class KimiStreamedMessage implements StreamedMessage {
   constructor(
     response: OpenAI.Chat.ChatCompletion | AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
     isStream: boolean,
+    readonly responseHeaders?: ResponseHeaders,
   ) {
     if (isStream) {
       this._iter = this._convertStreamResponse(
@@ -489,11 +492,16 @@ export class KimiChatProvider implements ChatProvider {
       // Use type assertion via unknown because we pass Moonshot-proprietary fields
       // (reasoning_effort, thinking) that don't exist in the OpenAI type definitions.
       options?.onRequestSent?.();
-      const response = (await client.chat.completions.create(
-        createParams as unknown as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
-        options?.signal ? { signal: options.signal } : undefined,
-      )) as unknown as OpenAI.Chat.ChatCompletion | AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
-      return new KimiStreamedMessage(response, this._stream);
+      const { data, responseHeaders } = await awaitWithResponseHeaders(
+        client.chat.completions.create(
+          createParams as unknown as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
+          options?.signal ? { signal: options.signal } : undefined,
+        ),
+      );
+      const response = data as unknown as
+        | OpenAI.Chat.ChatCompletion
+        | AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
+      return new KimiStreamedMessage(response, this._stream, responseHeaders);
     } catch (error: unknown) {
       throw convertOpenAIError(error);
     }

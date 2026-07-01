@@ -37,9 +37,13 @@ import compactionInstructionTemplate from './compaction-instruction.md?raw';
 import { renderTodoList, type TodoItem } from '../../tools/builtin/state/todo-list';
 import type {
   CompactionBeginData,
+  CompactionContextMemoryTier,
+  CompactionContextOS,
+  CompactionContextPack,
   CompactionResult,
   CompactionResultAction,
   CompactionResultRawRef,
+  CompactionSource,
 } from './types';
 import {
   DEFAULT_COMPACTION_CONFIG,
@@ -51,6 +55,12 @@ import {
   splitMessagesIntoTokenBlocks,
   type CompactionPlan,
 } from './planner';
+import {
+  mergeCompactionQualityResults,
+  validateInitialCompactionSummary,
+  validateRenderedCompactionSummary,
+  type CompactionQualityResult,
+} from './quality';
 import {
   extractFactsFromSummary,
   formatFactsAsMemoryBlock,
@@ -72,11 +82,27 @@ const DEFAULT_PARALLEL_BLOCK_THRESHOLD = 30_000;
 const DEFAULT_PARALLEL_BLOCK_TARGET = 15_000;
 const OVERFLOW_CONTEXT_SAFETY_RATIO = 0.85;
 const OVERFLOW_STATUS_RECOVERY_RATIO = 0.5;
+const MAX_COMPACTION_MERGE_RETRY_ATTEMPTS = 2;
+
+type CompactionResultWithQualityWarnings = CompactionResult & {
+  readonly qualityWarnings: readonly string[];
+};
+
+type CompletedCompactionResult = CompactionResultWithQualityWarnings & {
+  readonly contextPack: CompactionContextPack;
+};
 
 class CompactionTruncatedError extends Error {
   constructor() {
     super('Compaction response was truncated before producing a complete summary.');
     this.name = 'CompactionTruncatedError';
+  }
+}
+
+class CompactionQualityError extends Error {
+  constructor(messages: readonly string[]) {
+    super(`Compaction summary failed quality checks: ${messages.join('; ')}`);
+    this.name = 'CompactionQualityError';
   }
 }
 
@@ -100,12 +126,17 @@ export class FullCompaction {
     strategy?: CompactionStrategy,
   ) {
     const loopControl = agent.kimiConfig?.loopControl;
+    const compactionTriggerRatio =
+      loopControl?.compactionTriggerRatio ??
+      DEFAULT_COMPACTION_CONFIG.triggerRatio;
     this.strategy =
       strategy ??
       new DefaultCompactionStrategy(
         () => this.getEffectiveMaxContextTokens(),
         {
           ...DEFAULT_COMPACTION_CONFIG,
+          triggerRatio: compactionTriggerRatio,
+          blockRatio: compactionTriggerRatio,
           reservedContextSize:
             loopControl?.reservedContextSize ??
             DEFAULT_COMPACTION_CONFIG.reservedContextSize,
@@ -122,7 +153,7 @@ export class FullCompaction {
     const systemPrompt = agent.config?.systemPrompt?.trim();
     if (systemPrompt && systemPrompt.length > 0) {
       this.anchor = createAnchorDocument(
-        systemPrompt.slice(0, 500).replace(/\s+/g, ' ').trim()
+        systemPrompt.slice(0, 500).replaceAll(/\s+/g, ' ').trim()
       );
     }
   }
@@ -355,6 +386,17 @@ export class FullCompaction {
         finalResult.summaryTokens = result.summaryTokens;
         finalResult.retainedTokens = result.retainedTokens;
         finalResult.compactedTokens = result.compactedTokens;
+        if (result.parallelBlockCount !== undefined) {
+          finalResult.parallelBlockCount =
+            (finalResult.parallelBlockCount ?? 0) + result.parallelBlockCount;
+        }
+        if (result.mergeInputTokens !== undefined) {
+          finalResult.mergeInputTokens =
+            (finalResult.mergeInputTokens ?? 0) + result.mergeInputTokens;
+        }
+        if (result.repairAttempted === true) {
+          finalResult.repairAttempted = true;
+        }
         if (result.actions !== undefined) finalActions.push(...result.actions);
         if (result.rawRefs !== undefined) finalRawRefs.push(...result.rawRefs);
         if (result.qualityWarnings !== undefined) {
@@ -424,7 +466,10 @@ export class FullCompaction {
 
       let summary: string;
       let usage: TokenUsage | null = null;
-      const messagesToCompact = originalHistory.slice(0, compactedCount);
+      let parallelBlockCount = 0;
+      let mergeInputTokens: number | undefined;
+      let repairAttempted = false;
+      let messagesToCompact = originalHistory.slice(0, compactedCount);
       let plan = this.planner.plan(originalHistory, compactedCount);
       const compactedTokens = estimateTokensForMessages(messagesToCompact);
 
@@ -432,37 +477,18 @@ export class FullCompaction {
       if (compactedTokens > parallelThreshold && messagesToCompact.length > 4) {
         const blocks = this.splitIntoBlocks(messagesToCompact);
         if (blocks.length > 1) {
-          const blockPrompt = renderPrompt(compactionInstructionTemplate, {
-            customInstruction: this.compactionInstruction(
-              data.instruction,
-              plan,
-              'This is one block of a larger conversation. Summarize only the events in this block.',
-            ),
-          });
-          const blockResults = await Promise.all(
-            blocks.map(async (block) => {
-              const messages = [
-                ...this.agent.context.project(block),
-                createUserMessage(blockPrompt),
-              ];
-              const response = await this.agent.generate(
-                provider,
-                this.agent.config.systemPrompt,
-                [...this.agent.tools.loopTools],
-                messages,
-                undefined,
-                { signal },
-              );
-              if (response.finishReason === 'truncated') {
-                throw new CompactionTruncatedError();
-              }
-              if (response.usage !== null) {
-                usage = mergeTokenUsage(usage, response.usage);
-              }
-              return extractCompactionSummary(response);
-            })
+          const parallelResult = await this.parallelSummarize(
+            signal,
+            provider,
+            blocks,
+            plan,
+            data.instruction,
+            retryCount,
           );
-          summary = `## Summary of Compacted History\n\n${blockResults.map((s, i) => `## Block ${i + 1}\n${s.trim()}`).join('\n\n')}`;
+          summary = parallelResult.summary;
+          usage = parallelResult.usage;
+          parallelBlockCount = parallelResult.parallelBlockCount;
+          mergeInputTokens = parallelResult.mergeInputTokens;
         } else {
           const seqResult = await this.sequentialSummarize(
             signal, provider, messagesToCompact, this.compactionInstruction(data.instruction, plan), retryCount
@@ -470,6 +496,7 @@ export class FullCompaction {
           summary = seqResult.summary;
           usage = seqResult.usage;
           compactedCount = seqResult.finalCompactedCount;
+          messagesToCompact = originalHistory.slice(0, compactedCount);
         }
       } else {
         const seqResult = await this.sequentialSummarize(
@@ -478,9 +505,33 @@ export class FullCompaction {
         summary = seqResult.summary;
         usage = seqResult.usage;
         compactedCount = seqResult.finalCompactedCount;
+        messagesToCompact = originalHistory.slice(0, compactedCount);
       }
 
       plan = this.planner.plan(originalHistory, compactedCount);
+
+      const initialQuality = validateInitialCompactionSummary(summary, plan, messagesToCompact);
+      let quality: CompactionQualityResult = initialQuality;
+      if (initialQuality.critical.length > 0) {
+        const repair = await this.repairSummaryForQuality(
+          signal,
+          provider,
+          messagesToCompact,
+          plan,
+          data.instruction,
+          initialQuality,
+        );
+        summary = repair.summary;
+        repairAttempted = true;
+        if (repair.usage !== null) {
+          usage = mergeTokenUsage(usage, repair.usage);
+        }
+        const repairedQuality = validateInitialCompactionSummary(summary, plan, messagesToCompact);
+        quality = mergeCompactionQualityResults(initialQuality, repairedQuality);
+        if (repairedQuality.critical.length > 0) {
+          throw new CompactionQualityError(repairedQuality.critical);
+        }
+      }
 
       if (usage !== null) {
         this.agent.usage.record(model, usage);
@@ -514,25 +565,42 @@ export class FullCompaction {
       }
 
       summary = this.renderStructuredV2Summary(summary, plan);
+      const renderedQuality = validateRenderedCompactionSummary(summary, plan);
+      quality = mergeCompactionQualityResults(quality, renderedQuality);
+      if (renderedQuality.critical.length > 0) {
+        throw new CompactionQualityError(renderedQuality.critical);
+      }
 
       const summaryTokens = estimateTokensForMessages([compactionSummaryMessage(summary)]);
       const retained = this.agent.context.history.slice(compactedCount);
       const retainedTokens = estimateTokensForMessages(retained);
       const tokensAfter = summaryTokens + retainedTokens;
 
-      const result: CompactionResult = {
+      const resultWithoutContextPack: CompactionResultWithQualityWarnings = {
         summary,
         compactedCount,
         tokensBefore,
         tokensAfter,
+        algorithmVersion: plan.algorithmVersion,
+        actions: plan.actions,
+        rawRefs: plan.rawRefs,
+        summaryTokens,
+        retainedTokens,
+        compactedTokens: plan.compactedTokens,
+        qualityWarnings: mergeStringLists(plan.qualityWarnings, quality.warnings),
+        parallelBlockCount: parallelBlockCount > 0 ? parallelBlockCount : undefined,
+        mergeInputTokens,
+        repairAttempted: repairAttempted ? true : undefined,
       };
-      result.algorithmVersion = plan.algorithmVersion;
-      result.actions = plan.actions;
-      result.rawRefs = plan.rawRefs;
-      result.summaryTokens = summaryTokens;
-      result.retainedTokens = retainedTokens;
-      result.compactedTokens = plan.compactedTokens;
-      result.qualityWarnings = plan.qualityWarnings;
+      const result: CompletedCompactionResult = {
+        ...resultWithoutContextPack,
+        contextPack: this.buildContextPack(
+          data.source,
+          resultWithoutContextPack,
+          retained.length,
+          provider,
+        ),
+      };
 
       const durationMs = Date.now() - startedAt;
       this.agent.telemetry.track('compaction_finished', {
@@ -542,6 +610,20 @@ export class FullCompaction {
         duration_ms: durationMs,
         compacted_count: result.compactedCount,
         retry_count: retryCount.value,
+        parallel_block_count: parallelBlockCount,
+        quality_warning_count: result.qualityWarnings.length,
+        repair_attempted: repairAttempted,
+        merge_input_tokens: mergeInputTokens ?? 0,
+        provider_context_management: formatContextManagementCapability(provider),
+        context_pack_version: result.contextPack.version,
+        context_pack_raw_ref_count: result.contextPack.evidence.rawRefCount,
+        context_pack_action_count: result.contextPack.evidence.actionTypes.length,
+        context_pack_retained_message_count: result.contextPack.messageCounts.retained,
+        context_os_status: result.contextPack.contextOS.continuity.status,
+        context_os_score: result.contextPack.contextOS.continuity.score,
+        context_os_tier_count: result.contextPack.contextOS.memoryTiers.length,
+        context_os_rehydration_kind_count:
+          result.contextPack.contextOS.rehydrationRawRefKinds.length,
         round,
         thinking_level: this.agent.config.thinkingLevel,
         ...usageTelemetryProperties(usage),
@@ -556,6 +638,20 @@ export class FullCompaction {
         duration_ms: durationMs,
         compacted_count: result.compactedCount,
         retry_count: retryCount.value,
+        parallel_block_count: parallelBlockCount,
+        quality_warning_count: result.qualityWarnings.length,
+        repair_attempted: repairAttempted,
+        merge_input_tokens: mergeInputTokens ?? 0,
+        provider_context_management: formatContextManagementCapability(provider),
+        context_pack_version: result.contextPack.version,
+        context_pack_raw_ref_count: result.contextPack.evidence.rawRefCount,
+        context_pack_action_count: result.contextPack.evidence.actionTypes.length,
+        context_pack_retained_message_count: result.contextPack.messageCounts.retained,
+        context_os_status: result.contextPack.contextOS.continuity.status,
+        context_os_score: result.contextPack.contextOS.continuity.score,
+        context_os_tier_count: result.contextPack.contextOS.memoryTiers.length,
+        context_os_rehydration_kind_count:
+          result.contextPack.contextOS.rehydrationRawRefKinds.length,
         round,
         thinking_level: this.agent.config.thinkingLevel,
         action_types: result.actions?.map((action) => action.type).join(',') ?? '',
@@ -632,6 +728,175 @@ export class FullCompaction {
     }
   }
 
+  private async parallelSummarize(
+    signal: AbortSignal,
+    provider: ChatProvider,
+    blocks: readonly (readonly Message[])[],
+    plan: CompactionPlan,
+    instruction: string | undefined,
+    retryCountRef: { value: number },
+  ): Promise<{
+    summary: string;
+    usage: TokenUsage | null;
+    parallelBlockCount: number;
+    mergeInputTokens: number;
+  }> {
+    const blockPrompt = renderPrompt(compactionInstructionTemplate, {
+      customInstruction: this.compactionInstruction(
+        instruction,
+        plan,
+        'This is one block of a larger conversation. Summarize only the events in this block.',
+      ),
+    });
+    const blockResults = await Promise.all(
+      blocks.map(async (block) => {
+        const messages = [
+          ...this.agent.context.project(block),
+          createUserMessage(blockPrompt),
+        ];
+        const response = await this.agent.generate(
+          provider,
+          this.agent.config.systemPrompt,
+          [...this.agent.tools.loopTools],
+          messages,
+          undefined,
+          { signal },
+        );
+        if (response.finishReason === 'truncated') {
+          throw new CompactionTruncatedError();
+        }
+        return {
+          summary: extractCompactionSummary(response),
+          usage: response.usage,
+        };
+      })
+    );
+    const usage = blockResults.reduce<TokenUsage | null>(
+      (current, result) =>
+        result.usage === null ? current : mergeTokenUsage(current, result.usage),
+      null,
+    );
+    const mergeResult = await this.mergeBlockSummaries(
+      signal,
+      provider,
+      blockResults.map((result) => result.summary),
+      plan,
+      instruction,
+      retryCountRef,
+    );
+    return {
+      summary: mergeResult.summary,
+      usage: mergeTokenUsageOrNull(usage, mergeResult.usage),
+      parallelBlockCount: blocks.length,
+      mergeInputTokens: mergeResult.mergeInputTokens,
+    };
+  }
+
+  private async mergeBlockSummaries(
+    signal: AbortSignal,
+    provider: ChatProvider,
+    blockSummaries: readonly string[],
+    plan: CompactionPlan,
+    instruction: string | undefined,
+    retryCountRef: { value: number },
+  ): Promise<{ summary: string; usage: TokenUsage | null; mergeInputTokens: number }> {
+    const blockText = blockSummaries
+      .map((summary, index) => `## Block ${String(index + 1)}\n${summary.trim()}`)
+      .join('\n\n');
+    const mergePrompt = renderPrompt(compactionInstructionTemplate, {
+      customInstruction: this.compactionInstruction(
+        instruction,
+        plan,
+        [
+          'Merge these block-level compaction summaries into one coherent replacement summary.',
+          'Resolve duplicates and contradictions conservatively. Preserve cross-block next actions and raw refs.',
+          blockText,
+        ].join('\n\n'),
+      ),
+    });
+    const messages = [createUserMessage(mergePrompt)];
+    const mergeInputTokens = estimateTokensForMessages(messages);
+    const delays = retryBackoffDelays(MAX_COMPACTION_MERGE_RETRY_ATTEMPTS);
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_COMPACTION_MERGE_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const response = await this.agent.generate(
+          provider,
+          this.agent.config.systemPrompt,
+          [...this.agent.tools.loopTools],
+          messages,
+          undefined,
+          { signal },
+        );
+        if (response.finishReason === 'truncated') {
+          throw new CompactionTruncatedError();
+        }
+        return {
+          summary: extractCompactionSummary(response),
+          usage: response.usage,
+          mergeInputTokens,
+        };
+      } catch (error) {
+        lastError = error;
+        if (
+          attempt + 1 >= MAX_COMPACTION_MERGE_RETRY_ATTEMPTS ||
+          !(
+            error instanceof CompactionTruncatedError ||
+            error instanceof APIEmptyResponseError ||
+            isRetryableGenerateError(error)
+          )
+        ) {
+          throw error;
+        }
+        await sleepForRetry(delays[attempt]!, signal);
+        retryCountRef.value += 1;
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async repairSummaryForQuality(
+    signal: AbortSignal,
+    provider: ChatProvider,
+    messagesToCompact: readonly Message[],
+    plan: CompactionPlan,
+    instruction: string | undefined,
+    quality: CompactionQualityResult,
+  ): Promise<{ summary: string; usage: TokenUsage | null }> {
+    const repairPrompt = renderPrompt(compactionInstructionTemplate, {
+      customInstruction: this.compactionInstruction(
+        instruction,
+        plan,
+        [
+          'The previous compaction summary failed deterministic quality checks.',
+          `Failed checks: ${quality.critical.join('; ')}`,
+          'Produce a complete replacement summary. Keep the exact v2 section labels when you use structured memory.',
+        ].join('\n\n'),
+      ),
+    });
+    const messages = [
+      ...this.agent.context.project(messagesToCompact),
+      createUserMessage(repairPrompt),
+    ];
+    const response = await this.agent.generate(
+      provider,
+      this.agent.config.systemPrompt,
+      [...this.agent.tools.loopTools],
+      messages,
+      undefined,
+      { signal },
+    );
+    if (response.finishReason === 'truncated') {
+      throw new CompactionTruncatedError();
+    }
+    return {
+      summary: extractCompactionSummary(response),
+      usage: response.usage,
+    };
+  }
+
   private splitIntoBlocks(messages: readonly Message[]): readonly (readonly Message[])[] {
     const target = this.strategy.parallelBlockTarget ?? DEFAULT_PARALLEL_BLOCK_TARGET;
     return splitMessagesIntoTokenBlocks(messages, target);
@@ -665,6 +930,81 @@ export class FullCompaction {
         estimatedTokenCount: result.tokensAfter,
       },
     });
+  }
+
+  private buildContextPack(
+    source: CompactionSource,
+    result: CompactionResult,
+    retainedMessageCount: number,
+    provider: ChatProvider,
+  ): CompactionContextPack {
+    const rawRefs = result.rawRefs ?? [];
+    const actions = result.actions ?? [];
+    const qualityWarnings = result.qualityWarnings ?? [];
+    return {
+      version: 'context_pack_v1',
+      source,
+      algorithmVersion: result.algorithmVersion,
+      messageCounts: {
+        summary: 1,
+        compacted: result.compactedCount,
+        retained: retainedMessageCount,
+      },
+      tokenBudget: {
+        before: result.tokensBefore,
+        after: result.tokensAfter,
+        summary: result.summaryTokens ?? 0,
+        retained: result.retainedTokens ?? 0,
+        compacted: result.compactedTokens ?? 0,
+      },
+      evidence: {
+        rawRefCount: rawRefs.length,
+        rawRefKinds: uniqueSorted(rawRefs.map((ref) => ref.kind)),
+        actionTypes: uniqueSorted(actions.map((action) => action.type)),
+        qualityWarningCount: qualityWarnings.length,
+      },
+      controls: {
+        parallelBlockCount: result.parallelBlockCount ?? 0,
+        mergeInputTokens: result.mergeInputTokens ?? 0,
+        repairAttempted: result.repairAttempted === true,
+        providerContextManagement: formatContextManagementCapability(provider),
+      },
+      contextOS: this.buildContextOS(result),
+    };
+  }
+
+  private buildContextOS(result: CompactionResult): CompactionContextOS {
+    const memory = parseStructuredCompactionMemory(result.summary);
+    const rawRefs = result.rawRefs ?? [];
+    const rawRefKinds = uniqueSorted(rawRefs.map((ref) => ref.kind));
+    const actionTypes = uniqueSorted((result.actions ?? []).map((action) => action.type));
+    const fileHints = uniqueSorted([
+      ...memory.filesTouched.flatMap(extractFileHints),
+      ...this.extractedFacts
+        .filter((fact) => fact.category === 'file')
+        .map((fact) => fact.subject),
+    ]).slice(0, 12);
+    const retrievalQueries = uniqueHints([
+      memory.currentGoal,
+      ...memory.nextActions,
+      ...fileHints.map((file) => `file:${file}`),
+      ...memory.openQuestions,
+      ...memory.failedAttempts,
+      ...memory.decisions,
+    ]).slice(0, 8);
+    const continuity = evaluateContinuity(result, memory, retrievalQueries);
+
+    return {
+      version: 'context_os_v0',
+      memoryTiers: inferMemoryTiers(memory, rawRefKinds, actionTypes, fileHints),
+      retrievalQueries,
+      fileHints,
+      rehydrationRawRefKinds: selectRehydrationRawRefKinds(
+        rawRefKinds,
+        continuity.status,
+      ),
+      continuity,
+    };
   }
 
   private postProcessSummary(summary: string): string {
@@ -767,6 +1107,14 @@ function mergeTokenUsage(current: TokenUsage | null, next: TokenUsage): TokenUsa
   };
 }
 
+function mergeTokenUsageOrNull(
+  current: TokenUsage | null,
+  next: TokenUsage | null,
+): TokenUsage | null {
+  if (next === null) return current;
+  return mergeTokenUsage(current, next);
+}
+
 function compactionSummaryMessage(summary: string): Message {
   return {
     role: 'assistant',
@@ -783,6 +1131,17 @@ function usageTelemetryProperties(
     input_tokens: inputTotal(usage),
     output_tokens: usage.output,
   };
+}
+
+function formatContextManagementCapability(provider: ChatProvider): string {
+  const capability = provider.contextManagementCapability;
+  if (capability === undefined) return 'none';
+  const names = [
+    capability.serverSideCompaction === true ? 'server_side_compaction' : undefined,
+    capability.toolResultClearing === true ? 'tool_result_clearing' : undefined,
+    capability.thinkingBlockClearing === true ? 'thinking_block_clearing' : undefined,
+  ].filter((name): name is string => name !== undefined);
+  return names.length === 0 ? 'none' : names.join(',');
 }
 
 function formatStringList(items: readonly string[]): string {
@@ -828,6 +1187,129 @@ function extractNextActions(summary: string): readonly string[] {
     }
   }
   return result;
+}
+
+function uniqueSorted(items: readonly string[]): readonly string[] {
+  return [...new Set(items.filter((item) => item.length > 0))].toSorted();
+}
+
+function uniqueHints(items: readonly (string | undefined)[]): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    if (item === undefined) continue;
+    const normalized = normalizeHint(item);
+    if (normalized.length === 0) continue;
+    if (!isUsefulHint(normalized)) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+  return result;
+}
+
+function normalizeHint(item: string): string {
+  return item
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+function isUsefulHint(item: string): boolean {
+  const lower = item.toLowerCase();
+  if (lower === 'none captured during compaction.') return false;
+  if (/^#{1,6}\s+/.test(item)) return false;
+  if (/^\*\*(?:file|decision|error|state|config|dependency|api)\*\*:\s*$/i.test(item)) {
+    return false;
+  }
+  return true;
+}
+
+function extractFileHints(item: string): readonly string[] {
+  const matches = item.matchAll(
+    /`([^`]+\.(?:ts|js|tsx|jsx|py|rs|go|java|kt|swift|md|json|yaml|yml|toml|html|css|scss|sql))`|([A-Za-z0-9_./-]+\.(?:ts|js|tsx|jsx|py|rs|go|java|kt|swift|md|json|yaml|yml|toml|html|css|scss|sql))/gi,
+  );
+  const files: string[] = [];
+  for (const match of matches) {
+    files.push((match[1] ?? match[2] ?? '').trim());
+  }
+  return uniqueSorted(files);
+}
+
+function inferMemoryTiers(
+  memory: ReturnType<typeof parseStructuredCompactionMemory>,
+  rawRefKinds: readonly string[],
+  actionTypes: readonly string[],
+  fileHints: readonly string[],
+): readonly CompactionContextMemoryTier[] {
+  const tiers = new Set<CompactionContextMemoryTier>(['working']);
+  if (rawRefKinds.length > 0) tiers.add('episodic');
+  if (
+    memory.currentGoal !== undefined ||
+    memory.decisions.length > 0 ||
+    memory.openQuestions.length > 0 ||
+    fileHints.length > 0
+  ) {
+    tiers.add('semantic');
+  }
+  if (
+    memory.nextActions.length > 0 ||
+    memory.failedAttempts.length > 0 ||
+    actionTypes.length > 0
+  ) {
+    tiers.add('procedural');
+  }
+  return Array.from(tiers);
+}
+
+function evaluateContinuity(
+  result: CompactionResult,
+  memory: ReturnType<typeof parseStructuredCompactionMemory>,
+  retrievalQueries: readonly string[],
+): CompactionContextOS['continuity'] {
+  let score = 1;
+  const reasons: string[] = [];
+
+  if (memory.currentGoal === undefined) {
+    score -= 0.2;
+    reasons.push('missing_current_goal');
+  }
+  if (uniqueHints(memory.nextActions).length === 0) {
+    score -= 0.2;
+    reasons.push('missing_next_actions');
+  }
+  if ((result.rawRefs?.length ?? 0) === 0 || memory.rawRefs.length === 0) {
+    score -= 0.15;
+    reasons.push('missing_raw_refs');
+  }
+  if ((result.qualityWarnings?.length ?? 0) > 0) {
+    score -= 0.15;
+    reasons.push('quality_warnings_present');
+  }
+  if (result.repairAttempted === true) {
+    score -= 0.1;
+    reasons.push('summary_repaired');
+  }
+  if (retrievalQueries.length === 0) {
+    score -= 0.1;
+    reasons.push('empty_retrieval_queries');
+  }
+
+  const boundedScore = Math.max(0, Math.min(1, Number(score.toFixed(2))));
+  return {
+    status: boundedScore >= 0.85 ? 'ready' : boundedScore >= 0.55 ? 'needs_rehydration' : 'at_risk',
+    score: boundedScore,
+    reasons: reasons.length > 0 ? reasons : ['core_continuity_signals_present'],
+  };
+}
+
+function selectRehydrationRawRefKinds(
+  rawRefKinds: readonly string[],
+  status: CompactionContextOS['continuity']['status'],
+): readonly string[] {
+  if (status !== 'ready') return rawRefKinds;
+  return rawRefKinds.filter((kind) => kind.includes('tool'));
 }
 
 function formatRawRef(ref: CompactionPlan['rawRefs'][number]): string {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { applyUpdatePreferenceChoice } from '#/tui/commands/config';
+import { DEFAULT_APPEARANCE_PREFERENCES } from '#/tui/config';
 import { darkColors } from '#/tui/theme/colors';
 
 const mocks = vi.hoisted(() => ({
@@ -44,6 +45,7 @@ describe('update preference commands', () => {
       editorCommand: null,
       notifications: { enabled: true, condition: 'unfocused' },
       upgrade: { autoInstall: false },
+      appearance: DEFAULT_APPEARANCE_PREFERENCES,
     });
     expect(setAppState).toHaveBeenCalledWith({ upgrade: { autoInstall: false } });
     expect(track).toHaveBeenCalledWith('upgrade_preference_changed', { auto_install: false });

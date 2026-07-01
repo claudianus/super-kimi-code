@@ -20,6 +20,8 @@ import {
   type OAuthRef,
   type PermissionConfig,
   type ProviderConfig,
+  type ResearchConfig,
+  type ResearchLocalSearchConfig,
   type ServicesConfig,
   type ThinkingConfig,
   validateConfig,
@@ -316,6 +318,8 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
       result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'memory' && isPlainObject(value)) {
       result[targetKey] = transformPlainObject(value);
+    } else if (targetKey === 'research' && isPlainObject(value)) {
+      result[targetKey] = transformResearchData(value);
     } else if (targetKey === 'modelCatalog' && isPlainObject(value)) {
       result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'experimental' && isPlainObject(value)) {
@@ -355,6 +359,10 @@ function transformProviderData(data: Record<string, unknown>): Record<string, un
     const targetKey = snakeToCamel(key);
     if (targetKey === 'oauth') {
       out[targetKey] = isPlainObject(value) ? transformPlainObject(value) : value;
+    } else if (targetKey === 'oauths' || targetKey === 'credentials') {
+      out[targetKey] = Array.isArray(value)
+        ? value.map((entry) => (isPlainObject(entry) ? transformPlainObject(entry) : entry))
+        : value;
     } else if (targetKey === 'env' || targetKey === 'customHeaders') {
       out[targetKey] = cloneObjectValue(value);
     } else {
@@ -365,7 +373,11 @@ function transformProviderData(data: Record<string, unknown>): Record<string, un
 }
 
 function transformModelData(data: Record<string, unknown>): Record<string, unknown> {
-  return transformPlainObject(data);
+  const out = transformPlainObject(data);
+  if (isPlainObject(out['routing'])) {
+    out['routing'] = transformPlainObject(out['routing']);
+  }
+  return out;
 }
 
 function transformPermissionData(data: Record<string, unknown>): Record<string, unknown> {
@@ -446,6 +458,22 @@ function transformLoopControlData(data: Record<string, unknown>): Record<string,
   return out;
 }
 
+function transformResearchData(data: Record<string, unknown>): Record<string, unknown> {
+  const out = transformPlainObject(data);
+  if (isPlainObject(out['localSearch'])) {
+    out['localSearch'] = transformResearchLocalSearchData(out['localSearch']);
+  }
+  return out;
+}
+
+function transformResearchLocalSearchData(data: Record<string, unknown>): Record<string, unknown> {
+  const out = transformPlainObject(data);
+  if (isPlainObject(out['directSources'])) {
+    out['directSources'] = transformPlainObject(out['directSources']);
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Write / stringify                                                  */
 /* ------------------------------------------------------------------ */
@@ -494,6 +522,7 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
   setSection(out, 'loop_control', config.loopControl, loopControlToToml);
   setSection(out, 'background', config.background, backgroundToToml);
   setSection(out, 'memory', config.memory, memoryToToml);
+  setSection(out, 'research', config.research, researchToToml);
   setSection(out, 'model_catalog', config.modelCatalog, modelCatalogToToml);
   setSection(out, 'experimental', config.experimental, experimentalToToml);
   setSection(out, 'permission', config.permission, permissionToToml);
@@ -550,6 +579,12 @@ function providerToToml(provider: ProviderConfig, rawProvider: unknown): Record<
   for (const [key, value] of Object.entries(provider)) {
     if (key === 'oauth' && value !== undefined) {
       out[camelToSnake(key)] = oauthToToml(value as OAuthRef);
+    } else if (key === 'oauths' && value !== undefined) {
+      out[camelToSnake(key)] = (value as readonly OAuthRef[]).map(oauthToToml);
+    } else if (key === 'credentials' && value !== undefined) {
+      out[camelToSnake(key)] = (value as readonly Record<string, unknown>[]).map(
+        plainObjectToToml,
+      );
     } else if ((key === 'env' || key === 'customHeaders') && value !== undefined) {
       out[camelToSnake(key)] = cloneUnknown(value);
     } else {
@@ -564,9 +599,19 @@ function modelToToml(model: ModelAlias, rawModel: unknown): Record<string, unkno
   for (const [key, value] of Object.entries(model)) {
     if (key === 'capabilities' && Array.isArray(value)) {
       out[camelToSnake(key)] = [...value];
+    } else if (key === 'routing' && value !== undefined) {
+      out[camelToSnake(key)] = plainObjectToToml(value as Record<string, unknown>);
     } else {
       setDefined(out, camelToSnake(key), value);
     }
+  }
+  return out;
+}
+
+function plainObjectToToml(value: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, entryValue] of Object.entries(value)) {
+    setDefined(out, camelToSnake(key), entryValue);
   }
   return out;
 }
@@ -661,6 +706,30 @@ function memoryToToml(memory: MemoryConfig, rawMemory: unknown): Record<string, 
   const out = cloneRecord(rawMemory);
   for (const [key, value] of Object.entries(memory)) {
     setDefined(out, camelToSnake(key), value);
+  }
+  return out;
+}
+
+function researchToToml(research: ResearchConfig, rawResearch: unknown): Record<string, unknown> {
+  const out = cloneRecord(rawResearch);
+  for (const [key, value] of Object.entries(research)) {
+    if (key === 'localSearch' && value !== undefined) {
+      out['local_search'] = researchLocalSearchToToml(value as ResearchLocalSearchConfig);
+    } else {
+      setDefined(out, camelToSnake(key), value);
+    }
+  }
+  return out;
+}
+
+function researchLocalSearchToToml(localSearch: ResearchLocalSearchConfig): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(localSearch)) {
+    if (key === 'directSources' && value !== undefined) {
+      out['direct_sources'] = plainObjectToToml(value as Record<string, unknown>);
+    } else {
+      setDefined(out, camelToSnake(key), value);
+    }
   }
   return out;
 }

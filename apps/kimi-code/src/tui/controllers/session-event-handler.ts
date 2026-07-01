@@ -39,6 +39,12 @@ import {
   type SwarmModeMarkerState,
 } from '../components/messages/swarm-markers';
 import {
+  isUltraworkTheatreEvent,
+  UltraworkTheatreComponent,
+  ultraworkTheatreRunId,
+  type UltraworkTheatreEvent,
+} from '../components/messages/ultrawork-theatre';
+import {
   OAUTH_LOGIN_REQUIRED_CODE,
   OAUTH_LOGIN_REQUIRED_STARTUP_NOTICE,
 } from '../constant/kimi-tui';
@@ -138,6 +144,7 @@ export class SessionEventHandler {
   renderedPluginCommandActivationIds: Set<string> = new Set();
   renderedMcpServerStatusKeys: Map<string, string> = new Map();
   mcpServerStatusSpinners: Map<string, MoonLoader> = new Map();
+  ultraworkTheatres: Map<string, UltraworkTheatreComponent> = new Map();
   mcpServers: Map<string, McpServerStatusSnapshot> = new Map();
   private goalCompletionAwaitingClear = false;
   private goalCompletionTurnEnded = false;
@@ -239,6 +246,11 @@ export class SessionEventHandler {
       this.host.streamingUI.setTurnId(String(event.turnId));
     }
 
+    if (isUltraworkTheatreEvent(event)) {
+      this.handleUltraworkEvent(event);
+      return;
+    }
+
     switch (event.type) {
       case 'turn.started': this.handleTurnBegin(event); break;
       case 'turn.ended': this.handleTurnEnd(event, sendQueued); break;
@@ -280,6 +292,19 @@ export class SessionEventHandler {
       case 'tool.list.updated': break;
       default: break;
     }
+  }
+
+  private handleUltraworkEvent(event: UltraworkTheatreEvent): void {
+    const runId = ultraworkTheatreRunId(event);
+    const existing = this.ultraworkTheatres.get(runId);
+    if (existing === undefined) {
+      const theatre = new UltraworkTheatreComponent(event);
+      this.ultraworkTheatres.set(runId, theatre);
+      this.host.state.transcriptContainer.addChild(theatre);
+    } else {
+      existing.applyEvent(event);
+    }
+    this.host.state.ui.requestRender();
   }
 
   stopAllMcpServerStatusSpinners(): void {
@@ -599,6 +624,7 @@ export class SessionEventHandler {
       patch.permissionMode = event.permission;
     }
     if (event.model !== undefined) patch.model = event.model;
+    if ('providerRoute' in event) patch.providerRouteStatus = event.providerRoute ?? null;
     if (Object.keys(patch).length > 0) this.host.setAppState(patch);
     if (event.swarmMode === false) {
       this.host.state.swarmModeEntry = undefined;

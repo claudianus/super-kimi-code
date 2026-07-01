@@ -58,6 +58,11 @@ export type FinishReason =
   | 'paused'
   | 'other';
 
+export type ResponseHeaders =
+  | Headers
+  | Map<string, string | number | readonly (string | number)[]>
+  | Record<string, string | number | readonly (string | number)[] | undefined>;
+
 /**
  * An async-iterable stream of message parts produced by a single LLM response.
  *
@@ -87,6 +92,11 @@ export interface StreamedMessage {
    * `null` if the provider did not emit a finish_reason.
    */
   readonly rawFinishReason: string | null;
+  /**
+   * Provider response headers, when the transport exposes them. Routers use
+   * rate-limit headers here for proactive credential cooldowns.
+   */
+  readonly responseHeaders?: ResponseHeaders;
 }
 
 /**
@@ -134,6 +144,12 @@ export interface GenerateOptions {
   onStreamEnd?: (stats?: StreamDecodeStats) => void;
 }
 
+export interface ContextManagementCapability {
+  readonly serverSideCompaction?: boolean;
+  readonly toolResultClearing?: boolean;
+  readonly thinkingBlockClearing?: boolean;
+}
+
 /**
  * Decode-phase accounting for a streamed generation. Splits the window after
  * the first streamed part into provider wait time and local per-part processing
@@ -169,6 +185,8 @@ export interface ChatProvider {
   readonly name: string;
   /** Model name passed to the upstream API (e.g. `"moonshot-v1-auto"`). */
   readonly modelName: string;
+  /** Provider-native context management surfaces that callers may opt into. */
+  readonly contextManagementCapability?: ContextManagementCapability;
   /** Current thinking-effort level, or `null` if thinking is not configured. */
   readonly thinkingEffort: ThinkingEffort | null;
   /**

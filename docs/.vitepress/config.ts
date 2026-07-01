@@ -19,8 +19,8 @@ const mermaidOptimizeDeps = [
 
 const config = withMermaid(defineConfig({
   base,
-  title: 'Kimi Code CLI Docs',
-  description: 'Kimi Code CLI Documentation',
+  title: 'Super Kimi Code CLI Docs',
+  description: 'Super Kimi Code CLI Documentation',
 
   head: [
     ['link', { rel: 'icon', type: 'image/x-icon', href: `${base}favicon.ico` }],
@@ -34,8 +34,8 @@ const config = withMermaid(defineConfig({
       label: '简体中文',
       lang: 'zh-CN',
       link: '/zh/',
-      title: 'Kimi Code CLI 文档',
-      description: 'Kimi Code CLI 用户文档',
+      title: 'Super Kimi Code CLI 文档',
+      description: 'Super Kimi Code CLI 用户文档',
       themeConfig: {
         nav: [
           { text: '指南', link: '/zh/guides/getting-started', activeMatch: '/zh/guides/' },
@@ -111,8 +111,8 @@ const config = withMermaid(defineConfig({
       label: 'English',
       lang: 'en-US',
       link: '/en/',
-      title: 'Kimi Code CLI Docs',
-      description: 'Kimi Code CLI User Documentation',
+      title: 'Super Kimi Code CLI Docs',
+      description: 'Super Kimi Code CLI User Documentation',
       themeConfig: {
         nav: [
           { text: 'Guides', link: '/en/guides/getting-started', activeMatch: '/en/guides/' },
@@ -190,7 +190,7 @@ const config = withMermaid(defineConfig({
     outline: [2, 3],
     search: { provider: 'local' },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/MoonshotAI/kimi-code' },
+      { icon: 'github', link: 'https://github.com/claudianus/super-kimi-code' },
     ],
   },
 

@@ -10,6 +10,62 @@ export interface CompactionResult {
   retainedTokens?: number;
   compactedTokens?: number;
   qualityWarnings?: readonly string[];
+  parallelBlockCount?: number;
+  mergeInputTokens?: number;
+  repairAttempted?: boolean;
+  contextPack?: CompactionContextPack;
+}
+
+export interface CompactionContextPack {
+  readonly version: 'context_pack_v1';
+  readonly source: CompactionSource;
+  readonly algorithmVersion?: string;
+  readonly messageCounts: {
+    readonly summary: number;
+    readonly compacted: number;
+    readonly retained: number;
+  };
+  readonly tokenBudget: {
+    readonly before: number;
+    readonly after: number;
+    readonly summary: number;
+    readonly retained: number;
+    readonly compacted: number;
+  };
+  readonly evidence: {
+    readonly rawRefCount: number;
+    readonly rawRefKinds: readonly string[];
+    readonly actionTypes: readonly string[];
+    readonly qualityWarningCount: number;
+  };
+  readonly controls: {
+    readonly parallelBlockCount: number;
+    readonly mergeInputTokens: number;
+    readonly repairAttempted: boolean;
+    readonly providerContextManagement: string;
+  };
+  readonly contextOS: CompactionContextOS;
+}
+
+export type CompactionContextMemoryTier =
+  | 'working'
+  | 'episodic'
+  | 'semantic'
+  | 'procedural';
+
+export type CompactionContinuityStatus = 'ready' | 'needs_rehydration' | 'at_risk';
+
+export interface CompactionContextOS {
+  readonly version: 'context_os_v0';
+  readonly memoryTiers: readonly CompactionContextMemoryTier[];
+  readonly retrievalQueries: readonly string[];
+  readonly fileHints: readonly string[];
+  readonly rehydrationRawRefKinds: readonly string[];
+  readonly continuity: {
+    readonly status: CompactionContinuityStatus;
+    readonly score: number;
+    readonly reasons: readonly string[];
+  };
 }
 
 export interface CompactionResultAction {

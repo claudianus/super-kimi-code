@@ -1,7 +1,9 @@
-import type { Component } from '@earendil-works/pi-tui';
-import { describe, expect, it, vi } from 'vitest';
+import { visibleWidth, type Component } from '@earendil-works/pi-tui';
+import chalk from 'chalk';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GutterContainer } from '#/tui/components/chrome/gutter-container';
+import { currentTheme } from '#/tui/theme';
 
 class FakeChild implements Component {
   constructor(
@@ -14,6 +16,18 @@ class FakeChild implements Component {
 }
 
 describe('GutterContainer', () => {
+  const previousChalkLevel = chalk.level;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    currentTheme.setCanvasBackgroundEnabled(false);
+  });
+
+  afterEach(() => {
+    chalk.level = previousChalkLevel;
+    currentTheme.setCanvasBackgroundEnabled(true);
+  });
+
   it('prefixes every child line with `left` spaces', () => {
     const c = new GutterContainer(2, 2);
     c.addChild(new FakeChild(() => ['hello', 'world']));
@@ -53,5 +67,16 @@ describe('GutterContainer', () => {
     const c = new GutterContainer(2, 2);
     c.addChild(new FakeChild(() => [colored]));
     expect(c.render(20)).toEqual([`  ${colored}`]);
+  });
+
+  it('fills the full canvas width with the theme background when enabled', () => {
+    currentTheme.setCanvasBackgroundEnabled(true);
+    const c = new GutterContainer(2, 2);
+    c.addChild(new FakeChild(() => ['hello']));
+
+    const [line] = c.render(12);
+
+    expect(visibleWidth(line ?? '')).toBe(12);
+    expect(line).toContain('\u001B[48;2;');
   });
 });

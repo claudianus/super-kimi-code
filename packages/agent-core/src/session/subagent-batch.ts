@@ -42,6 +42,7 @@ const AGENT_SWARM_MAX_CONCURRENCY_ENV = 'KIMI_CODE_AGENT_SWARM_MAX_CONCURRENCY';
 type BaseQueuedSubagentTask<T> = {
   readonly data: T;
   readonly profileName: string;
+  readonly profileBaseName?: string;
   readonly parentToolCallId: string;
   readonly parentToolCallUuid?: string;
   readonly prompt: string;
@@ -323,6 +324,7 @@ export class SubagentBatch<T> {
       } else {
         const spawnOptions: SpawnSubagentOptions = {
           profileName: task.profileName,
+          profileBaseName: task.profileBaseName,
           swarmItem: task.swarmItem,
           ...runOptions,
         };

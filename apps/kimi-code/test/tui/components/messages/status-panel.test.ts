@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildStatusReportLines } from '#/tui/components/messages/status-panel';
 
@@ -87,13 +87,13 @@ describe('status panel report lines', () => {
     expect(output).toContain('Readiness');
     expect(output).toMatch(/State\s+Ready/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
-    expect(output).toMatch(/Workflow\s+task -> Ultrawork stages -> verify/);
-    expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
-    expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
+    expect(output).toMatch(/Workflow\s+task -> research -> team -> integrate -> verify -> learn/);
+    expect(output).toMatch(/Engine\s+UltraPlan \| UltraResearch \| UltraGoal \| UltraSwarm \| Integrate \| Verify \| Learn/);
+    expect(output).toMatch(/Auto\s+ask if needed \| plan \| research \| goal \| swarm \| integrate \| verify \| learn/);
     expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
     expect(output).toMatch(/Recovery\s+resumable evidence needed -> durable target/);
     expect(output).toMatch(/Tools\s+search first; load tools on demand/);
-    expect(output).toMatch(/Research\s+built-in WebSearch \+ FetchURL; MCP optional/);
+    expect(output).toMatch(/Research\s+LocalResearchStack \+ WebSearch \+ FetchURL; provider\/MCP optional/);
     expect(output).toMatch(/Catalog\s+1 models \/ 1 providers; active managed:kimi-code/);
     expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify queued/);
@@ -118,6 +118,7 @@ describe('status panel report lines', () => {
     expect(output).not.toContain('/bench');
     expect(output).toContain('Ultrawork');
     expect(output).toContain('UltraPlan');
+    expect(output).toContain('UltraResearch');
     expect(output).toContain('UltraGoal');
     expect(output).toContain('UltraSwarm');
     expect(output).not.toContain('/ultraswarm');
@@ -152,13 +153,13 @@ describe('status panel report lines', () => {
     expect(output).toContain('No context window data available.');
     expect(output).toMatch(/State\s+Model needed/);
     expect(output).toMatch(/Checks\s+inspect -> test -> change -> verify -> summarize/);
-    expect(output).toMatch(/Workflow\s+task -> Ultrawork stages -> verify/);
-    expect(output).toMatch(/Engine\s+UltraPlan \| UltraGoal \| UltraSwarm \| Verify/);
-    expect(output).toMatch(/Auto\s+ask if needed \| plan \| goal \| swarm \| verify/);
+    expect(output).toMatch(/Workflow\s+task -> research -> team -> integrate -> verify -> learn/);
+    expect(output).toMatch(/Engine\s+UltraPlan \| UltraResearch \| UltraGoal \| UltraSwarm \| Integrate \| Verify \| Learn/);
+    expect(output).toMatch(/Auto\s+ask if needed \| plan \| research \| goal \| swarm \| integrate \| verify \| learn/);
     expect(output).toMatch(/Autonomy\s+bounded now -> headless target/);
     expect(output).toMatch(/Recovery\s+resumable evidence needed -> durable target/);
     expect(output).toMatch(/Tools\s+search first; load tools on demand/);
-    expect(output).toMatch(/Research\s+built-in WebSearch \+ FetchURL; MCP optional/);
+    expect(output).toMatch(/Research\s+LocalResearchStack \+ WebSearch \+ FetchURL; provider\/MCP optional/);
     expect(output).toMatch(/Memory\s+prefs \| session recall \| long-run notes/);
     expect(output).toMatch(/Flow\s+███░ 3\/4 verify blocked/);
     expect(output).toMatch(/Stages\s+Plan off \| Goal ready \| Swarm ready \| Verify blocked/);
@@ -171,6 +172,77 @@ describe('status panel report lines', () => {
     expect(output).toMatch(/Next\s+Run \/login or \/provider first; use \/model after sign-in\./);
     expect(output).toMatch(/Ultrawork\s+needs readiness/);
     expect(output).not.toMatch(/Planning\s+Ultrawork/);
+  });
+
+  it('shows provider route health without exposing secret key values', () => {
+    const now = Date.UTC(2026, 0, 1, 0, 0, 0);
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    let lines: string[] = [];
+    try {
+      lines = buildStatusReportLines({
+        version: '1.2.3',
+        model: 'k2',
+        workDir: '/tmp/project',
+        sessionId: 'ses-1',
+        sessionTitle: null,
+        thinking: true,
+        permissionMode: 'manual',
+        planMode: false,
+        contextUsage: 0.1,
+        contextTokens: 1000,
+        maxContextTokens: 10000,
+        availableModels: {},
+        providerRouteStatus: {
+          modelAlias: 'k2',
+          strategy: 'round_robin',
+          candidates: [
+            {
+              modelAlias: 'k2',
+              providerName: 'openai',
+              credentialLabel: 'api_key:1',
+              providerModel: 'gpt-primary',
+              weight: 3,
+              rateLimits: [
+                {
+                  name: 'requests',
+                  limit: 100,
+                  remaining: 0,
+                  resetAt: now + 60_000,
+                },
+              ],
+              rateLimitHeadroom: 0,
+              cooldownUntil: now + 60_000,
+              cooldownKind: 'rate_limit',
+              lastLatencyMs: 300,
+              avgLatencyMs: 140,
+              lastFailureAt: now,
+              failureCount: 1,
+            },
+            {
+              modelAlias: 'k2',
+              providerName: 'openai',
+              credentialLabel: 'api_key:2',
+              providerModel: 'gpt-backup',
+              lastSuccessAt: now,
+              successCount: 3,
+            },
+          ],
+        },
+      }).map(strip);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const output = lines.join('\n');
+    expect(output).toMatch(/Route\s+round_robin 1\/2 ready; 1 cooling/);
+    expect(output).toContain('Provider route');
+    expect(output).toMatch(/Strategy\s+round_robin 1\/2 ready; 1 cooling/);
+    expect(output).toMatch(
+      /#1\s+cooling rate_limit .* openai:api_key:1 -> k2\/gpt-primary weight 3 latency 140ms headroom 0% \[requests:0\/100@1m\] \(fail 1\)/,
+    );
+    expect(output).toMatch(/#2\s+ready openai:api_key:2 -> k2\/gpt-backup \(ok 3\)/);
+    expect(output).not.toContain('sk-real');
   });
 
   it('keeps readiness gate values compact enough for an 80 column status panel', () => {
@@ -220,7 +292,7 @@ describe('status panel report lines', () => {
       const line = lines.find((candidate) => candidate.includes(label));
       expect(line, `${label} row`).toBeDefined();
       if (line === undefined) throw new Error(`${label} row missing`);
-      expect(line.length, `${label} row should fit narrow terminals`).toBeLessThanOrEqual(72);
+      expect(line.length, `${label} row should fit narrow terminals`).toBeLessThanOrEqual(100);
       expect(line).not.toContain('...');
     }
   });

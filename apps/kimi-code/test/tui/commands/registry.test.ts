@@ -46,6 +46,8 @@ describe('built-in slash command registry', () => {
     expect(findBuiltInSlashCommand('pf')?.name).toBe('preflight');
     expect(findBuiltInSlashCommand('ultraplan')?.name).toBe('ultrawork');
     expect(findBuiltInSlashCommand('up')?.name).toBe('ultrawork');
+    expect(findBuiltInSlashCommand('ultraresearch')?.name).toBe('ultrawork');
+    expect(findBuiltInSlashCommand('ur')?.name).toBe('ultrawork');
     expect(findBuiltInSlashCommand('ultraswarm')?.name).toBe('ultrawork');
     expect(findBuiltInSlashCommand('us')?.name).toBe('ultrawork');
     expect(findBuiltInSlashCommand('ultragoal')?.name).toBe('ultrawork');
@@ -212,12 +214,14 @@ describe('built-in slash command registry', () => {
     expect(swarm?.description).toBe('Advanced steering for UltraSwarm; Ultrawork auto-arms it');
     expect(swarm?.description).not.toContain('/swarm');
     expect(ultrawork?.description).toBe(
-      'Run Ultrawork: auto-link UltraPlan, UltraGoal, UltraSwarm, Verify',
+      'Run Ultrawork: auto-link UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn',
     );
     expect(ultrawork?.description).not.toContain('/ultrawork');
     expect((ultrawork as KimiSlashCommand | undefined)?.hiddenAliases).toEqual([
       'ultraplan',
       'up',
+      'ultraresearch',
+      'ur',
       'ultragoal',
       'ug',
       'ultraswarm',

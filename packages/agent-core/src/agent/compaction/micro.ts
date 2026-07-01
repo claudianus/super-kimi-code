@@ -15,6 +15,16 @@ export interface MicroCompactionConfig {
   minContextUsageRatio: number;
 }
 
+export interface MicroCompactionPolicyDecision {
+  readonly action: 'clear' | 'preserve';
+  readonly reason:
+    | 'error_result'
+    | 'known_mutating_tool'
+    | 'content_below_threshold'
+    | 'marker_not_smaller'
+    | 'replayable_tool_result';
+}
+
 const DEFAULT_CONFIG: MicroCompactionConfig = {
   keepRecentMessages: 20,
   minContentTokens: 100,
@@ -90,6 +100,7 @@ export class MicroCompaction {
         truncated_tool_result_count: effect.truncatedToolResultCount,
         truncated_tool_result_tokens_before: effect.truncatedToolResultTokensBefore,
         truncated_tool_result_tokens_after: effect.truncatedToolResultTokensAfter,
+        micro_policy_reason: effect.clearedPolicyReasons.join(','),
         tokens_before: tokensBefore,
         tokens_after: tokensAfter,
         previous_cutoff: previousCutoff,
@@ -111,7 +122,7 @@ export class MicroCompaction {
         i < this.cutoff &&
         msg.role === 'tool' &&
         msg.toolCallId !== undefined &&
-        this.shouldClearToolResult(msg, messages)
+        this.decideToolResultPolicy(msg, messages).action === 'clear'
       ) {
         result.push({
           ...msg,
@@ -137,23 +148,26 @@ export class MicroCompaction {
     let truncatedToolResultCount = 0;
     let truncatedToolResultTokensBefore = 0;
     let truncatedToolResultTokensAfter = 0;
+    const clearedPolicyReasons = new Set<MicroCompactionPolicyDecision['reason']>();
     for (let i = 0; i < messages.length && i < cutoff; i++) {
       const message = messages[i];
       if (message?.role !== 'tool' || message.toolCallId === undefined) continue;
 
-      const contentTokens = estimateTokensForContentParts(message.content);
-      if (contentTokens < this.config.minContentTokens) continue;
+      const decision = this.decideToolResultPolicy(message, messages);
+      if (decision.action !== 'clear') continue;
 
+      const contentTokens = estimateTokensForContentParts(message.content);
       const markerTokenCount = this.markerTokenCount(message, messages);
-      if (markerTokenCount >= contentTokens) continue;
       truncatedToolResultCount += 1;
       truncatedToolResultTokensBefore += contentTokens;
       truncatedToolResultTokensAfter += markerTokenCount;
+      clearedPolicyReasons.add(decision.reason);
     }
     return {
       truncatedToolResultCount,
       truncatedToolResultTokensBefore,
       truncatedToolResultTokensAfter,
+      clearedPolicyReasons: Array.from(clearedPolicyReasons).toSorted(),
     };
   }
 
@@ -161,30 +175,56 @@ export class MicroCompaction {
     message: ContextMessage,
     messages: readonly ContextMessage[],
   ): string {
+    const tokenCount = estimateTokensForContentParts(message.content);
+    const preview = contentPreview(message.content);
+    const policyReason = this.decideToolResultPolicy(message, messages).reason;
+    return this.renderMarker(message, messages, policyReason, tokenCount, preview);
+  }
+
+  private renderMarker(
+    message: ContextMessage,
+    messages: readonly ContextMessage[],
+    policyReason: MicroCompactionPolicyDecision['reason'],
+    tokenCount = estimateTokensForContentParts(message.content),
+    preview = contentPreview(message.content),
+  ): string {
     const toolCallId = message.toolCallId ?? 'unknown';
     const toolName = this.toolNameFor(toolCallId, messages) ?? 'unknown';
-    const tokenCount = estimateTokensForContentParts(message.content);
-    const preview = truncateForMarker(contentPreview(message.content), 80);
     return [
       this.config.truncatedMarker,
       `toolCallId=${toolCallId}`,
       `toolName=${toolName}`,
       `tokensBeforeClearing=${String(tokenCount)}`,
       `isError=${message.isError === true ? 'true' : 'false'}`,
+      `policyReason=${policyReason}`,
       'rawResult=replay',
       `preview=${preview}`,
     ].join('\n');
   }
 
-  private shouldClearToolResult(
+  private decideToolResultPolicy(
     message: ContextMessage,
     messages: readonly ContextMessage[],
-  ): boolean {
+  ): MicroCompactionPolicyDecision {
+    if (message.isError === true) {
+      return { action: 'preserve', reason: 'error_result' };
+    }
+
+    const toolName = this.toolNameFor(message.toolCallId ?? '', messages);
+    if (toolName !== undefined && isKnownMutatingTool(toolName)) {
+      return { action: 'preserve', reason: 'known_mutating_tool' };
+    }
+
     const contentTokens = estimateTokensForContentParts(message.content);
-    return (
-      contentTokens >= this.config.minContentTokens &&
-      this.markerTokenCount(message, messages) < contentTokens
-    );
+    if (contentTokens < this.config.minContentTokens) {
+      return { action: 'preserve', reason: 'content_below_threshold' };
+    }
+
+    if (this.markerTokenCount(message, messages) >= contentTokens) {
+      return { action: 'preserve', reason: 'marker_not_smaller' };
+    }
+
+    return { action: 'clear', reason: 'replayable_tool_result' };
   }
 
   private markerTokenCount(
@@ -192,7 +232,10 @@ export class MicroCompaction {
     messages: readonly ContextMessage[],
   ): number {
     return estimateTokensForContentParts([
-      { type: 'text', text: this.markerFor(message, messages) },
+      {
+        type: 'text',
+        text: this.renderMarker(message, messages, 'replayable_tool_result'),
+      },
     ]);
   }
 
@@ -209,15 +252,53 @@ export class MicroCompaction {
 }
 
 function contentPreview(parts: readonly ContentPart[]): string {
-  return parts.map(contentPartPreview).join('\n').trim();
+  return parts.map((part) => truncateForMarker(contentPartPreview(part), 80)).join('\n').trim();
 }
 
 function contentPartPreview(part: ContentPart): string {
   if (part.type === 'text') return part.text;
+  if (part.type === 'image_url') return mediaPartPreview('image_url', part.imageUrl);
+  if (part.type === 'audio_url') return mediaPartPreview('audio_url', part.audioUrl);
+  if (part.type === 'video_url') return mediaPartPreview('video_url', part.videoUrl);
   return `[${part.type}]`;
+}
+
+function mediaPartPreview(
+  type: string,
+  media: { readonly id?: string; readonly url?: string },
+): string {
+  const details = [
+    media.id === undefined ? undefined : `id=${media.id}`,
+    media.url === undefined ? undefined : `url=${media.url}`,
+  ].filter((item): item is string => item !== undefined);
+  return `[${type}${details.length > 0 ? ` ${details.join(' ')}` : ''}]`;
 }
 
 function truncateForMarker(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}...`;
+}
+
+const KNOWN_MUTATING_TOOLS = new Set([
+  'Agent',
+  'AgentSwarm',
+  'Bash',
+  'CronCreate',
+  'CronDelete',
+  'Edit',
+  'EnterPlanMode',
+  'ExitPlanMode',
+  'Memory',
+  'NextPhase',
+  'SetGoalBudget',
+  'Skill',
+  'TaskStop',
+  'TodoList',
+  'UltraSwarm',
+  'UpdateGoal',
+  'Write',
+]);
+
+function isKnownMutatingTool(toolName: string): boolean {
+  return KNOWN_MUTATING_TOOLS.has(toolName);
 }

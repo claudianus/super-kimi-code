@@ -1,85 +1,88 @@
-# Kimi Code CLI
+# Super Kimi Code CLI
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-online-blue)](https://moonshotai.github.io/kimi-code/en/) <br>
-[Documentation](https://moonshotai.github.io/kimi-code/en/) · [Issues](https://github.com/MoonshotAI/kimi-code/issues) · [中文](README.zh-CN.md)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-online-blue)](https://claudianus.github.io/super-kimi-code/en/) <br>
+[Documentation](https://claudianus.github.io/super-kimi-code/en/) · [Issues](https://github.com/claudianus/super-kimi-code/issues) · [한국어](README.ko.md) · [中文](README.zh-CN.md)
 
-![Demo of using Kimi Code](./docs/media/intro.gif)
+![Demo of using Super Kimi Code](./docs/media/intro.gif)
 
-## What is Kimi Code CLI
+## The coding agent for people who ship
 
-Kimi Code CLI is an AI coding agent that runs in your terminal — it can read and edit code, run shell commands, search files, fetch web pages, and choose the next step based on the feedback it receives. It works out of the box with Moonshot AI’s Kimi models and can also be configured to use other compatible providers.
+Super Kimi Code CLI is a terminal-native AI coding agent for real project work: reading and editing code, running shell commands, searching files, fetching web pages, coordinating subagents, and adjusting its plan from live feedback.
+
+This fork focuses on a smoother daily operator experience: one-command source installs, a faster and more expressive TUI, stronger provider/account setup, multi-key and OAuth account pools, quota-aware fallback routing, premium terminal themes, and workflow tools for long-running agent work.
 
 ## Install
 
-Install with the official script. No Node.js required.
+Install from this GitHub source repository. You need Git and Node.js `>=24.15.0`; Corepack uses the pinned pnpm version from `package.json`.
 
-- **macOS or Linux**:
-
-```sh
-curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
-```
-
-- **Homebrew (macOS/Linux)**:
+**macOS or Linux**
 
 ```sh
-brew install kimi-code
+curl -fsSL https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.sh | bash
 ```
 
-- **Windows (PowerShell)**:
+**Windows PowerShell**
 
 ```powershell
-irm https://code.kimi.com/kimi-code/install.ps1 | iex
+irm https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.ps1 | iex
 ```
 
-> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
+> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch. Super Kimi Code uses Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-Then, run it with a new shell session:
+Then open a new shell and verify the command:
 
 ```sh
-kimi --version
+skimi --version
 ```
 
-For npm install, upgrade, uninstall, see [Getting Started](https://moonshotai.github.io/kimi-code/en/guides/getting-started).
+The installer checks out the source under `~/.super-kimi-code/source`, builds the CLI, and installs the `skimi` command.
 
-## Quick Start
+## Quick start
 
 Open a project and start the interactive UI:
 
 ```sh
 cd your-project
-kimi
+skimi
 ```
 
-On first launch, run `/login` inside Kimi Code CLI and choose either Kimi Code OAuth or a Moonshot AI Open Platform API key. After login, try your first task:
+On first launch, run `/login` and choose Kimi Code OAuth or an API-key flow. To connect other providers, use `/provider` in the TUI or the non-interactive `kimi provider` commands:
+
+```sh
+kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY
+kimi provider key add openai --api-key-env OPENAI_BACKUP_KEY --label backup --auto-route
+kimi provider route status <sessionId>
+```
+
+Try a first task:
 
 ```
 Take a look at this project and explain its main directories.
 ```
 
-## Key Features
+## Why teams choose it
 
-- **Single-binary distribution.** Install with one command: no Node.js setup, PATH gymnastics, or global module conflicts.
-- **Blazing-fast startup.** The TUI is ready in milliseconds, so starting a session never feels heavy.
-- **Purpose-built TUI.** A carefully tuned interface, optimized end to end for long, focused agent sessions.
-- **Video input.** Drop a screen recording or demo clip into the chat and let the agent watch what is hard to describe in words — turn a reference clip into a LUT, a long video into a short, a screen recording into working code, and more.
-- **AI-native MCP configuration.** Add, edit, and authenticate Model Context Protocol servers conversationally with `/mcp-config`, without hand-editing JSON.
-- **Rich plugin ecosystem.** Install skills, MCP servers, and data sources from the marketplace or any GitHub repo, with each install's trust level surfaced up front.
-- **Subagents for focused, parallel work.** Dispatch built-in `coder`, `explore`, and `plan` subagents in isolated contexts while keeping the main conversation clean.
-- **Lifecycle hooks.** Run local commands at key points to gate risky tool calls, audit decisions, trigger desktop notifications, or connect to your own automation.
-- **Editor & IDE integration (ACP).** Drive a Kimi Code CLI session straight from Zed, JetBrains, or any [Agent Client Protocol](https://agentclientprotocol.com/) client with `kimi acp`.
+- **One-command source install**: install the fork directly from GitHub and get a local `skimi` command without global package conflicts.
+- **Fast, focused TUI**: a terminal UI tuned for long agent sessions, readable status, clean controls, and premium theme presets.
+- **Provider freedom**: connect Kimi, Anthropic, OpenAI-compatible providers, Google GenAI, Vertex AI, custom endpoints, and catalog-backed providers.
+- **Account and key pools**: register multiple API keys or OAuth accounts per provider, label them, set local RPM/TPM limits, and avoid exposing secrets in status views.
+- **Quota-aware routing**: route across healthy credentials and fallback models using strategies such as `auto`, `round_robin`, `weighted_round_robin`, `least_used`, `lowest_latency`, and `rate_limit_aware`.
+- **Operational visibility**: inspect provider setup with `kimi provider doctor`, preview route candidates, and watch live cooldown, quota, latency, and selected-candidate metadata.
+- **Subagents and workflows**: split focused work across built-in subagents and use Ultrawork flows for planning, goal tracking, research, and verification.
+- **Editor integration**: drive sessions from Zed, JetBrains, or any [Agent Client Protocol](https://agentclientprotocol.com/) client with `skimi acp`.
 
-## Use it in your editor (ACP)
+## Use it in your editor
 
-Kimi Code CLI speaks the [Agent Client Protocol](https://agentclientprotocol.com/), so ACP-compatible editors and IDEs (Zed, JetBrains, …) can drive a session over stdio. Log in once, then point your editor at the `kimi acp` subcommand — no extra login needed.
+Super Kimi Code CLI speaks the Agent Client Protocol, so ACP-compatible editors and IDEs can drive a session over stdio. Log in once, then point your editor at `skimi acp`.
 
 For Zed, add this to `~/.config/zed/settings.json`:
 
 ```json
 {
   "agent_servers": {
-    "Kimi Code CLI": {
+    "Super Kimi Code": {
       "type": "custom",
-      "command": "kimi",
+      "command": "skimi",
       "args": ["acp"],
       "env": {}
     }
@@ -87,45 +90,41 @@ For Zed, add this to `~/.config/zed/settings.json`:
 }
 ```
 
-Then open a new conversation in Zed's Agent panel. See [Using in IDEs](https://moonshotai.github.io/kimi-code/en/guides/ides) for JetBrains setup and troubleshooting, and the [`kimi acp` reference](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp) for the full capability matrix.
-
 ## Docs
 
-- [Getting Started](https://moonshotai.github.io/kimi-code/en/guides/getting-started)
-- [Interaction and approvals](https://moonshotai.github.io/kimi-code/en/guides/interaction)
-- [Sessions](https://moonshotai.github.io/kimi-code/en/guides/sessions)
-- [Using in IDEs (ACP)](https://moonshotai.github.io/kimi-code/en/guides/ides)
-- [Configuration](https://moonshotai.github.io/kimi-code/en/configuration/config-files)
-- [Command reference](https://moonshotai.github.io/kimi-code/en/reference/kimi-command)
+- [Getting Started](https://claudianus.github.io/super-kimi-code/en/guides/getting-started)
+- [Providers and models](https://claudianus.github.io/super-kimi-code/en/configuration/providers)
+- [Command reference](https://claudianus.github.io/super-kimi-code/en/reference/kimi-command)
+- [Interaction and approvals](https://claudianus.github.io/super-kimi-code/en/guides/interaction)
+- [Sessions](https://claudianus.github.io/super-kimi-code/en/guides/sessions)
+- [Using in IDEs](https://claudianus.github.io/super-kimi-code/en/guides/ides)
 
 ## Develop
 
-Requirements: Node.js ≥ 24.15.0, pnpm 10.33.0.
+Requirements: Node.js `>=24.15.0`, pnpm `10.33.0`.
 
 ```sh
-git clone https://github.com/MoonshotAI/kimi-code.git
-cd kimi-code
+git clone https://github.com/claudianus/super-kimi-code.git
+cd super-kimi-code
 pnpm install
 ```
 
 ```sh
-pnpm dev:cli    # run the CLI in dev mode
-pnpm test       # run tests
-pnpm typecheck  # TypeScript check
-pnpm lint       # oxlint
-pnpm build      # build all packages
+pnpm dev:cli
+pnpm test
+pnpm typecheck
+pnpm lint
+pnpm build
 ```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide.
 
 ## Community
 
-- [Issues](https://github.com/MoonshotAI/kimi-code/issues)
+- [Issues](https://github.com/claudianus/super-kimi-code/issues)
 - For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 
 ## Acknowledgements
 
-Our TUI is built on top of [`pi-tui`](https://github.com/earendil-works/pi-mono/tree/main/packages/tui). We thank the authors of `pi-tui` for their valuable work.
+Super Kimi Code builds on the Kimi Code project and the [`pi-tui`](https://github.com/earendil-works/pi-mono/tree/main/packages/tui) terminal UI foundation. We thank the original authors and contributors for the work this fork extends.
 
 ## License
 

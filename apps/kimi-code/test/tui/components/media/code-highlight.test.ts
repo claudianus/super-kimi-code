@@ -1,10 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import chalk from 'chalk';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { highlightLines, langFromPath } from '#/tui/components/media/code-highlight';
+import { currentTheme } from '#/tui/theme';
+import { darkColors } from '#/tui/theme/colors';
 
 import { captureProcessWrite } from '../../../helpers/process';
 
 describe('code-highlight', () => {
+  const previousChalkLevel = chalk.level;
+
+  afterEach(() => {
+    chalk.level = previousChalkLevel;
+    currentTheme.setPalette(darkColors);
+  });
+
   it('maps known file extensions to supported highlight languages', () => {
     expect(langFromPath('src/foo.ts')).toBe('typescript');
     expect(langFromPath('src/foo.TS')).toBe('typescript');
@@ -22,5 +32,17 @@ describe('code-highlight', () => {
     } finally {
       stderr.restore();
     }
+  });
+
+  it('uses syntax color tokens from the active TUI theme', () => {
+    chalk.level = 3;
+    currentTheme.setPalette({
+      ...darkColors,
+      syntaxKeyword: '#123456',
+    });
+
+    const highlighted = highlightLines('const value = "kimi";', 'typescript').join('\n');
+
+    expect(highlighted).toContain('\u001B[38;2;18;52;86m');
   });
 });

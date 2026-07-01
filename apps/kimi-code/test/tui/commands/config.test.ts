@@ -1,11 +1,17 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { handlePlanCommand, handleThemeCommand, handleThinkingCommand } from '#/tui/commands/config';
+import {
+  handleAppearanceCommand,
+  handlePlanCommand,
+  handleThemeCommand,
+  handleThinkingCommand,
+} from '#/tui/commands/config';
 import { dispatchInput, type SlashCommandHost } from '#/tui/commands/dispatch';
+import { DEFAULT_APPEARANCE_PREFERENCES, loadTuiConfig } from '#/tui/config';
 
 function makeHost(options: { planMode?: boolean; planPath?: string | undefined } = {}) {
   const session = {
@@ -35,6 +41,7 @@ function makeThemeHost() {
     editorCommand: null,
     notifications: { enabled: true, condition: 'unfocused' },
     upgrade: { autoInstall: true },
+    appearance: DEFAULT_APPEARANCE_PREFERENCES,
   };
   const host = {
     state: {
@@ -44,7 +51,9 @@ function makeThemeHost() {
       appState.theme = theme;
     }),
     refreshTerminalThemeTracking: vi.fn(),
+    setAppState: vi.fn((patch: Record<string, unknown>) => Object.assign(appState, patch)),
     showError: vi.fn(),
+    showNotice: vi.fn(),
     showStatus: vi.fn(),
     track: vi.fn(),
   };
@@ -170,6 +179,54 @@ describe('handleThemeCommand', () => {
       expect(host.showError).toHaveBeenCalledWith('Unknown theme: does-not-exist');
       expect(host.applyTheme).not.toHaveBeenCalled();
       expect(host.state.appState.theme).toBe('auto');
+    });
+  });
+
+  it('imports external themes without applying them immediately', async () => {
+    await withTempHome(async () => {
+      const source = join(process.env['KIMI_CODE_HOME']!, 'solar.yaml');
+      await writeFile(source, `
+scheme: "Solar"
+base00: "002b36"
+base05: "839496"
+base08: "dc322f"
+base0A: "b58900"
+base0B: "859900"
+base0C: "2aa198"
+base0D: "268bd2"
+base0E: "6c71c4"
+`, 'utf-8');
+      const host = makeThemeHost();
+
+      await handleThemeCommand(host, `import ${source}`);
+
+      expect(host.applyTheme).not.toHaveBeenCalled();
+      expect(host.showStatus).toHaveBeenCalledWith('Imported theme "solar" from file.', 'success');
+      const imported = JSON.parse(
+        await readFile(join(process.env['KIMI_CODE_HOME']!, 'themes', 'solar.json'), 'utf-8'),
+      ) as { readonly schemaVersion?: number };
+      expect(imported.schemaVersion).toBe(2);
+    });
+  });
+});
+
+describe('handleAppearanceCommand', () => {
+  it('persists appearance preferences and updates live state', async () => {
+    await withTempHome(async () => {
+      const host = makeThemeHost();
+
+      await handleAppearanceCommand(host, 'profile premium');
+
+      expect(host.state.appState.appearance.profile).toBe('premium');
+      expect((await loadTuiConfig()).appearance?.profile).toBe('premium');
+      expect(host.track).toHaveBeenCalledWith('appearance_changed', {
+        key: 'profile',
+        value: 'premium',
+      });
+      expect(host.showStatus).toHaveBeenCalledWith(
+        'Appearance profile set to premium.',
+        'success',
+      );
     });
   });
 });

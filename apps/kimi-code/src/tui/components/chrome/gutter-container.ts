@@ -9,9 +9,10 @@
  * the edge and adding them would just churn the diff renderer.
  */
 
-import { Container } from '@earendil-works/pi-tui';
+import { Container, visibleWidth } from '@earendil-works/pi-tui';
 import type { Component } from '@earendil-works/pi-tui';
 
+import { currentTheme } from '#/tui/theme';
 import { isRenderCacheEnabled } from '#/tui/utils/render-cache';
 
 interface TranscriptRenderCache {
@@ -62,7 +63,7 @@ export class GutterContainer extends Container {
         prefixed.push(cache.prefixed[i]!);
       } else {
         allReused = false;
-        prefixed.push(lines.map((line) => lead + line));
+        prefixed.push(lines.map((line) => paintCanvasLine(lead + line, width)));
       }
       i++;
     }
@@ -83,4 +84,10 @@ export class GutterContainer extends Container {
 
     return out;
   }
+}
+
+function paintCanvasLine(line: string, width: number): string {
+  if (!currentTheme.canvasBackgroundEnabled || width <= 0) return line;
+  const padding = Math.max(0, width - visibleWidth(line));
+  return currentTheme.bg('background', line + ' '.repeat(padding));
 }

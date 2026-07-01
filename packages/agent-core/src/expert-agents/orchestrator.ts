@@ -130,7 +130,7 @@ export class UltraSwarmOrchestrator {
   }
 
   private buildExpertPrompt(expert: ExpertCatalogEntry, taskDescription: string, index: number): string {
-    const base = `You are ${expert.name} (${expert.emoji}).\n\n${expert.personaText.slice(0, 1500)}`;
+    const base = `You are ${expert.name} (${expert.emoji}), the "${expert.id}" expert subagent.`;
     const context = index === 0
       ? `You have been summoned as part of an UltraSwarm to tackle this task:\n\n${taskDescription}\n\nFocus on your specific expertise and provide a detailed, high-quality contribution.`
       : `You are working alongside other experts on this task:\n\n${taskDescription}\n\nFocus on your specific expertise. Your work may build on or complement the work of other experts in the swarm.`;

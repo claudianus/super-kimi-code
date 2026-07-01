@@ -103,6 +103,33 @@ describe('events / display re-exports', () => {
     expect(parsed.sessionId).toBe('sess_1');
   });
 
+  it('validates selected provider route metadata on step completion events', () => {
+    const parsed = eventSchema.parse({
+      type: 'turn.step.completed',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      turnId: 1,
+      step: 1,
+      providerRouteSelection: {
+        modelAlias: 'backup',
+        providerName: 'anthropic',
+        credentialLabel: 'api_key:2',
+        providerModel: 'claude-backup',
+        baseUrl: 'https://anthropic.example/v1',
+      },
+    });
+
+    expect(parsed.type).toBe('turn.step.completed');
+    expect(
+      (parsed as { providerRouteSelection?: { credentialLabel?: string } })
+        .providerRouteSelection?.credentialLabel,
+    ).toBe('api_key:2');
+    expect(
+      (parsed as { providerRouteSelection?: { baseUrl?: string } }).providerRouteSelection
+        ?.baseUrl,
+    ).toBe('https://anthropic.example/v1');
+  });
+
   it('validates prompt.submitted events', () => {
     const parsed = eventSchema.parse({
       type: 'prompt.submitted',
@@ -117,6 +144,113 @@ describe('events / display re-exports', () => {
 
     expect(parsed.type).toBe('prompt.submitted');
     expect((parsed as { promptId: string }).promptId).toBe('prompt_1');
+  });
+
+  it('validates Ultrawork stage and research events', () => {
+    const run = {
+      id: 'uw_1',
+      objective: 'Ship the latest-library feature',
+      status: 'running',
+      stage: 'research',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:01.000Z',
+    };
+
+    const stageChanged = eventSchema.parse({
+      type: 'ultrawork.stage.changed',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      run,
+      from: 'plan',
+      to: 'research',
+      reason: 'latest API behavior may affect implementation',
+    });
+
+    expect(stageChanged.type).toBe('ultrawork.stage.changed');
+
+    const researchStarted = eventSchema.parse({
+      type: 'ultrawork.research.started',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      runId: 'uw_1',
+      topic: 'latest-library feature',
+      backends: [
+        {
+          id: 'local',
+          kind: 'local_research_stack',
+          role: 'assist',
+          status: 'selected',
+        },
+        {
+          id: 'kimi',
+          kind: 'kimi_web_search',
+          role: 'primary',
+          status: 'available',
+        },
+      ],
+    });
+
+    expect(researchStarted.type).toBe('ultrawork.research.started');
+  });
+
+  it('validates Ultrawork team, verification, and knowledge events', () => {
+    const staffed = eventSchema.parse({
+      type: 'ultrawork.team.staffed',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      runId: 'uw_1',
+      team: {
+        id: 'team_1',
+        runId: 'uw_1',
+        intensity: 'premium',
+        maxExperts: 24,
+        experts: [
+          {
+            id: 'frontend-architect',
+            name: 'Frontend Architect',
+            role: 'architecture',
+            focus: 'review',
+            status: 'queued',
+          },
+        ],
+      },
+    });
+
+    expect(staffed.type).toBe('ultrawork.team.staffed');
+
+    const verified = eventSchema.parse({
+      type: 'ultrawork.verification.completed',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      runId: 'uw_1',
+      verification: {
+        id: 'verify_1',
+        runId: 'uw_1',
+        status: 'passed',
+        checks: [{ name: 'typecheck', status: 'passed', command: 'pnpm typecheck' }],
+        completedAt: '2026-07-01T00:00:02.000Z',
+      },
+    });
+
+    expect(verified.type).toBe('ultrawork.verification.completed');
+
+    const promoted = eventSchema.parse({
+      type: 'ultrawork.knowledge.promoted',
+      agentId: 'main',
+      sessionId: 'sess_1',
+      runId: 'uw_1',
+      promotion: {
+        id: 'learn_1',
+        runId: 'uw_1',
+        target: 'llm_wiki',
+        findingId: 'finding_1',
+        title: 'Official API requirement',
+        promotedAt: '2026-07-01T00:00:03.000Z',
+        sourceEvidenceIds: ['evidence_1'],
+      },
+    });
+
+    expect(promoted.type).toBe('ultrawork.knowledge.promoted');
   });
 
   it('preserves detached on background task events', () => {

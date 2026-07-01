@@ -10,6 +10,8 @@ import { ErrorCodes, type KimiErrorPayload } from '../errors';
 import { DenyAllPermissionPolicy } from '../agent/permission/policies/deny-all';
 import { InMemoryAgentRecordPersistence } from '../agent/records';
 import { isAbortError } from '../loop/errors';
+import { EXPERT_CATALOG_BY_ID } from '../expert-agents/catalog';
+import type { ExpertCatalogEntry } from '../expert-agents/types';
 import {
   DEFAULT_AGENT_PROFILES,
   prepareSystemPromptContext,
@@ -82,6 +84,7 @@ export interface RunSubagentOptions {
 
 export interface SpawnSubagentOptions extends RunSubagentOptions {
   readonly profileName: string;
+  readonly profileBaseName?: string;
   readonly swarmItem?: string;
 }
 
@@ -115,7 +118,7 @@ export class SessionSubagentHost {
     options.signal.throwIfAborted();
 
     const parent = await this.session.ensureAgentResumed(this.ownerAgentId);
-    const profile = this.resolveProfile(parent, options.profileName);
+    const profile = this.resolveProfile(parent, options.profileName, options.profileBaseName);
     const { id, agent } = await this.session.createAgent(
       { type: 'sub', generate: parent.rawGenerate },
       { parentAgentId: this.ownerAgentId, swarmItem: options.swarmItem },
@@ -269,14 +272,30 @@ export class SessionSubagentHost {
     return metadata.swarmItem;
   }
 
-  private resolveProfile(parent: Agent, profileName: string): ResolvedAgentProfile {
+  private resolveProfile(
+    parent: Agent,
+    profileName: string,
+    profileBaseName?: string,
+  ): ResolvedAgentProfile {
     const profile =
       DEFAULT_AGENT_PROFILES[parent.config.profileName ?? 'agent']?.subagents?.[profileName] ??
       DEFAULT_AGENT_PROFILES['agent']?.subagents?.[profileName];
-    if (profile === undefined) {
+    if (profile !== undefined) return profile;
+
+    const expert = EXPERT_CATALOG_BY_ID[profileName];
+    if (expert === undefined) {
       throw new Error(`Subagent profile "${profileName}" was not found`);
     }
-    return profile;
+
+    const baseName = profileBaseName ?? 'coder';
+    const baseProfile =
+      DEFAULT_AGENT_PROFILES[parent.config.profileName ?? 'agent']?.subagents?.[baseName] ??
+      DEFAULT_AGENT_PROFILES['agent']?.subagents?.[baseName];
+    if (baseProfile === undefined) {
+      throw new Error(`Subagent profile "${baseName}" was not found`);
+    }
+
+    return createExpertSubagentProfile(expert, baseProfile);
   }
 
   private runWithActiveChild(
@@ -511,4 +530,44 @@ function shouldSuppressQueuedAttemptFailureEvent(
   if (options.suppressRateLimitFailureEvent !== true) return false;
   if (isProviderRateLimitError(error)) return true;
   return isAbortError(error) || options.signal.aborted;
+}
+
+function createExpertSubagentProfile(
+  expert: ExpertCatalogEntry,
+  baseProfile: ResolvedAgentProfile,
+): ResolvedAgentProfile {
+  return {
+    ...baseProfile,
+    name: expert.id,
+    description: expert.description,
+    whenToUse: expert.whenToUse.trim().length > 0 ? expert.whenToUse : expert.description,
+    systemPrompt: (context) =>
+      renderExpertSystemPrompt(baseProfile.systemPrompt(context), expert, baseProfile.name),
+    tools: [...baseProfile.tools],
+    subagents: baseProfile.subagents,
+  };
+}
+
+function renderExpertSystemPrompt(
+  basePrompt: string,
+  expert: ExpertCatalogEntry,
+  baseProfileName: string,
+): string {
+  return [
+    basePrompt,
+    '',
+    '## Expert Subagent Profile',
+    '',
+    `You are running as the "${expert.id}" expert subagent, based on the "${baseProfileName}" execution profile.`,
+    `Expert name: ${expert.name}`,
+    `Division: ${expert.divisionLabel} (${expert.division})`,
+    `Summary: ${expert.description}`,
+    expert.vibe.trim().length > 0 ? `Operating stance: ${expert.vibe}` : undefined,
+    '',
+    '<expert_persona>',
+    expert.personaText,
+    '</expert_persona>',
+    '',
+    'Apply this expert persona as your primary role while keeping all base subagent constraints: treat the parent agent as your caller, avoid asking the end user direct questions, and finish with a compact but technically complete handoff.',
+  ].filter((line): line is string => line !== undefined).join('\n');
 }

@@ -87,6 +87,39 @@ describe('custom theme loader', () => {
     expect(merged?.text).toBe(lightColors.text);
   });
 
+  it('accepts v2 skin metadata and expanded color tokens', async () => {
+    writeTheme('premium-v2', {
+      schemaVersion: 2,
+      name: 'premium-v2',
+      displayName: 'Premium V2',
+      base: 'dark',
+      colors: {
+        background: '#101820',
+        surfaceRaised: '#203040',
+        glow: '#33D6C5',
+        particle: '#F6C600',
+        gradientStart: '#2B9AF3',
+        gradientEnd: '#826BDB',
+      },
+      ansi: {
+        foreground: '#F2F4F8',
+        background: '#101820',
+      },
+      effects: { preset: 'premium' },
+      layout: { density: 'comfortable' },
+      source: { kind: 'file', url: 'example.test/theme' },
+    });
+
+    expect(await loadCustomTheme('premium-v2')).toEqual({
+      background: '#101820',
+      surfaceRaised: '#203040',
+      glow: '#33D6C5',
+      particle: '#F6C600',
+      gradientStart: '#2B9AF3',
+      gradientEnd: '#826BDB',
+    });
+  });
+
   it('exposes bundled Super Kimi themes without a user themes directory', async () => {
     rmSync(join(home, 'themes'), { recursive: true, force: true });
 
@@ -106,6 +139,21 @@ describe('custom theme loader', () => {
     );
     const bundled = await loadCustomThemeMerged('super-kimi-neon-noir');
     expect(bundled?.primary).toBe('#00D5FF');
+  });
+
+  it('exposes generated external terminal themes as bundled themes', async () => {
+    rmSync(join(home, 'themes'), { recursive: true, force: true });
+
+    expect(listAvailableThemeEntriesSync()).toContainEqual(
+      expect.objectContaining({
+        name: 'alacritty-dracula',
+        displayName: 'dracula (Alacritty)',
+        source: 'bundled-external',
+      }),
+    );
+    const bundled = await loadCustomThemeMerged('tinted-base24-catppuccin-mocha');
+    expect(bundled?.background).toBe('#1E1E2E');
+    expect(bundled?.syntaxKeyword).toBe('#F5C2E7');
   });
 
   it('lists user themes alongside bundled themes and lets user themes win name collisions', async () => {

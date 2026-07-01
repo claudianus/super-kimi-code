@@ -7,8 +7,11 @@ import type { Component } from '@earendil-works/pi-tui';
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 
+import { DEFAULT_APPEARANCE_PREFERENCES } from '#/tui/config';
+import { resolveResponsiveLayout } from '#/tui/controllers/responsive-layout';
 import type { AppState } from '#/tui/types';
 import { currentTheme } from '#/tui/theme';
+import { mascotWidth, renderKimiMascotIcon } from './kimi-mascot-icon';
 
 const LOGGED_IN_PROMPT = 'Describe task; Ultrawork runs the full workflow, then verifies.';
 
@@ -26,8 +29,10 @@ export class WelcomeComponent implements Component {
     const primary = (s: string): string => chalk.hex(currentTheme.palette.primary)(s);
     const isLoggedOut = !this.state.model;
     const activeModel = this.state.availableModels[this.state.model];
+    const layout = resolveResponsiveLayout({ width: safeWidth });
+    const appearance = this.state.appearance ?? DEFAULT_APPEARANCE_PREFERENCES;
 
-    if (safeWidth < 24) {
+    if (safeWidth < 24 || layout === 'tiny') {
       const title = chalk.bold.hex(currentTheme.palette.primary)('Welcome to Kimi Code!');
       const prompt = isLoggedOut
         ? chalk.hex(currentTheme.palette.warning)('Run /login or /provider to get started.')
@@ -43,11 +48,11 @@ export class WelcomeComponent implements Component {
     const innerWidth = Math.max(1, safeWidth - 4);
     const pad = '  ';
 
-    // Logo + side-by-side text.
-    const logo = ['▐█▛█▛█▌', '▐█████▌'] as const;
-    const logoWidth = Math.max(...logo.map((row) => visibleWidth(row)));
+    // Mascot + side-by-side text.
+    const logo = renderKimiMascotIcon({ layout, appearance });
+    const logoWidth = logo.length === 0 ? 0 : mascotWidth(logo);
     const gap = '  ';
-    const textWidth = Math.max(4, innerWidth - logoWidth - gap.length);
+    const textWidth = Math.max(4, innerWidth - logoWidth - (logoWidth > 0 ? gap.length : 0));
 
     const rightRow0 = truncateToWidth(
       chalk.bold.hex(currentTheme.palette.primary)('Welcome to Kimi Code!'),
@@ -62,10 +67,18 @@ export class WelcomeComponent implements Component {
       '…',
     );
 
-    const renderedHeaderLines = [
-      primary(logo[0].padEnd(logoWidth)) + gap + rightRow0,
-      primary(logo[1].padEnd(logoWidth)) + gap + rightRow1,
-    ];
+    const textRows = [rightRow0, rightRow1];
+    const headerRows = Math.max(logo.length, textRows.length);
+    const renderedHeaderLines: string[] = [];
+    for (let i = 0; i < headerRows; i++) {
+      const logoRow = logo[i] ?? ''.padEnd(logoWidth);
+      const textRow = textRows[i] ?? '';
+      renderedHeaderLines.push(
+        logoWidth > 0
+          ? logoRow + gap + textRow
+          : textRow,
+      );
+    }
 
     const modelValue = isLoggedOut
       ? chalk.hex(currentTheme.palette.warning)('not set, run /login or /provider')

@@ -13,6 +13,7 @@ export { darkColors, lightColors, getBuiltInPalette } from './colors';
 export type { ColorPalette, ResolvedTheme } from './colors';
 export { detectTerminalTheme } from './detect';
 export { loadCustomTheme, loadCustomThemeMerged, listCustomThemes } from './custom-theme-loader';
+export { importThemeSource } from './importer';
 
 /**
  * User-facing theme preference.

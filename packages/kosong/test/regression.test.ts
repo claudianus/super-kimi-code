@@ -1,14 +1,20 @@
 import { generate } from '#/generate';
 import type { Message, StreamedMessagePart } from '#/message';
 import { createAssistantMessage, createUserMessage } from '#/message';
-import type { ChatProvider, GenerateOptions, StreamedMessage, ThinkingEffort } from '#/provider';
+import type {
+  ChatProvider,
+  GenerateOptions,
+  ResponseHeaders,
+  StreamedMessage,
+  ThinkingEffort,
+} from '#/provider';
 import type { Tool } from '#/tool';
 import type { TokenUsage } from '#/usage';
 import { describe, expect, it } from 'vitest';
 
 function createMockStream(
   parts: StreamedMessagePart[],
-  opts?: { id?: string; usage?: TokenUsage },
+  opts?: { id?: string; usage?: TokenUsage; responseHeaders?: ResponseHeaders },
 ): StreamedMessage {
   return {
     get id(): string | null {
@@ -19,6 +25,7 @@ function createMockStream(
     },
     finishReason: null,
     rawFinishReason: null,
+    responseHeaders: opts?.responseHeaders,
     async *[Symbol.asyncIterator](): AsyncIterator<StreamedMessagePart> {
       for (const part of parts) {
         yield part;
@@ -61,6 +68,23 @@ describe('regression', () => {
         { type: 'image_url', imageUrl: { url: 'https://example.com/img.png' } },
         { type: 'text', text: '' },
       ]);
+    });
+  });
+
+  describe('response headers', () => {
+    it('copies provider response headers into the generate result', async () => {
+      const headers = {
+        'x-ratelimit-remaining-requests': '0',
+        'x-ratelimit-reset-requests': '30s',
+      };
+      const stream = createMockStream([{ type: 'text', text: 'done' }], {
+        responseHeaders: headers,
+      });
+      const provider = createMockProvider(stream);
+
+      const result = await generate(provider, '', [], []);
+
+      expect(result.responseHeaders).toBe(headers);
     });
   });
 

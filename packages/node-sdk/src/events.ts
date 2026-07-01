@@ -17,6 +17,9 @@ export type {
   GoalUpdatedEvent,
   SkillActivatedEvent,
   PluginCommandActivatedEvent,
+  ProviderRouteCandidateStatus,
+  ProviderRouteFailureKind,
+  ProviderRouteStatus,
   ErrorEvent,
   WarningEvent,
   UsageStatus,
@@ -106,6 +109,19 @@ export type {
 } from '@moonshot-ai/agent-core';
 
 export type { CronFiredEvent } from '@moonshot-ai/agent-core';
+
+// Ultrawork lifecycle events for theatre-style orchestration UIs.
+export type {
+  UltraworkStageChangedEvent,
+  UltraworkResearchStartedEvent,
+  UltraworkResearchProviderSelectedEvent,
+  UltraworkResearchFindingVerifiedEvent,
+  UltraworkTeamStaffedEvent,
+  UltraworkTaskAssignedEvent,
+  UltraworkCouncilDecisionEvent,
+  UltraworkVerificationCompletedEvent,
+  UltraworkKnowledgePromotedEvent,
+} from '@moonshot-ai/agent-core';
 
 export type MaybePromise<T> = T | Promise<T>;
 

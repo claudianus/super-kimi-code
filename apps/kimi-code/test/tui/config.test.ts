@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_APPEARANCE_PREFERENCES,
   DEFAULT_TUI_CONFIG,
   INVALID_TUI_CONFIG_MESSAGE,
   loadTuiConfig,
@@ -37,6 +38,10 @@ describe('TUI config', () => {
     expect(text).toContain('command = ""');
     expect(text).toContain('[upgrade]');
     expect(text).toContain('auto_install = true');
+    expect(text).toContain('[appearance]');
+    expect(text).toContain('profile = "auto"');
+    expect(text).toContain('canvas_background = true');
+    expect(text).toContain('terminal_background = "off"');
     expect(text).toContain('[notifications]');
     expect(text).toContain('enabled = true');
     expect(text).toContain('notification_condition = "unfocused"');
@@ -55,6 +60,16 @@ notification_condition = "always"
 
 [upgrade]
 auto_install = false
+
+[appearance]
+profile = "premium"
+density = "comfortable"
+particles = "events"
+mascot = "premium"
+animation_fps = 18
+canvas_background = false
+terminal_background = "session"
+terminal_palette = true
 `);
 
     expect(config).toEqual({
@@ -62,6 +77,16 @@ auto_install = false
       editorCommand: 'code --wait',
       notifications: { enabled: false, condition: 'always' },
       upgrade: { autoInstall: false },
+      appearance: {
+        profile: 'premium',
+        density: 'comfortable',
+        particles: 'events',
+        mascot: 'premium',
+        animationFps: 18,
+        canvasBackground: false,
+        terminalBackground: 'session',
+        terminalPalette: true,
+      },
     });
   });
 
@@ -76,6 +101,7 @@ command = "   "
       editorCommand: null,
       notifications: { enabled: true, condition: 'unfocused' },
       upgrade: { autoInstall: true },
+      appearance: DEFAULT_APPEARANCE_PREFERENCES,
     });
   });
 
@@ -84,6 +110,7 @@ command = "   "
 
     expect(config.notifications).toEqual({ enabled: true, condition: 'unfocused' });
     expect(config.upgrade).toEqual({ autoInstall: true });
+    expect(config.appearance).toEqual(DEFAULT_APPEARANCE_PREFERENCES);
   });
 
   it('throws TuiConfigParseError with fallback when parsing fails, leaving the file untouched', async () => {
@@ -107,6 +134,11 @@ command = "   "
         editorCommand: 'vim',
         notifications: { enabled: false, condition: 'always' },
         upgrade: { autoInstall: false },
+        appearance: {
+          ...DEFAULT_APPEARANCE_PREFERENCES,
+          profile: 'subtle',
+          animationFps: 10,
+        },
       },
       filePath,
     );
@@ -116,6 +148,11 @@ command = "   "
       editorCommand: 'vim',
       notifications: { enabled: false, condition: 'always' },
       upgrade: { autoInstall: false },
+      appearance: {
+        ...DEFAULT_APPEARANCE_PREFERENCES,
+        profile: 'subtle',
+        animationFps: 10,
+      },
     });
   });
 
@@ -127,6 +164,7 @@ command = "   "
         editorCommand: null,
         notifications: DEFAULT_TUI_CONFIG.notifications,
         upgrade: DEFAULT_TUI_CONFIG.upgrade,
+        appearance: DEFAULT_TUI_CONFIG.appearance,
       },
       filePath,
     );

@@ -32,6 +32,7 @@ import {
   type LoopRecordedEvent,
   type LoopTurnInterruptedEvent,
   type LoopTurnStopReason,
+  type RecordStepUsageInfo,
 } from '../../loop/index';
 import type { AgentEvent, TurnEndedEvent, TurnEndReason } from '../../rpc';
 import type { TelemetryPropertyValue } from '../../telemetry';
@@ -659,6 +660,7 @@ export class TurnFlow {
     while (true) {
       signal.throwIfAborted();
       const model = this.agent.config.model;
+      let stepUsageModel = model;
       const loopControl = this.agent.kimiConfig?.loopControl;
       let stopForGoalBudget = false;
       try {
@@ -673,7 +675,8 @@ export class TurnFlow {
           log: this.agent.log,
           maxSteps: loopControl?.maxStepsPerTurn,
           maxRetryAttempts: loopControl?.maxRetriesPerStep,
-          recordStepUsage: async (usage) => {
+          recordStepUsage: async (usage, info?: RecordStepUsageInfo) => {
+            stepUsageModel = info?.model ?? model;
             try {
               const snapshot = await this.agent.goal.recordTokenUsage(grandTotal(usage));
               stopForGoalBudget = snapshot?.budget.overBudget === true;
@@ -691,7 +694,7 @@ export class TurnFlow {
               return;
             },
             afterStep: async ({ usage }) => {
-              this.agent.usage.record(model, usage, 'turn');
+              this.agent.usage.record(stepUsageModel, usage, 'turn');
               await this.agent.fullCompaction.afterStep();
               deduper.endStep();
               return stopForGoalBudget ? { stopTurn: true } : undefined;
@@ -1002,6 +1005,7 @@ function mapLoopEvent(event: LoopEvent, turnId: number): AgentEvent | undefined 
         llmClientConsumeMs: event.llmClientConsumeMs,
         providerFinishReason: event.providerFinishReason,
         rawFinishReason: event.rawFinishReason,
+        providerRouteSelection: event.providerRouteSelection,
       };
     case 'step.retrying':
       return {

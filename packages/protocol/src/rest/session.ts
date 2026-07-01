@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 import { messageSchema } from '../message';
 import { cursorQuerySchema, pageResponseSchema } from '../pagination';
+import { providerRouteStatusSchema } from '../providerRoute';
 import {
   sessionChildCreateSchema,
   sessionCreateSchema,
@@ -107,6 +108,7 @@ export const sessionStatusResponseSchema = z.object({
   context_tokens: z.number().int().nonnegative(),
   max_context_tokens: z.number().int().nonnegative(),
   context_usage: z.number().min(0).max(1),
+  provider_route: providerRouteStatusSchema.nullable().optional(),
 });
 export type SessionStatusResponse = z.infer<typeof sessionStatusResponseSchema>;
 

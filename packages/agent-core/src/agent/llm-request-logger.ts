@@ -7,6 +7,8 @@ import type { LLMRequestLogFields } from '../loop';
 
 export type GenerateOptionsWithRequestLogFields = GenerateOptions & {
   readonly requestLogFields?: LLMRequestLogFields;
+  readonly runtimeModelAlias?: string;
+  readonly runtimeCredentialLabel?: string;
 };
 
 export class LlmRequestLogger {
@@ -55,13 +57,26 @@ export class LlmRequestLogger {
 
 export function splitGenerateOptions(options: GenerateOptionsWithRequestLogFields | undefined): {
   readonly requestLogFields: LLMRequestLogFields | undefined;
+  readonly runtimeModelAlias: string | undefined;
+  readonly runtimeCredentialLabel: string | undefined;
   readonly generateOptions: GenerateOptions | undefined;
 } {
   if (options === undefined) {
-    return { requestLogFields: undefined, generateOptions: undefined };
+    return {
+      requestLogFields: undefined,
+      runtimeModelAlias: undefined,
+      runtimeCredentialLabel: undefined,
+      generateOptions: undefined,
+    };
   }
   const { requestLogFields, ...generateOptions } = options;
-  return { requestLogFields, generateOptions };
+  const { runtimeModelAlias, runtimeCredentialLabel, ...providerGenerateOptions } = generateOptions;
+  return {
+    requestLogFields,
+    runtimeModelAlias,
+    runtimeCredentialLabel,
+    generateOptions: providerGenerateOptions,
+  };
 }
 
 function toolSignature(tools: readonly Tool[]) {

@@ -1179,6 +1179,36 @@ describe('managed Kimi Code protocol routing', () => {
     });
   });
 
+  it('preserves existing OAuth account refs when provisioning a new login key', () => {
+    const config: ManagedKimiConfigShape = {
+      providers: {
+        [KIMI_CODE_PROVIDER_NAME]: {
+          type: 'kimi',
+          baseUrl: 'https://api.kimi.com/coding/v1',
+          apiKey: '',
+          oauth: { storage: 'file', key: 'oauth/primary-account' },
+          oauths: [
+            { storage: 'file', key: 'oauth/backup-account' },
+            { storage: 'file', key: 'oauth/new-account' },
+          ],
+        },
+      },
+    };
+
+    applyManagedKimiCodeConfig(config, {
+      models: [makeModelInfo('kimi-for-coding')],
+      oauthKey: 'oauth/new-account',
+    });
+
+    expect(config.providers[KIMI_CODE_PROVIDER_NAME]).toMatchObject({
+      oauth: { storage: 'file', key: 'oauth/new-account' },
+      oauths: [
+        { storage: 'file', key: 'oauth/primary-account' },
+        { storage: 'file', key: 'oauth/backup-account' },
+      ],
+    });
+  });
+
   it('drops protocol-specific fields when the server stops declaring anthropic', () => {
     const config: ManagedKimiConfigShape = { providers: {} };
 

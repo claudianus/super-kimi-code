@@ -22,6 +22,7 @@ import { handleLoginCommand, handleLogoutCommand } from './auth';
 import { handleBtwCommand } from './btw';
 import {
   handleAutoCommand,
+  handleAppearanceCommand,
   handleCompactCommand,
   handleEditorCommand,
   handleModelCommand,
@@ -67,6 +68,7 @@ export { handleBtwCommand } from './btw';
 export { handleAddDirCommand } from './add-dir';
 export {
   handleAutoCommand,
+  handleAppearanceCommand,
   handleCompactCommand,
   handleEditorCommand,
   handleModelCommand,
@@ -135,6 +137,7 @@ export interface SlashCommandHost {
 
   // Theme
   applyTheme(theme: ThemeName, resolved?: ResolvedTheme): Promise<void>;
+  previewTheme(theme: ThemeName, resolved?: ResolvedTheme): Promise<void>;
   refreshTerminalThemeTracking(): void;
 
   // Dispatch
@@ -296,6 +299,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'theme':
       await handleThemeCommand(host, args);
+      return;
+    case 'appearance':
+      await handleAppearanceCommand(host, args);
       return;
     case 'model':
       await handleModelCommand(host, args);

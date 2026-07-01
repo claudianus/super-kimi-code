@@ -3,6 +3,7 @@ import { ChoicePickerComponent, type ChoiceOption } from './choice-picker';
 export type SettingsSelection =
   | 'model'
   | 'theme'
+  | 'appearance'
   | 'editor'
   | 'permission'
   | 'experiments'
@@ -24,6 +25,11 @@ const SETTINGS_OPTIONS: readonly ChoiceOption[] = [
     value: 'theme',
     label: 'Theme',
     description: 'Change the terminal UI theme.',
+  },
+  {
+    value: 'appearance',
+    label: 'Appearance',
+    description: 'Tune motion, density, mascot, and background.',
   },
   {
     value: 'editor',
@@ -51,6 +57,7 @@ function isSettingsSelection(value: string): value is SettingsSelection {
   return (
     value === 'model' ||
     value === 'theme' ||
+    value === 'appearance' ||
     value === 'editor' ||
     value === 'permission' ||
     value === 'experiments' ||

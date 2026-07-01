@@ -47,6 +47,10 @@ import {
   AgentSwarmTool,
   AgentSwarmToolInputSchema,
 } from '../../src/tools/builtin/collaboration/agent-swarm';
+import {
+  UltraSwarmTool,
+  UltraSwarmToolInputSchema,
+} from '../../src/tools/builtin/collaboration/ultra-swarm';
 
 vi.mock('../../src/tools/support/rg-locator', () => ({
   ensureRgPath: vi.fn(async () => ({ path: '/mock/rg', source: 'system-path' })),
@@ -903,6 +907,106 @@ describe('current builtin collaboration tools', () => {
       '</agent_swarm_result>',
     ].join('\n'));
     expect(result.isError).toBeUndefined();
+  });
+
+  it('UltraSwarm runs selected experts as named expert subagents', async () => {
+    const runQueued = vi.fn(
+      async <T>(
+        tasks: readonly QueuedSubagentTask<T>[],
+      ): Promise<Array<QueuedSubagentRunResult<T>>> =>
+        tasks.map((task, index) => ({
+          task,
+          agentId: `agent-expert-${String(index + 1)}`,
+          status: 'completed' as const,
+          result: `expert result ${String(index + 1)}`,
+        })),
+    );
+    const host = mockSubagentHost({
+      runQueued: runQueued as unknown as SessionSubagentHost['runQueued'],
+    });
+    const swarmMode = mockSwarmMode();
+    const tool = new UltraSwarmTool(host, swarmMode);
+    const input = {
+      description: 'Review the product launch plan',
+      experts: ['academic-anthropologist', 'design-brand-guardian'],
+      auto_select: false,
+      subagent_type: 'explore',
+      run_in_background: true,
+      intensity: 'premium' as const,
+      max_experts: 2,
+      focus: 'review' as const,
+    };
+
+    expect(UltraSwarmToolInputSchema.safeParse(input).success).toBe(true);
+    expect(
+      UltraSwarmToolInputSchema.safeParse({
+        ...input,
+        max_experts: 128,
+        experts: Array.from({ length: 128 }, (_, index) => `expert-${String(index + 1)}`),
+      }).success,
+    ).toBe(true);
+    expect(
+      UltraSwarmToolInputSchema.safeParse({
+        ...input,
+        max_experts: 128,
+        experts: Array.from({ length: 129 }, (_, index) => `expert-${String(index + 1)}`),
+      }).success,
+    ).toBe(false);
+
+    const result = await executeTool(tool, context(input, 'call_ultra_swarm'));
+
+    expect(swarmMode.enter).toHaveBeenCalledWith('tool');
+    expect(host.runQueued).toHaveBeenCalledTimes(1);
+    expect(host.runQueued).toHaveBeenCalledWith([
+      expect.objectContaining({
+        kind: 'spawn',
+        profileName: 'academic-anthropologist',
+        profileBaseName: 'explore',
+        parentToolCallId: 'call_ultra_swarm',
+        description: expect.stringContaining('(Anthropologist'),
+        swarmIndex: 1,
+        swarmItem: 'academic-anthropologist',
+        runInBackground: true,
+        signal,
+        timeout: DEFAULT_SUBAGENT_TIMEOUT_MS,
+      }),
+      expect.objectContaining({
+        kind: 'spawn',
+        profileName: 'design-brand-guardian',
+        profileBaseName: 'explore',
+        parentToolCallId: 'call_ultra_swarm',
+        description: expect.stringContaining('(Brand Guardian'),
+        swarmIndex: 2,
+        swarmItem: 'design-brand-guardian',
+        runInBackground: true,
+        signal,
+        timeout: DEFAULT_SUBAGENT_TIMEOUT_MS,
+      }),
+    ]);
+    const queuedTasks = runQueued.mock.calls[0]?.[0] ?? [];
+    expect(queuedTasks[0]?.prompt).toContain('<expert_briefing');
+    expect(queuedTasks[0]?.prompt).not.toContain('<expert_persona');
+    expect(queuedTasks[0]?.prompt).toContain('Focus lane: review.');
+    expect(result.output).toContain('<ultra_swarm_result>');
+    expect(result.output).toContain('<summary>completed: 2, failed: 0, aborted: 0</summary>');
+    expect(result.output).toContain('expert result 1');
+    expect(result.output).toContain('expert result 2');
+    expect(result.isError).toBeUndefined();
+  });
+
+  it('UltraSwarm rejects explicit expert requests above max_experts', async () => {
+    const host = mockSubagentHost({});
+    const tool = new UltraSwarmTool(host, mockSwarmMode());
+
+    const result = await executeTool(tool, context({
+      description: 'Run a focused review',
+      experts: ['academic-anthropologist', 'design-brand-guardian'],
+      auto_select: false,
+      max_experts: 1,
+    }));
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain('max_experts is 1');
   });
 
   it('Skill exposes parameters and reports unknown skills as tool errors', async () => {

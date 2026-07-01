@@ -14,8 +14,15 @@ Kimi Code CLI 可以使用内置配色，也可以使用自定义 JSON 主题文
 | `textStrong` | `#F5F5F5` | `#1A1A1A` | 加粗强调文字。输入类对话框、状态消息 |
 | `textDim` | `#888888` | `#454545` | 次级、变暗文字。思考、提示、描述、已完成 todo、Markdown 引用、footer 状态栏 |
 | `textMuted` | `#6B6B6B` | `#5F5F5F` | 最浅文字。计数、滚动信息、描述、Markdown 链接 URL、代码块边框 |
+| `background` | `#0B0F14` | `#FFFFFF` | TUI 根画布背景 |
+| `surface` | `#111827` | `#F4F7FB` | 默认面板和对话框表面 |
+| `surfaceRaised` | `#182233` | `#E8F0FA` | 聚焦或 premium chrome 的抬高表面 |
+| `surfaceSunken` | `#080C10` | `#EEF2F7` | 非活动面板和凹陷区域表面 |
 | `border` | `#5A5A5A` | `#737373` | 面板与编辑器的普通边框、Markdown 分隔线 |
 | `borderFocus` | `#E8A838` | `#92660A` | 聚焦/注意边框，目前仅审批面板使用 |
+| `selectionBg` | `#1D4E89` | `#D8E8FF` | 选择器和导入终端调色板的选中背景 |
+| `selectionText` | `#F5F5F5` | `#0B1020` | 选中文本 |
+| `cursor` | `#E0E0E0` | `#1A1A1A` | opt-in 终端调色板修改使用的光标颜色 |
 | `success` | `#4EC87E` | `#0E7A38` | 成功态。`✓`、已启用、完成 |
 | `warning` | `#E8A838` | `#92660A` | 警告态。auto/yolo 徽章、过期标记、Plan 模式提示 |
 | `error` | `#E85454` | `#B91C1C` | 错误态。错误信息、失败的工具输出 |
@@ -27,6 +34,20 @@ Kimi Code CLI 可以使用内置配色，也可以使用自定义 JSON 主题文
 | `diffMeta` | `#888888` | `#5F5F5F` | diff 元信息 / hunk 头 |
 | `roleUser` | `#FFCB6B` | `#9A4A00` | 用户消息的子弹头与文字、技能激活名 |
 | `shellMode` | `#BD93F9` | `#7C3AED` | Shell 模式（`!`）的提示符、编辑器边框，以及回显的 `$ 命令` 行 |
+| `glow` | `#7DD3FC` | `#075985` | premium mascot 和聚焦效果的光晕强调 |
+| `particle` | `#B784FF` | `#7C3AED` | 事件爆发和环境效果的粒子强调 |
+| `gradientStart` | `#00D5FF` | `#075985` | premium 渐变起点 |
+| `gradientEnd` | `#B784FF` | `#0F766E` | premium 渐变终点 |
+| `syntaxText` | `#E0E0E0` | `#1A1A1A` | 代码高亮默认文本 / 标识符 |
+| `syntaxKeyword` | `#C792EA` | `#6D28D9` | 代码高亮关键字、常量与内建符号 |
+| `syntaxFunction` | `#82AAFF` | `#075985` | 代码高亮函数与方法名 |
+| `syntaxType` | `#FFCB6B` | `#9A4A00` | 代码高亮类名、类型名与属性 |
+| `syntaxString` | `#C3E88D` | `#0E7A38` | 代码高亮字符串字面量 |
+| `syntaxNumber` | `#F78C6C` | `#B45309` | 代码高亮数字与布尔字面量 |
+| `syntaxComment` | `#697098` | `#6B7280` | 代码高亮注释与文档标签 |
+| `syntaxOperator` | `#89DDFF` | `#0F766E` | 代码高亮操作符、标点与符号 |
+| `syntaxTag` | `#F07178` | `#B91C1C` | 代码高亮标签、选择器与标记名 |
+| `syntaxMeta` | `#7FDBCA` | `#5F5F5F` | 代码高亮元信息、装饰器与预处理行 |
 
 ## 使用 custom-theme skill
 
@@ -84,7 +105,7 @@ Kimi Code CLI 可以使用内置配色，也可以使用自定义 JSON 主题文
 
 两种方式：
 
-1. **`/theme` 命令**（推荐）：打开主题选择器，自定义主题会以 `Custom: <文件名>` 出现。选择器**每次打开都会重新扫描主题目录**，所以你新加的主题文件**无需重启**就能看到。
+1. **`/theme` 命令**（推荐）：打开主题选择器，里面包含 Super Kimi 预设、内置外部终端主题和自定义主题。移动焦点会立即预览当前高亮主题，包括 demo 面板和代码高亮色。自定义主题会以 `Custom: <文件名>` 出现。选择器**每次打开都会重新扫描主题目录**，所以你新加的主题文件**无需重启**就能看到。
 2. **`tui.toml`**：把 `theme` 设成你的主题名：
 
    ```toml

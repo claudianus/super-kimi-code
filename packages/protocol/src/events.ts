@@ -6,12 +6,38 @@ import { sessionSchema, sessionStatusSchema, type Session, type SessionStatus } 
 import { isoDateTimeSchema } from './time';
 import { configResponseSchema, type ConfigResponse } from './rest/config';
 import {
+  providerRouteSelectionSchema,
+  providerRouteStatusSchema,
+  type ProviderRouteSelection,
+  type ProviderRouteStatus,
+} from './providerRoute';
+import {
   providerRefreshChangeSchema,
   providerRefreshFailureSchema,
   type ProviderRefreshChange,
   type ProviderRefreshFailure,
 } from './modelCatalog';
 import { workspaceSchema, type Workspace } from './workspace';
+import {
+  councilDecisionSchema,
+  knowledgePromotionSchema,
+  researchBackendSchema,
+  researchEvidenceSchema,
+  teamPlanSchema,
+  ultraworkRunSchema,
+  ultraworkStageSchema,
+  verificationResultSchema,
+  workGraphNodeSchema,
+  type CouncilDecision,
+  type KnowledgePromotion,
+  type ResearchBackend,
+  type ResearchEvidence,
+  type TeamPlan,
+  type UltraworkRun,
+  type UltraworkStage,
+  type VerificationResult,
+  type WorkGraphNode,
+} from './ultrawork';
 
 export interface TokenUsage {
   readonly inputOther: number;
@@ -329,6 +355,7 @@ export interface AgentStatusUpdatedEvent {
   readonly swarmMode?: boolean;
   readonly permission?: PermissionMode;
   readonly usage?: UsageStatus;
+  readonly providerRoute?: ProviderRouteStatus | null;
 }
 
 export interface SessionMetaUpdatedEvent {
@@ -376,6 +403,63 @@ export interface ModelCatalogChangedEvent {
   readonly changed: readonly ProviderRefreshChange[];
   readonly unchanged: readonly string[];
   readonly failed: readonly ProviderRefreshFailure[];
+}
+
+export interface UltraworkStageChangedEvent {
+  readonly type: 'ultrawork.stage.changed';
+  readonly run: UltraworkRun;
+  readonly from?: UltraworkStage;
+  readonly to: UltraworkStage;
+  readonly reason?: string;
+}
+
+export interface UltraworkResearchStartedEvent {
+  readonly type: 'ultrawork.research.started';
+  readonly runId: string;
+  readonly topic: string;
+  readonly backends: readonly ResearchBackend[];
+}
+
+export interface UltraworkResearchProviderSelectedEvent {
+  readonly type: 'ultrawork.research.provider.selected';
+  readonly runId: string;
+  readonly backend: ResearchBackend;
+}
+
+export interface UltraworkResearchFindingVerifiedEvent {
+  readonly type: 'ultrawork.research.finding.verified';
+  readonly runId: string;
+  readonly evidence: ResearchEvidence;
+}
+
+export interface UltraworkTeamStaffedEvent {
+  readonly type: 'ultrawork.team.staffed';
+  readonly runId: string;
+  readonly team: TeamPlan;
+}
+
+export interface UltraworkTaskAssignedEvent {
+  readonly type: 'ultrawork.task.assigned';
+  readonly runId: string;
+  readonly task: WorkGraphNode;
+}
+
+export interface UltraworkCouncilDecisionEvent {
+  readonly type: 'ultrawork.council.decision';
+  readonly runId: string;
+  readonly decision: CouncilDecision;
+}
+
+export interface UltraworkVerificationCompletedEvent {
+  readonly type: 'ultrawork.verification.completed';
+  readonly runId: string;
+  readonly verification: VerificationResult;
+}
+
+export interface UltraworkKnowledgePromotedEvent {
+  readonly type: 'ultrawork.knowledge.promoted';
+  readonly runId: string;
+  readonly promotion: KnowledgePromotion;
 }
 
 export interface GoalUpdatedEvent {
@@ -449,6 +533,7 @@ export interface TurnStepCompletedEvent {
   readonly llmClientConsumeMs?: number;
   readonly providerFinishReason?: FinishReason;
   readonly rawFinishReason?: string;
+  readonly providerRouteSelection?: ProviderRouteSelection;
 }
 
 export interface TurnStepRetryingEvent {
@@ -665,6 +750,15 @@ export type AgentEvent =
   | SessionStatusChangedEvent
   | ConfigChangedEvent
   | ModelCatalogChangedEvent
+  | UltraworkStageChangedEvent
+  | UltraworkResearchStartedEvent
+  | UltraworkResearchProviderSelectedEvent
+  | UltraworkResearchFindingVerifiedEvent
+  | UltraworkTeamStaffedEvent
+  | UltraworkTaskAssignedEvent
+  | UltraworkCouncilDecisionEvent
+  | UltraworkVerificationCompletedEvent
+  | UltraworkKnowledgePromotedEvent
   | GoalUpdatedEvent
   | SkillActivatedEvent
   | PluginCommandActivatedEvent
@@ -1019,6 +1113,7 @@ export const agentStatusUpdatedEventSchema = z.object({
   swarmMode: z.boolean().optional(),
   permission: permissionModeSchema.optional(),
   usage: usageStatusSchema.optional(),
+  providerRoute: providerRouteStatusSchema.nullable().optional(),
 }) satisfies z.ZodType<AgentStatusUpdatedEvent>;
 
 export const sessionMetaUpdatedEventSchema = z.object({
@@ -1067,6 +1162,63 @@ export const modelCatalogChangedEventSchema = z.object({
   unchanged: z.array(z.string().min(1)),
   failed: z.array(providerRefreshFailureSchema),
 }) satisfies z.ZodType<ModelCatalogChangedEvent>;
+
+export const ultraworkStageChangedEventSchema = z.object({
+  type: z.literal('ultrawork.stage.changed'),
+  run: ultraworkRunSchema,
+  from: ultraworkStageSchema.optional(),
+  to: ultraworkStageSchema,
+  reason: z.string().optional(),
+}) satisfies z.ZodType<UltraworkStageChangedEvent>;
+
+export const ultraworkResearchStartedEventSchema = z.object({
+  type: z.literal('ultrawork.research.started'),
+  runId: z.string().min(1),
+  topic: z.string().min(1),
+  backends: z.array(researchBackendSchema),
+}) satisfies z.ZodType<UltraworkResearchStartedEvent>;
+
+export const ultraworkResearchProviderSelectedEventSchema = z.object({
+  type: z.literal('ultrawork.research.provider.selected'),
+  runId: z.string().min(1),
+  backend: researchBackendSchema,
+}) satisfies z.ZodType<UltraworkResearchProviderSelectedEvent>;
+
+export const ultraworkResearchFindingVerifiedEventSchema = z.object({
+  type: z.literal('ultrawork.research.finding.verified'),
+  runId: z.string().min(1),
+  evidence: researchEvidenceSchema,
+}) satisfies z.ZodType<UltraworkResearchFindingVerifiedEvent>;
+
+export const ultraworkTeamStaffedEventSchema = z.object({
+  type: z.literal('ultrawork.team.staffed'),
+  runId: z.string().min(1),
+  team: teamPlanSchema,
+}) satisfies z.ZodType<UltraworkTeamStaffedEvent>;
+
+export const ultraworkTaskAssignedEventSchema = z.object({
+  type: z.literal('ultrawork.task.assigned'),
+  runId: z.string().min(1),
+  task: workGraphNodeSchema,
+}) satisfies z.ZodType<UltraworkTaskAssignedEvent>;
+
+export const ultraworkCouncilDecisionEventSchema = z.object({
+  type: z.literal('ultrawork.council.decision'),
+  runId: z.string().min(1),
+  decision: councilDecisionSchema,
+}) satisfies z.ZodType<UltraworkCouncilDecisionEvent>;
+
+export const ultraworkVerificationCompletedEventSchema = z.object({
+  type: z.literal('ultrawork.verification.completed'),
+  runId: z.string().min(1),
+  verification: verificationResultSchema,
+}) satisfies z.ZodType<UltraworkVerificationCompletedEvent>;
+
+export const ultraworkKnowledgePromotedEventSchema = z.object({
+  type: z.literal('ultrawork.knowledge.promoted'),
+  runId: z.string().min(1),
+  promotion: knowledgePromotionSchema,
+}) satisfies z.ZodType<UltraworkKnowledgePromotedEvent>;
 
 export const goalUpdatedEventSchema = z.object({
   type: z.literal('goal.updated'),
@@ -1139,6 +1291,7 @@ export const turnStepCompletedEventSchema = z.object({
   llmClientConsumeMs: z.number().optional(),
   providerFinishReason: finishReasonSchema.optional(),
   rawFinishReason: z.string().optional(),
+  providerRouteSelection: providerRouteSelectionSchema.optional(),
 }) satisfies z.ZodType<TurnStepCompletedEvent>;
 
 export const turnStepRetryingEventSchema = z.object({
@@ -1348,6 +1501,15 @@ export const agentEventSchema = z.discriminatedUnion('type', [
   workspaceDeletedEventSchema,
   sessionStatusChangedEventSchema,
   modelCatalogChangedEventSchema,
+  ultraworkStageChangedEventSchema,
+  ultraworkResearchStartedEventSchema,
+  ultraworkResearchProviderSelectedEventSchema,
+  ultraworkResearchFindingVerifiedEventSchema,
+  ultraworkTeamStaffedEventSchema,
+  ultraworkTaskAssignedEventSchema,
+  ultraworkCouncilDecisionEventSchema,
+  ultraworkVerificationCompletedEventSchema,
+  ultraworkKnowledgePromotedEventSchema,
   goalUpdatedEventSchema,
   skillActivatedEventSchema,
   pluginCommandActivatedEventSchema,

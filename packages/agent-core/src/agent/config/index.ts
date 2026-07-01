@@ -16,7 +16,10 @@ import {
   type ThinkingEffort,
   type ThinkingModelDefaults,
 } from './thinking';
-import type { ResolvedRuntimeProvider } from '../../session/provider-manager';
+import type {
+  ResolvedRuntimeProvider,
+  ResolvedRuntimeProviderRoute,
+} from '../../session/provider-manager';
 
 export * from './types';
 export { resolveThinkingEffort, type ThinkingEffort } from './thinking';
@@ -104,12 +107,20 @@ export class ConfigState {
   }
 
   get provider(): ChatProvider {
-    // All provider-level request config is applied here so every request built
-    // from config.provider — the main loop AND full-history compaction — carries it:
-    //   - withThinking: preserve thinking during compaction (#464)
-    //   - sampling params: KIMI_MODEL_TEMPERATURE / KIMI_MODEL_TOP_P
-    //   - thinking.keep: KIMI_MODEL_THINKING_KEEP (only while thinking is on)
-    const provider = createProvider(this.providerConfig).withThinking(this.thinkingLevel);
+    return this.createRuntimeProvider(this.resolvedProviderConfig);
+  }
+
+  get providerRoute(): ResolvedRuntimeProviderRoute | undefined {
+    if (this._modelAlias === undefined) return undefined;
+    return this.agent.modelProvider?.resolveProviderRoute?.(this._modelAlias);
+  }
+
+  createRuntimeProvider(resolved: ResolvedRuntimeProvider | undefined): ChatProvider {
+    const providerConfig = resolved?.provider;
+    if (providerConfig === undefined) {
+      throw new KimiError(ErrorCodes.MODEL_NOT_CONFIGURED, 'Provider not set');
+    }
+    const provider = createProvider(providerConfig).withThinking(this.thinkingLevel);
     return applyKimiEnvThinkingKeep(applyKimiEnvSamplingParams(provider), this.thinkingLevel);
   }
 

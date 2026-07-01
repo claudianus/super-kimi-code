@@ -12,7 +12,7 @@ export type ParsedUltraworkCommand =
   | { readonly kind: 'error'; readonly message: string; readonly severity?: 'error' | 'hint' };
 
 const ULTRA_WORKFLOW_TERM_PATTERN =
-  String.raw`(?:ultrawork|ultra[-\s]?work|ultragoal|ultra[-\s]?goal|ultraplan|ultra[-\s]?plan|ultraswarm|ultra[-\s]?swarm|울트라\s?워크|울트라\s?골|울트라\s?플랜|울트라\s?스웜)`;
+  String.raw`(?:ultrawork|ultra[-\s]?work|ultragoal|ultra[-\s]?goal|ultraplan|ultra[-\s]?plan|ultraresearch|ultra[-\s]?research|ultraswarm|ultra[-\s]?swarm|울트라\s?워크|울트라\s?골|울트라\s?플랜|울트라\s?리서치|울트라\s?스웜)`;
 const EXPLICIT_ULTRAWORK_PATTERN = new RegExp(
   ULTRA_WORKFLOW_TERM_PATTERN,
   'i',
@@ -49,22 +49,26 @@ const ULTRAWORK_OPT_OUT_PATTERN =
   );
 const ULTRAWORK_ORCHESTRATION_GUIDANCE = [
   'Ultrawork orchestration:',
-  '- Treat Ultrawork as one workflow, not separate user-facing modes: it automatically links and activates UltraPlan, UltraGoal, UltraSwarm, and verified finish inside one continuous run.',
-  '- Ultrawork is the product workflow; UltraPlan, UltraGoal, and UltraSwarm are internal stages that auto-link and auto-activate inside that workflow.',
-  '- Workflow spine: UltraPlan -> UltraGoal -> UltraSwarm -> Verify.',
-  '- Activation sequence: create or replace the UltraGoal, enable UltraPlan, arm UltraSwarm, then drive implementation and Verify without asking the user to stitch the stages together.',
+  '- Treat Ultrawork as one workflow, not separate user-facing modes: it automatically links and activates UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, and Learn inside one continuous run.',
+  '- Ultrawork is the product workflow; UltraPlan, UltraResearch, UltraGoal, and UltraSwarm are internal stages that auto-link and auto-activate inside that workflow.',
+  '- Workflow spine: UltraPlan -> UltraResearch -> UltraGoal -> UltraSwarm -> Integrate -> Verify -> Learn.',
+  '- Activation sequence: create or replace the UltraGoal, enable UltraPlan, run UltraResearch when current knowledge matters, arm UltraSwarm, integrate specialist work, Verify, then Learn by saving only verified durable findings.',
   '- Normal task text is the preferred entry point; /ultrawork is an advanced steering override for operators who want to explicitly start the full workflow.',
-  '- UltraPlan: clarify ambiguous or large requests, ask only blocking questions, and turn the request into a concrete verified goal.',
+  '- UltraPlan: clarify ambiguous or large requests, ask only blocking questions, identify knowledge gaps, and turn the request into a concrete verified goal.',
+  '- UltraResearch: when latest APIs, papers, security, benchmarks, release notes, or OSS examples can affect correctness, produce an evidence pack before implementation. Search multiple focused angles in parallel, fetch primary sources, label candidate vs verified findings, and never rely on snippets alone for implementation-affecting claims.',
   '- UltraGoal: keep the active goal as the durable execution contract; update or replace it only when the clarified objective materially changes.',
-  '- UltraSwarm: auto-engage specialist agents only when parallel PM, architecture, TUI, QA, security, or performance review materially improves outcome or speed.',
-  '- UltraSwarm is armed by Ultrawork setup; proactively invoke specialist agents for cross-domain, risky, UI/UX, QA, security, performance, or long-horizon tasks, and otherwise note why single-agent execution is enough.',
+  '- UltraSwarm: auto-engage specialist agents only when parallel research, PM, architecture, TUI, QA, security, performance, integration, or verification materially improves outcome or speed.',
+  '- UltraSwarm is armed by Ultrawork setup; proactively invoke specialist agents for cross-domain, current-knowledge, risky, UI/UX, QA, security, performance, or long-horizon tasks, and otherwise note why single-agent execution is enough.',
+  '- Integrate: appoint an integration owner to merge specialist output, resolve conflicts, and reduce duplicate or contradictory recommendations before editing.',
+  '- Verify: run the relevant mechanical checks and real TUI/CLI surface checks; verify research claims against fetched sources when they affect behavior.',
+  '- Learn: persist only verified durable findings, decisions, and source-backed project knowledge to Kimi Recall or LLM Wiki. Do not store raw pages, transient logs, secrets, or unverified snippets.',
   '- Write a Swarm decision before implementation: ENGAGE when parallel PM, architecture, TUI, QA, security, performance, or long-horizon review materially improves the outcome; DEFER when single-agent execution is faster and lower-risk.',
   '- Before implementation, emit one visible line in this shape: `Swarm decision: ENGAGE|DEFER - <reason>; value: <specialist value or none>; owner: <verification owner>`.',
   '- For every Swarm decision, include the reason, expected specialist value or none, and verification owner so the harness can audit the orchestration choice.',
-  '- Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
+  '- Do not ask the user to choose /ultraplan, /ultraresearch, /ultragoal, or /ultraswarm; decide and orchestrate the needed stages inside Ultrawork.',
   '- If the user names an individual Ultra stage, normalize it into the same Ultrawork run instead of exposing a separate mode choice.',
   '- When the task is already actionable, do not stall in UltraPlan; advance into UltraGoal, UltraSwarm when useful, and verification with best judgment.',
-  '- Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',
+  '- Treat Korean brand mentions such as 울트라플랜, 울트라리서치, 울트라골, and 울트라 스웜 as the same internal stages, not as separate modes the user must configure.',
 ].join('\n');
 const ULTRAWORK_LEAN_CONTEXT_GUIDANCE = [
   'Kimi Lean Context:',
@@ -83,15 +87,18 @@ const ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE = [
   '- Prefer path/affected-style questions first: what files, tests, tools, and UX surfaces are connected to this change, and what minimal evidence proves those edges?',
 ].join('\n');
 const ULTRAWORK_WEB_RESEARCH_GUIDANCE = [
-  'Kimi Free Web Research:',
+  'UltraResearch / Kimi Free Web Research:',
   '- Treat no-subscription web research as a primary Ultrawork capability for current libraries, APIs, model releases, benchmarks, security, architecture, and debugging work.',
-  '- Prefer the built-in WebSearch and FetchURL tools; WebSearch must have a local no-subscription provider before paid or external search services. Use precise 3-12 keyword queries, then fetch primary sources before relying on snippets.',
+  '- Understand the search backend boundary: Super Kimi WebSearch is the harness tool backed by LocalResearchStack or configured services; Kimi `$web_search`, OpenAI web_search, Anthropic web search, Moonshot service search, and MCP search are separate provider-native or external accelerators when configured.',
+  '- LocalResearchStack is always the free fallback path: DuckDuckGo HTML, configured SearXNG/YaCy, direct public sources such as GitHub/arXiv/npm/PyPI/crates.io, local cache, Kimi Recall, LLM Wiki, and workspace docs.',
+  '- Prefer the built-in WebSearch and FetchURL tools first. Use precise 3-12 keyword queries, fan out across docs, releases, papers, security, benchmarks, and OSS examples, then fetch primary sources before relying on snippets.',
   '- Prioritize official docs, release notes, GitHub issues and PRs, papers, benchmark pages, and dated primary sources; record source URLs for claims that affect implementation.',
-  '- Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.',
+  '- Feed verified durable findings back into Kimi Knowledge Map, memory, LLM Wiki, benchmark radar, or SOTA criteria instead of keeping one-off link dumps.',
   '- Keep the primary research path internal: built-in WebSearch and FetchURL own search, fetch, extraction, source evidence, and readiness. Absorb Scrapling-class ideas such as CSS selector targeting, main-content extraction, screenshots, session reuse, dynamic public-page rendering hooks, and adaptive element relocation behind internal providers; MCP or CLI bridges are optional only when explicitly requested.',
   '- Use browser automation for public pages, rendered DOM observation, screenshots, downloads, PDF extraction, user-provided authenticated sessions, and explicitly authorized test targets.',
   '- Authorized/public access boundary: do not defeat CAPTCHA, paywall, login, permission, rate-limit, robots, or other access-control systems.',
-  '- Default path must work without a paid search subscription or extra-cost search API; optional paid providers are only an explicitly configured accelerator.',
+  '- Default path must work without a paid search subscription or extra-cost search API; optional paid/provider-native/MCP providers are only explicitly configured accelerators.',
+  '- If all live search paths fail, use cached/local knowledge only, label it stale/offline, and avoid claiming currentness.',
 ].join('\n');
 const ULTRAWORK_BENCH_GUIDANCE = [
   'Kimi Agent Bench:',

@@ -30,6 +30,23 @@ export const UpgradePreferencesSchema = z.object({
   autoInstall: z.boolean(),
 });
 
+export const AppearanceProfileSchema = z.enum(['auto', 'off', 'subtle', 'premium']);
+export const AppearanceDensitySchema = z.enum(['auto', 'compact', 'comfortable', 'spacious']);
+export const AppearanceParticlesSchema = z.enum(['auto', 'off', 'ambient', 'events', 'premium']);
+export const AppearanceMascotSchema = z.enum(['auto', 'minimal', 'standard', 'premium', 'off']);
+export const TerminalBackgroundSchema = z.enum(['off', 'session']);
+
+export const AppearancePreferencesSchema = z.object({
+  profile: AppearanceProfileSchema,
+  density: AppearanceDensitySchema,
+  particles: AppearanceParticlesSchema,
+  mascot: AppearanceMascotSchema,
+  animationFps: z.number().int().min(1).max(30),
+  canvasBackground: z.boolean(),
+  terminalBackground: TerminalBackgroundSchema,
+  terminalPalette: z.boolean(),
+});
+
 export const TuiConfigFileSchema = z.object({
   theme: TuiThemeSchema.optional(),
   editor: z
@@ -48,6 +65,18 @@ export const TuiConfigFileSchema = z.object({
       auto_install: z.boolean().optional(),
     })
     .optional(),
+  appearance: z
+    .object({
+      profile: AppearanceProfileSchema.optional(),
+      density: AppearanceDensitySchema.optional(),
+      particles: AppearanceParticlesSchema.optional(),
+      mascot: AppearanceMascotSchema.optional(),
+      animation_fps: z.number().int().min(1).max(30).optional(),
+      canvas_background: z.boolean().optional(),
+      terminal_background: TerminalBackgroundSchema.optional(),
+      terminal_palette: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const TuiConfigSchema = z.object({
@@ -55,12 +84,14 @@ export const TuiConfigSchema = z.object({
   editorCommand: z.string().nullable(),
   notifications: NotificationsConfigSchema,
   upgrade: UpgradePreferencesSchema,
+  appearance: AppearancePreferencesSchema.optional(),
 });
 
 export type TuiConfigFileShape = z.infer<typeof TuiConfigFileSchema>;
 export type TuiConfig = z.infer<typeof TuiConfigSchema>;
 export type NotificationsConfig = z.infer<typeof NotificationsConfigSchema>;
 export type UpgradePreferences = z.infer<typeof UpgradePreferencesSchema>;
+export type AppearancePreferences = z.infer<typeof AppearancePreferencesSchema>;
 
 export const DEFAULT_NOTIFICATIONS_CONFIG: NotificationsConfig = {
   enabled: true,
@@ -71,11 +102,23 @@ export const DEFAULT_UPGRADE_PREFERENCES: UpgradePreferences = {
   autoInstall: true,
 };
 
+export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
+  profile: 'auto',
+  density: 'auto',
+  particles: 'auto',
+  mascot: 'auto',
+  animationFps: 12,
+  canvasBackground: true,
+  terminalBackground: 'off',
+  terminalPalette: false,
+};
+
 export const DEFAULT_TUI_CONFIG: TuiConfig = TuiConfigSchema.parse({
   theme: 'auto',
   editorCommand: null,
   notifications: DEFAULT_NOTIFICATIONS_CONFIG,
   upgrade: DEFAULT_UPGRADE_PREFERENCES,
+  appearance: DEFAULT_APPEARANCE_PREFERENCES,
 });
 
 /**
@@ -141,10 +184,25 @@ export function normalizeTuiConfig(config: TuiConfigFileShape): TuiConfig {
     upgrade: {
       autoInstall: config.upgrade?.auto_install ?? DEFAULT_UPGRADE_PREFERENCES.autoInstall,
     },
+    appearance: {
+      profile: config.appearance?.profile ?? DEFAULT_APPEARANCE_PREFERENCES.profile,
+      density: config.appearance?.density ?? DEFAULT_APPEARANCE_PREFERENCES.density,
+      particles: config.appearance?.particles ?? DEFAULT_APPEARANCE_PREFERENCES.particles,
+      mascot: config.appearance?.mascot ?? DEFAULT_APPEARANCE_PREFERENCES.mascot,
+      animationFps:
+        config.appearance?.animation_fps ?? DEFAULT_APPEARANCE_PREFERENCES.animationFps,
+      canvasBackground:
+        config.appearance?.canvas_background ?? DEFAULT_APPEARANCE_PREFERENCES.canvasBackground,
+      terminalBackground:
+        config.appearance?.terminal_background ?? DEFAULT_APPEARANCE_PREFERENCES.terminalBackground,
+      terminalPalette:
+        config.appearance?.terminal_palette ?? DEFAULT_APPEARANCE_PREFERENCES.terminalPalette,
+    },
   });
 }
 
 export function renderTuiConfig(config: TuiConfig): string {
+  const appearance = config.appearance ?? DEFAULT_APPEARANCE_PREFERENCES;
   return `# ~/.kimi-code/tui.toml
 # Client preferences for kimi-code.
 # Agent/runtime settings stay in ~/.kimi-code/config.toml.
@@ -160,6 +218,16 @@ notification_condition = "${config.notifications.condition}" # "unfocused" | "al
 
 [upgrade]
 auto_install = ${String(config.upgrade.autoInstall)} # true | false
+
+[appearance]
+profile = "${appearance.profile}" # "auto" | "off" | "subtle" | "premium"
+density = "${appearance.density}" # "auto" | "compact" | "comfortable" | "spacious"
+particles = "${appearance.particles}" # "auto" | "off" | "ambient" | "events" | "premium"
+mascot = "${appearance.mascot}" # "auto" | "minimal" | "standard" | "premium" | "off"
+animation_fps = ${String(appearance.animationFps)} # 1..30
+canvas_background = ${String(appearance.canvasBackground)} # Fill TUI-owned cells with theme background
+terminal_background = "${appearance.terminalBackground}" # "off" | "session"
+terminal_palette = ${String(appearance.terminalPalette)} # true applies terminal palette until exit
 `;
 }
 

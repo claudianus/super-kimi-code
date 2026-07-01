@@ -122,28 +122,29 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('<ultrawork_flow>');
     expect(prompt).toContain('Ship feature X');
     expect(prompt).toContain('Ultrawork orchestration');
-    expect(prompt).toContain('UltraPlan -> UltraGoal -> UltraSwarm');
+    expect(prompt).toContain('UltraPlan -> UltraResearch -> UltraGoal -> UltraSwarm -> Integrate -> Verify -> Learn');
     expect(prompt).toContain('one workflow, not separate user-facing modes');
-    expect(prompt).toContain('Ultrawork is the product workflow; UltraPlan, UltraGoal, and UltraSwarm are internal stages');
+    expect(prompt).toContain('Ultrawork is the product workflow; UltraPlan, UltraResearch, UltraGoal, and UltraSwarm are internal stages');
     expect(prompt).toContain('normalize it into the same Ultrawork run');
-    expect(prompt).toContain('automatically links and activates UltraPlan, UltraGoal, UltraSwarm');
-    expect(prompt).toContain('create or replace the UltraGoal, enable UltraPlan, arm UltraSwarm');
+    expect(prompt).toContain('automatically links and activates UltraPlan, UltraResearch, UltraGoal, UltraSwarm');
+    expect(prompt).toContain('create or replace the UltraGoal, enable UltraPlan, run UltraResearch');
     expect(prompt).toContain('Normal task text is the preferred entry point');
     expect(prompt).toContain('/ultrawork is an advanced steering override');
     expect(prompt).toContain('UltraPlan: clarify ambiguous or large requests');
+    expect(prompt).toContain('UltraResearch: when latest APIs, papers, security, benchmarks');
     expect(prompt).toContain('UltraGoal: keep the active goal as the durable execution contract');
     expect(prompt).toContain('UltraSwarm: auto-engage specialist agents');
     expect(prompt).toContain('UltraSwarm is armed by Ultrawork setup');
     expect(prompt).toContain('proactively invoke specialist agents');
     expect(prompt).toContain('Write a Swarm decision before implementation');
     expect(prompt).toContain('Swarm decision: ENGAGE|DEFER');
-    expect(prompt).toContain('ENGAGE when parallel PM, architecture, TUI, QA, security, performance, or long-horizon review materially improves the outcome');
+    expect(prompt).toContain('ENGAGE when parallel PM, architecture, TUI, QA, security, performance');
     expect(prompt).toContain('DEFER when single-agent execution is faster and lower-risk');
     expect(prompt).toContain('value: <specialist value or none>; owner: <verification owner>');
     expect(prompt).toContain('include the reason, expected specialist value or none, and verification owner');
-    expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultragoal, or /ultraswarm');
+    expect(prompt).toContain('Do not ask the user to choose /ultraplan, /ultraresearch, /ultragoal, or /ultraswarm');
     expect(prompt).toContain('When the task is already actionable, do not stall in UltraPlan');
-    expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라골, and 울트라 스웜 as the same internal stages');
+    expect(prompt).toContain('Treat Korean brand mentions such as 울트라플랜, 울트라리서치, 울트라골, and 울트라 스웜 as the same internal stages');
     expect(prompt).toContain('ultra-plan');
     expect(prompt).toContain('kanban');
     expect(prompt).toContain('Kimi Lean Context');
@@ -153,13 +154,14 @@ describe('buildUltraworkPrompt', () => {
     expect(prompt).toContain('compact project knowledge map');
     expect(prompt).toContain('EXTRACTED, INFERRED, or AMBIGUOUS');
     expect(prompt).toContain('path/affected-style questions');
-    expect(prompt).toContain('Kimi Free Web Research');
+    expect(prompt).toContain('UltraResearch / Kimi Free Web Research');
     expect(prompt).toContain('no-subscription web research as a primary Ultrawork capability');
     expect(prompt).toContain('built-in WebSearch and FetchURL tools');
+    expect(prompt).toContain('LocalResearchStack is always the free fallback path');
     expect(prompt).toContain('precise 3-12 keyword queries');
     expect(prompt).toContain('fetch primary sources before relying on snippets');
     expect(prompt).toContain('official docs, release notes, GitHub issues and PRs, papers, benchmark pages');
-    expect(prompt).toContain('Feed durable findings back into Kimi Knowledge Map, memory, benchmark radar, or SOTA criteria');
+    expect(prompt).toContain('Feed verified durable findings back into Kimi Knowledge Map, memory, LLM Wiki');
     expect(prompt).toContain('Absorb Scrapling-class ideas');
     expect(prompt).toContain('CSS selector targeting, main-content extraction, screenshots, session reuse');
     expect(prompt).toContain('rendered DOM observation, screenshots, downloads, PDF extraction');
@@ -266,15 +268,18 @@ describe('handleUltraworkCommand', () => {
     expect(host.setAppState).toHaveBeenCalledWith({ planMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({ swarmMode: true });
     expect(host.setAppState).toHaveBeenCalledWith({
-      activityTip: 'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify',
+      activityTip: 'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn',
     });
     expect(renderedMarker(host)).toContain('Ultrawork activated');
-    expect(renderedMarker(host)).toContain('UltraPlan -> UltraGoal -> UltraSwarm -> Verify');
+    expect(renderedMarker(host)).toContain('UltraPlan>UltraResearch>UltraGoal>UltraSwarm>Integrate>Verify>Learn');
     expect(renderedMarker(host)).toContain(
-      'One Ultrawork: UltraPlan, UltraGoal, UltraSwarm auto-activate',
+      'One Ultrawork: plan, research, team, integrate, verify, learn',
     );
     expect(renderedMarker(host)).toContain(
-      'Next: Swarm decision: ENGAGE|DEFER reason + value + owner',
+      'Research: local fallback + provider/MCP accelerators; verified sources only',
+    );
+    expect(renderedMarker(host)).toContain(
+      'Next: Research + Swarm decision: ENGAGE|DEFER reason + value + owner',
     );
     expect(renderedMarker(host)).toContain('Ship feature X');
     expect(host.sendNormalUserInput).toHaveBeenCalledWith(

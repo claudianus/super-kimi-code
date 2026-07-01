@@ -5,7 +5,14 @@ import { normalizeAdditionalDirs } from '../config';
 import { ErrorCodes, KimiError, makeErrorPayload } from '#/errors';
 import { log } from '#/logging/logger';
 import type { Logger } from '#/logging/types';
-import type { AgentAPI, AgentEvent, KimiConfig, SDKAgentRPC, UsageStatus } from '#/rpc';
+import type {
+  AgentAPI,
+  AgentEvent,
+  KimiConfig,
+  ProviderRouteStatus,
+  SDKAgentRPC,
+  UsageStatus,
+} from '#/rpc';
 import { generate } from '@moonshot-ai/kosong';
 
 import { expandCommandArguments } from '../plugin/commands';
@@ -27,6 +34,7 @@ import {
   type CompactionStrategy,
   type MicroCompactionConfig,
 } from './compaction';
+import { ContextOSManager } from './context-os';
 import { CronManager } from './cron';
 import { ConfigState } from './config';
 import { ContextMemory } from './context';
@@ -49,7 +57,12 @@ import type { SkillRegistry } from './skill/types';
 import { SwarmMode } from './swarm';
 import { ToolManager } from './tool/index';
 import { TurnFlow } from './turn';
-import { KosongLLM } from './turn/kosong-llm';
+import {
+  InMemoryProviderRouteState,
+  KosongLLM,
+  type KosongLLMRoute,
+  type KosongLLMRouteCandidate,
+} from './turn/kosong-llm';
 import { UsageRecorder } from './usage';
 import { LlmRequestLogger, splitGenerateOptions } from './llm-request-logger';
 import { resolveCompletionBudget } from '../utils/completion-budget';
@@ -119,6 +132,7 @@ export class Agent {
   readonly records: AgentRecords;
   readonly fullCompaction: FullCompaction;
   readonly microCompaction: MicroCompaction;
+  readonly contextOS: ContextOSManager;
   readonly context: ContextMemory;
   readonly config: ConfigState;
   readonly turn: TurnFlow;
@@ -133,6 +147,7 @@ export class Agent {
   readonly cron: CronManager | null;
   readonly goal: GoalMode;
   readonly replayBuilder: ReplayBuilder;
+  readonly providerRouteState: InMemoryProviderRouteState;
 
   private additionalDirs: readonly string[];
 
@@ -174,6 +189,7 @@ export class Agent {
     );
     this.fullCompaction = new FullCompaction(this, options.compactionStrategy);
     this.microCompaction = new MicroCompaction(this, options.microCompaction);
+    this.contextOS = new ContextOSManager(this);
     this.context = new ContextMemory(this);
     this.config = new ConfigState(this);
     this.turn = new TurnFlow(this);
@@ -191,6 +207,7 @@ export class Agent {
     this.cron = this.type === 'sub' ? null : new CronManager(this);
     this.goal = new GoalMode(this);
     this.replayBuilder = new ReplayBuilder(this, options.replay);
+    this.providerRouteState = new InMemoryProviderRouteState();
   }
 
   setKaos(kaos: Kaos) {
@@ -210,8 +227,9 @@ export class Agent {
 
   get generate(): typeof generate {
     return async (provider, systemPrompt, tools, history, callbacks, options) => {
-      const { requestLogFields, generateOptions } = splitGenerateOptions(options);
-      const modelAlias = this.config.modelAlias;
+      const { requestLogFields, runtimeModelAlias, runtimeCredentialLabel, generateOptions } =
+        splitGenerateOptions(options);
+      const modelAlias = runtimeModelAlias ?? this.config.modelAlias;
       const run = (requestOptions: Parameters<typeof generate>[5]) => {
         this.llmRequestLogger.logRequest({
           provider,
@@ -229,7 +247,10 @@ export class Agent {
       const withAuth =
         modelAlias === undefined
           ? undefined
-          : this.modelProvider?.resolveAuth?.(modelAlias, { log: this.log });
+          : this.modelProvider?.resolveAuth?.(modelAlias, {
+              log: this.log,
+              credentialLabel: runtimeCredentialLabel,
+            });
       if (withAuth === undefined) {
         return run(generateOptions);
       }
@@ -255,7 +276,38 @@ export class Agent {
       generate: this.generate,
       completionBudgetConfig,
       usedContextTokens: () => this.context.tokenCount,
+      route: this.buildLLMRoute(loopControl?.reservedContextSize),
+      routeState: this.providerRouteState,
+      onRouteStatusChanged: () => this.emitStatusUpdated(),
+      log: this.log,
     });
+  }
+
+  private buildLLMRoute(reservedContextSize: number | undefined): KosongLLMRoute | undefined {
+    const route = this.config.providerRoute;
+    if (route === undefined || route.candidates.length === 0) return undefined;
+    return {
+      key: route.modelAlias,
+      strategy: route.strategy,
+      cooldownMs: route.cooldownMs,
+      sessionAffinity: route.sessionAffinity,
+      preferredCredential: route.preferredCredential,
+      candidates: route.candidates.map((candidate): KosongLLMRouteCandidate => {
+        return {
+          modelAlias: candidate.modelAlias,
+          providerName: candidate.providerName,
+          credentialLabel: candidate.credentialLabel,
+          weight: candidate.weight,
+          localLimits: candidate.localLimits,
+          provider: this.config.createRuntimeProvider(candidate),
+          capability: candidate.modelCapabilities,
+          completionBudgetConfig: resolveCompletionBudget({
+            maxOutputSize: candidate.maxOutputSize,
+            reservedContextSize,
+          }),
+        };
+      }),
+    };
   }
 
   useProfile(profile: ResolvedAgentProfile, context?: PreparedSystemPromptContext): void {
@@ -438,6 +490,8 @@ export class Agent {
       getPermission: () => this.permission.data(),
       getPlan: () => this.planMode.data(),
       getUsage: () => this.usage.data(),
+      getProviderRouteStatus: () => this.providerRouteStatus(),
+      resetProviderRouteStatus: () => this.resetProviderRouteStatus(),
       getTools: () => this.tools.data(),
       getBackground: (payload) => this.background.list(payload.activeOnly ?? false, payload.limit),
     };
@@ -446,6 +500,20 @@ export class Agent {
   emitEvent(event: AgentEvent): void {
     if (this.records.restoring) return;
     void this.rpc?.emitEvent?.(event);
+  }
+
+  providerRouteStatus(): ProviderRouteStatus | null {
+    const route = this.buildLLMRoute(this.kimiConfig?.loopControl?.reservedContextSize);
+    return route === undefined ? null : this.providerRouteState.snapshot(route);
+  }
+
+  resetProviderRouteStatus(): ProviderRouteStatus | null {
+    const route = this.buildLLMRoute(this.kimiConfig?.loopControl?.reservedContextSize);
+    if (route === undefined) return null;
+    const changed = this.providerRouteState.reset(route);
+    const status = this.providerRouteState.snapshot(route);
+    if (changed) this.emitStatusUpdated();
+    return status;
   }
 
   emitStatusUpdated(): void {
@@ -460,6 +528,7 @@ export class Agent {
         : undefined;
     const usage: UsageStatus | undefined = this.usage.status();
     const model = this.config.model;
+    const providerRoute = this.providerRouteStatus();
 
     this.emitEvent({
       type: 'agent.status.updated',
@@ -471,6 +540,7 @@ export class Agent {
       swarmMode: this.swarmMode.isActive,
       permission: this.permission.mode,
       usage,
+      providerRoute,
     });
   }
 

@@ -17,6 +17,7 @@ export {
 export { handleBtwCommand } from './btw';
 export {
   handleCompactCommand,
+  handleAppearanceCommand,
   handleEditorCommand,
   handleModelCommand,
   handlePlanCommand,

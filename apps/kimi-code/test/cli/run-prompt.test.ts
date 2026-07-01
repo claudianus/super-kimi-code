@@ -755,6 +755,47 @@ describe('runPrompt', () => {
     );
   });
 
+  it('writes stream-json provider route selection metadata without secret values', async () => {
+    mocks.session.prompt.mockImplementationOnce(async () => {
+      for (const handler of mocks.eventHandlers) {
+        handler(
+          mocks.mainEvent({ type: 'turn.started', turnId: 9, origin: { kind: 'user' } }),
+        );
+        handler(mocks.mainEvent({ type: 'assistant.delta', turnId: 9, delta: 'routed' }));
+        handler(
+          mocks.mainEvent({
+            type: 'turn.step.completed',
+            turnId: 9,
+            step: 1,
+            providerRouteSelection: {
+              modelAlias: 'backup',
+              providerName: 'anthropic',
+              credentialLabel: 'api_key:2',
+              providerModel: 'claude-backup',
+              baseUrl: 'https://anthropic.example/v1',
+            },
+          }),
+        );
+        handler(mocks.mainEvent({ type: 'turn.ended', turnId: 9, reason: 'completed' }));
+      }
+    });
+    const stdout = writer();
+    const stderr = writer();
+
+    await runPrompt(opts({ outputFormat: 'stream-json' }), '1.2.3-test', { stdout, stderr });
+
+    expect(stdout.text()).toBe(
+      [
+        '{"role":"assistant","content":"routed"}',
+        '{"role":"meta","type":"provider.route_selection","model_alias":"backup","provider_model":"claude-backup","provider_name":"anthropic","credential_label":"api_key:2","base_url":"https://anthropic.example/v1"}',
+        '{"role":"meta","type":"session.resume_hint","session_id":"ses_prompt","command":"kimi -r ses_prompt","content":"To resume this session: kimi -r ses_prompt"}',
+        '',
+      ].join('\n'),
+    );
+    expect(stdout.text()).not.toContain('sk-');
+    expect(stderr.text()).toBe('');
+  });
+
   it('resumes a concrete session without a configured default model', async () => {
     mocks.harnessGetConfig.mockResolvedValueOnce({ providers: {}, telemetry: true });
     mocks.session.getStatus.mockResolvedValueOnce({ permission: 'manual', model: 'saved-model' });

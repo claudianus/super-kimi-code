@@ -10,6 +10,7 @@ import type {
   FinishReason,
   Message,
   ModelCapability,
+  ResponseHeaders,
   TextPart,
   ThinkPart,
   TokenUsage,
@@ -49,6 +50,14 @@ export interface LLMStreamTiming {
   readonly clientConsumeMs?: number;
 }
 
+export interface LLMProviderRouteSelection {
+  readonly modelAlias: string;
+  readonly providerName?: string | undefined;
+  readonly credentialLabel?: string | undefined;
+  readonly providerModel: string;
+  readonly baseUrl?: string | undefined;
+}
+
 export interface LLMChatParams {
   messages: Message[];
   tools: readonly Tool[];
@@ -78,6 +87,9 @@ export interface LLMChatResponse {
   providerFinishReason?: FinishReason;
   rawFinishReason?: string;
   usage: TokenUsage;
+  usageModel?: string;
+  providerRouteSelection?: LLMProviderRouteSelection;
+  responseHeaders?: ResponseHeaders;
   streamTiming?: LLMStreamTiming;
 }
 

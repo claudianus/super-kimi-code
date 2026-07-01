@@ -2,6 +2,7 @@ export * from './anchor';
 export * from './full';
 export * from './micro';
 export * from './planner';
+export * from './quality';
 export * from './strategy';
 export * from './types';
 export * from './memory';

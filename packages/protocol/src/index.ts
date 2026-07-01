@@ -20,6 +20,8 @@ export * from './task';
 export * from './fs';
 export * from './file';
 export * from './modelCatalog';
+export * from './providerRoute';
+export * from './ultrawork';
 
 export * from './rest/meta';
 export * from './rest/auth';

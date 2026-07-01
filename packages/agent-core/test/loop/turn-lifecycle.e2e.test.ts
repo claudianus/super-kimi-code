@@ -48,6 +48,31 @@ describe('runTurn — turn lifecycle', () => {
     expect(types.indexOf('step.begin')).toBeLessThan(types.indexOf('step.end'));
   });
 
+  it('emits selected provider route metadata on step completion', async () => {
+    const { sink } = await runTurn({
+      responses: [
+        {
+          ...makeEndTurnResponse('hello', { inputOther: 5, output: 7 }),
+          providerRouteSelection: {
+            modelAlias: 'backup',
+            providerName: 'anthropic',
+            credentialLabel: 'api_key:2',
+            providerModel: 'claude-backup',
+            baseUrl: 'https://anthropic.example/v1',
+          },
+        },
+      ],
+    });
+
+    expect(sink.byType('step.end')[0]?.providerRouteSelection).toEqual({
+      modelAlias: 'backup',
+      providerName: 'anthropic',
+      credentialLabel: 'api_key:2',
+      providerModel: 'claude-backup',
+      baseUrl: 'https://anthropic.example/v1',
+    });
+  });
+
   it('continues across tool_use steps until end_turn', async () => {
     const echo = new EchoTool();
     const { result, llm, sink, context } = await runTurn({

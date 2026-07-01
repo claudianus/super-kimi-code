@@ -9,6 +9,8 @@ import type {
   ModelAlias,
   PermissionMode,
   ProviderConfig,
+  ProviderRouteCandidateStatus,
+  ProviderRouteStatus,
   SessionStatus,
 } from '@moonshot-ai/kimi-code-sdk';
 
@@ -60,6 +62,7 @@ export interface StatusReportOptions {
   readonly maxContextTokens: number;
   readonly availableModels: Record<string, ModelAlias>;
   readonly availableProviders?: Record<string, ProviderConfig>;
+  readonly providerRouteStatus?: ProviderRouteStatus | null;
   readonly status?: SessionStatus;
   readonly statusError?: string;
   readonly managedUsage?: ManagedUsageReport;
@@ -115,12 +118,12 @@ function formatWorktreeStatus(status: GitStatus): string {
 }
 
 const READINESS_CHECKS = 'inspect -> test -> change -> verify -> summarize';
-const WORKFLOW_GATE = 'task -> Ultrawork stages -> verify';
-const ENGINE_GATE = 'UltraPlan | UltraGoal | UltraSwarm | Verify';
-const AUTO_GATE = 'ask if needed | plan | goal | swarm | verify';
+const WORKFLOW_GATE = 'task -> research -> team -> integrate -> verify -> learn';
+const ENGINE_GATE = 'UltraPlan | UltraResearch | UltraGoal | UltraSwarm | Integrate | Verify | Learn';
+const AUTO_GATE = 'ask if needed | plan | research | goal | swarm | integrate | verify | learn';
 const AUTONOMY_GATE = 'bounded now -> headless target';
 const TOOLS_GATE = 'search first; load tools on demand';
-const RESEARCH_GATE = 'built-in WebSearch + FetchURL; MCP optional';
+const RESEARCH_GATE = 'LocalResearchStack + WebSearch + FetchURL; provider/MCP optional';
 const MEMORY_GATE = 'prefs | session recall | long-run notes';
 const SCOPE_GATE = 'small focused diff; no broad refactor';
 const COVERAGE_GATE = 'test public behavior changes';
@@ -261,6 +264,113 @@ function compactCatalogValue(value: string): string {
   return `${value.slice(0, 12)}...${value.slice(value.length - 13)}`;
 }
 
+function formatProviderRouteSummary(route: ProviderRouteStatus): string {
+  const now = Date.now();
+  const cooling = route.candidates.filter((candidate) => isCoolingDown(candidate, now)).length;
+  const ready = Math.max(0, route.candidates.length - cooling);
+  const coolingSuffix = cooling > 0 ? `; ${String(cooling)} cooling` : '';
+  return `${route.strategy} ${String(ready)}/${String(route.candidates.length)} ready${coolingSuffix}`;
+}
+
+function providerRouteRows(route: ProviderRouteStatus): readonly FieldRow[] {
+  const rows: FieldRow[] = [
+    { label: 'Strategy', value: formatProviderRouteSummary(route) },
+  ];
+  const visibleCandidates = route.candidates.slice(0, 6);
+  for (let index = 0; index < visibleCandidates.length; index += 1) {
+    const candidate = visibleCandidates[index]!;
+    const cooling = isCoolingDown(candidate, Date.now());
+    rows.push({
+      label: `#${String(index + 1)}`,
+      value: formatProviderRouteCandidate(candidate),
+      severity: cooling ? 'error' : undefined,
+    });
+  }
+  const hidden = route.candidates.length - visibleCandidates.length;
+  if (hidden > 0) rows.push({ label: 'More', value: `${String(hidden)} more candidates` });
+  return rows;
+}
+
+function formatProviderRouteCandidate(candidate: ProviderRouteCandidateStatus): string {
+  const now = Date.now();
+  const target = compactCatalogValue(`${candidate.modelAlias}/${candidate.providerModel}`);
+  const provider = compactCatalogValue(routeCandidateProvider(candidate));
+  const weight = candidate.weight === undefined ? '' : ` weight ${String(candidate.weight)}`;
+  const latency = formatProviderRouteCandidateLatency(candidate);
+  const headroom = formatProviderRouteCandidateHeadroom(candidate);
+  const limits = formatProviderRouteCandidateRateLimits(candidate, now);
+  const stats = formatProviderRouteCandidateStats(candidate);
+  if (isCoolingDown(candidate, now)) {
+    const reason = candidate.cooldownKind ?? candidate.lastFailureKind ?? 'failure';
+    return `cooling ${reason} ${formatCooldownRemaining(candidate.cooldownUntil!, now)} ${provider} -> ${target}${weight}${latency}${headroom}${limits}${stats}`;
+  }
+  if (candidate.lastFailureKind !== undefined) {
+    return `ready; last ${candidate.lastFailureKind} ${provider} -> ${target}${weight}${latency}${headroom}${limits}${stats}`;
+  }
+  return `ready ${provider} -> ${target}${weight}${latency}${headroom}${limits}${stats}`;
+}
+
+function formatProviderRouteCandidateLatency(candidate: ProviderRouteCandidateStatus): string {
+  if (candidate.avgLatencyMs !== undefined) return ` latency ${String(candidate.avgLatencyMs)}ms`;
+  if (candidate.lastLatencyMs !== undefined) {
+    return ` last_latency ${String(candidate.lastLatencyMs)}ms`;
+  }
+  return '';
+}
+
+function formatProviderRouteCandidateHeadroom(candidate: ProviderRouteCandidateStatus): string {
+  if (candidate.rateLimitHeadroom === undefined) return '';
+  const percent = Math.round(Math.max(0, Math.min(1, candidate.rateLimitHeadroom)) * 100);
+  return ` headroom ${String(percent)}%`;
+}
+
+function formatProviderRouteCandidateRateLimits(
+  candidate: ProviderRouteCandidateStatus,
+  now: number,
+): string {
+  if (candidate.rateLimits === undefined || candidate.rateLimits.length === 0) return '';
+  return ` [${candidate.rateLimits
+    .map((rateLimit) => {
+      const quota =
+        rateLimit.remaining === undefined && rateLimit.limit === undefined
+          ? rateLimit.name
+          : `${rateLimit.name}:${String(rateLimit.remaining ?? '?')}/${String(rateLimit.limit ?? '?')}`;
+      return rateLimit.resetAt === undefined
+        ? quota
+        : `${quota}@${formatCooldownRemaining(rateLimit.resetAt, now)}`;
+    })
+    .join(',')}]`;
+}
+
+function formatProviderRouteCandidateStats(candidate: ProviderRouteCandidateStatus): string {
+  const parts: string[] = [];
+  if (candidate.successCount !== undefined && candidate.successCount > 0) {
+    parts.push(`ok ${String(candidate.successCount)}`);
+  }
+  if (candidate.failureCount !== undefined && candidate.failureCount > 0) {
+    parts.push(`fail ${String(candidate.failureCount)}`);
+  }
+  return parts.length === 0 ? '' : ` (${parts.join(', ')})`;
+}
+
+function routeCandidateProvider(candidate: ProviderRouteCandidateStatus): string {
+  if (candidate.credentialLabel === undefined || candidate.credentialLabel.length === 0) {
+    return candidate.providerName;
+  }
+  return `${candidate.providerName}:${candidate.credentialLabel}`;
+}
+
+function isCoolingDown(candidate: ProviderRouteCandidateStatus, now: number): boolean {
+  return candidate.cooldownUntil !== undefined && candidate.cooldownUntil > now;
+}
+
+function formatCooldownRemaining(cooldownUntil: number, now: number): string {
+  const remainingMs = Math.max(0, cooldownUntil - now);
+  if (remainingMs < 60_000) return `${String(Math.ceil(remainingMs / 1000))}s`;
+  if (remainingMs < 60 * 60_000) return `${String(Math.ceil(remainingMs / 60_000))}m`;
+  return `${String(Math.ceil(remainingMs / (60 * 60_000)))}h`;
+}
+
 function readinessGateRows(options: StatusReportOptions): readonly FieldRow[] {
   const writingBlocked = humanWritingBlocked(options);
   const writingRow: FieldRow = writingBlocked
@@ -362,6 +472,12 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     { label: 'Ultrawork', value: formatUltraworkStatus(options) },
     { label: 'Session', value: sessionId },
   ];
+  if (options.providerRouteStatus !== undefined && options.providerRouteStatus !== null) {
+    rows.splice(1, 0, {
+      label: 'Route',
+      value: formatProviderRouteSummary(options.providerRouteStatus),
+    });
+  }
   if (options.gitStatus !== undefined && options.gitStatus !== null) {
     rows.splice(2, 0, { label: 'Worktree', value: formatWorktreeStatus(options.gitStatus) });
   }
@@ -390,6 +506,18 @@ export function buildStatusReportLines(options: StatusReportOptions): string[] {
     );
   } else {
     lines.push(`  ${muted('No context window data available.')}`);
+  }
+
+  if (options.providerRouteStatus !== undefined && options.providerRouteStatus !== null) {
+    lines.push('');
+    lines.push(accent('Provider route'));
+    addFieldRows(
+      lines,
+      providerRouteRows(options.providerRouteStatus),
+      muted,
+      value,
+      errorStyle,
+    );
   }
 
   lines.push('');

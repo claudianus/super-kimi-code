@@ -212,6 +212,10 @@ export interface RecordStepUsageResult {
   readonly stopTurn?: boolean | undefined;
 }
 
+export interface RecordStepUsageInfo {
+  readonly model?: string;
+}
+
 export interface ShouldContinueAfterStopResult {
   readonly continue: boolean;
 }

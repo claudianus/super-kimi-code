@@ -313,10 +313,40 @@ describe('sessionStatusResponseSchema', () => {
       context_tokens: 1024,
       max_context_tokens: 128000,
       context_usage: 0.008,
+      provider_route: {
+        modelAlias: 'kimi/k2',
+        strategy: 'rate_limit_aware',
+        candidates: [
+          {
+            modelAlias: 'kimi/k2',
+            providerName: 'moonshot',
+            providerModel: 'kimi-k2',
+            baseUrl: 'https://api.example.test/v1',
+            weight: 3,
+            rateLimits: [
+              {
+                name: 'requests',
+                limit: 100,
+                remaining: 0,
+                resetAt: 1760000060000,
+              },
+            ],
+            rateLimitHeadroom: 0,
+            cooldownUntil: 1760000060000,
+            cooldownKind: 'rate_limit',
+            lastSuccessAt: 1760000000000,
+            lastLatencyMs: 300,
+            avgLatencyMs: 140,
+            successCount: 2,
+            failureCount: 1,
+          },
+        ],
+      },
     });
     expect(parsed.status).toBe('running');
     expect(parsed.model).toBe('moonshot-v1-128k');
     expect(parsed.plan_mode).toBe(true);
+    expect(parsed.provider_route?.modelAlias).toBe('kimi/k2');
     expect(parsed.context_usage).toBe(0.008);
   });
 

@@ -55,6 +55,10 @@ const PROMPT_BLOCK_BULLET = '• ';
 const PROMPT_BLOCK_INDENT = '  ';
 const PROMPT_PROGRESS_DELAY_MS = 2_000;
 
+type PromptProviderRouteSelection = NonNullable<
+  Extract<Event, { readonly type: 'turn.step.completed' }>['providerRouteSelection']
+>;
+
 async function raceWithTimeout(promise: Promise<void>, timeoutMs: number): Promise<void> {
   let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -565,6 +569,11 @@ function runPromptTurn(
             );
           }
           return;
+        case 'turn.step.completed':
+          if (event.providerRouteSelection !== undefined) {
+            outputWriter.writeProviderRouteSelection(event.providerRouteSelection);
+          }
+          return;
         case 'turn.ended':
           if (event.reason === 'completed') {
             finish();
@@ -591,7 +600,6 @@ function runPromptTurn(
         case 'subagent.suspended':
         case 'tool.list.updated':
         case 'turn.started':
-        case 'turn.step.completed':
         case 'warning':
           return;
       }
@@ -615,6 +623,7 @@ interface PromptTurnWriter {
     argumentsPart: string | undefined,
   ): void;
   writeToolResult(toolCallId: string, output: unknown): void;
+  writeProviderRouteSelection(selection: PromptProviderRouteSelection): void;
   flushAssistant(): void;
   discardAssistant(): void;
   finish(): void;
@@ -669,6 +678,8 @@ class PromptTranscriptWriter implements PromptTurnWriter {
 
   writeToolResult(): void {}
 
+  writeProviderRouteSelection(): void {}
+
   flushAssistant(): void {}
 
   discardAssistant(): void {}
@@ -713,6 +724,16 @@ interface PromptJsonResumeMetaMessage {
   session_id: string;
   command: string;
   content: string;
+}
+
+interface PromptJsonProviderRouteSelectionMessage {
+  role: 'meta';
+  type: 'provider.route_selection';
+  model_alias: string;
+  provider_model: string;
+  provider_name?: string;
+  credential_label?: string;
+  base_url?: string;
 }
 
 function writeResumeHint(
@@ -799,6 +820,21 @@ class PromptJsonWriter implements PromptTurnWriter {
     });
   }
 
+  writeProviderRouteSelection(selection: PromptProviderRouteSelection): void {
+    this.flushAssistant();
+    this.writeJsonLine({
+      role: 'meta',
+      type: 'provider.route_selection',
+      model_alias: selection.modelAlias,
+      provider_model: selection.providerModel,
+      ...(selection.providerName !== undefined ? { provider_name: selection.providerName } : {}),
+      ...(selection.credentialLabel !== undefined
+        ? { credential_label: selection.credentialLabel }
+        : {}),
+      ...(selection.baseUrl !== undefined ? { base_url: selection.baseUrl } : {}),
+    });
+  }
+
   flushAssistant(): void {
     if (this.assistantText.length === 0 && this.toolCalls.length === 0) return;
     const message: PromptJsonAssistantMessage = {
@@ -834,7 +870,12 @@ class PromptJsonWriter implements PromptTurnWriter {
     return toolCall;
   }
 
-  private writeJsonLine(message: PromptJsonAssistantMessage | PromptJsonToolMessage): void {
+  private writeJsonLine(
+    message:
+      | PromptJsonAssistantMessage
+      | PromptJsonToolMessage
+      | PromptJsonProviderRouteSelectionMessage,
+  ): void {
     this.stdout.write(`${JSON.stringify(message)}\n`);
   }
 }

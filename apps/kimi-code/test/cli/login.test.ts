@@ -85,6 +85,37 @@ describe('kimi login', () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
+  it('passes an explicit OAuth account key to the login flow', async () => {
+    mockLogin.mockResolvedValue({ providerName: 'kimi-code', ok: true });
+
+    const program = new Command('kimi').exitOverride();
+    registerLoginCommand(program);
+
+    await expect(
+      program.parseAsync([
+        'node',
+        'kimi',
+        'login',
+        '--oauth-key',
+        'oauth/kimi-code-work',
+        '--oauth-host',
+        'https://auth.example.test',
+      ]),
+    ).rejects.toThrow(ExitCalled);
+
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+    expect(mockLogin).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        oauthRef: {
+          key: 'oauth/kimi-code-work',
+          oauthHost: 'https://auth.example.test',
+        },
+      }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
   it('prints device code prompt to stderr', async () => {
     mockLogin.mockImplementation(
       async (

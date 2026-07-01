@@ -290,6 +290,13 @@ export class Session {
     return this.rpc.getStatus({ sessionId: this.id });
   }
 
+  async resetProviderRouteStatus(): Promise<
+    NonNullable<SessionStatus['providerRouteStatus']> | null
+  > {
+    this.ensureOpen();
+    return this.rpc.resetProviderRouteStatus({ sessionId: this.id });
+  }
+
   async recall(
     query: string,
     options: Omit<MemorySearchRequest, 'query' | 'sessionId' | 'workspaceKey'> = {},

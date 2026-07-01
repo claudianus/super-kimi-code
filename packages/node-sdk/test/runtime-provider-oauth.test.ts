@@ -42,10 +42,11 @@ async function resolveRuntimeProviderWithOAuth(options: {
 
   const providerConfig = options.config.providers[providerName];
   if (providerConfig?.oauth !== undefined && (providerConfig.apiKey ?? '').length > 0) {
-    throw new KimiError(
-      ErrorCodes.CONFIG_INVALID,
-      `Provider "${providerName}" has both apiKey and oauth set in config.toml — they are mutually exclusive. Remove one.`,
-    );
+    return {
+      providerName,
+      provider,
+      resolveAuth: undefined,
+    };
   }
 
   const oauthRef = providerConfig?.oauth;
@@ -145,7 +146,8 @@ describe('resolveRuntimeProviderWithOAuth', () => {
     ).rejects.toThrow(/requires login/);
   });
 
-  it('rejects providers that set both apiKey and oauth on the same config', async () => {
+  it('prefers explicit static apiKey over configured OAuth credentials', async () => {
+    const getAccessToken = vi.fn().mockResolvedValue('unused');
     const conflicting: KimiConfig = {
       ...managedConfig(),
       providers: {
@@ -158,14 +160,14 @@ describe('resolveRuntimeProviderWithOAuth', () => {
       },
     };
 
-    await expect(
-      resolveRuntimeProviderWithOAuth({
-        config: conflicting,
-        resolveOAuthTokenProvider: () => ({
-          getAccessToken: vi.fn().mockResolvedValue('unused'),
-        }),
-      }),
-    ).rejects.toThrow(/mutually exclusive/);
+    const resolved = await resolveRuntimeProviderWithOAuth({
+      config: conflicting,
+      resolveOAuthTokenProvider: () => ({ getAccessToken }),
+    });
+
+    expect(resolved.provider).toMatchObject({ apiKey: 'static-key' });
+    expect(resolved.resolveAuth).toBeUndefined();
+    expect(getAccessToken).not.toHaveBeenCalled();
   });
 
   it('wraps token provider failures as login-required errors', async () => {

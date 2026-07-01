@@ -119,6 +119,7 @@ export interface ManagedKimiProviderConfig {
   baseUrl?: string | undefined;
   apiKey?: string | undefined;
   oauth?: ManagedKimiOAuthRef | undefined;
+  oauths?: ManagedKimiOAuthRef[] | undefined;
   readonly [key: string]: unknown;
 }
 
@@ -268,6 +269,44 @@ function configuredOAuthRef(
     key,
     oauthHost: oauthRef.oauthHost,
   });
+}
+
+function managedOAuthPool(
+  primary: ManagedKimiOAuthRef,
+  existingProvider: ManagedKimiProviderConfig | Record<string, unknown> | undefined,
+): ManagedKimiOAuthRef[] {
+  const refs: ManagedKimiOAuthRef[] = [primary];
+  if (isRecord(existingProvider)) {
+    const existingPrimary = configuredOAuthRef(
+      existingProvider['oauth'] as ManagedKimiOAuthRefInput,
+    );
+    if (existingPrimary !== undefined) refs.push(existingPrimary);
+    const existingFallbacks = existingProvider['oauths'];
+    if (Array.isArray(existingFallbacks)) {
+      for (const ref of existingFallbacks) {
+        const configured = configuredOAuthRef(ref as ManagedKimiOAuthRefInput);
+        if (configured !== undefined) refs.push(configured);
+      }
+    }
+  }
+  return uniqueManagedOAuthRefs(refs);
+}
+
+function uniqueManagedOAuthRefs(refs: readonly ManagedKimiOAuthRef[]): ManagedKimiOAuthRef[] {
+  const unique: ManagedKimiOAuthRef[] = [];
+  for (const ref of refs) {
+    if (unique.some((existing) => sameManagedOAuthRef(existing, ref))) continue;
+    unique.push(ref);
+  }
+  return unique;
+}
+
+function sameManagedOAuthRef(left: ManagedKimiOAuthRef, right: ManagedKimiOAuthRef): boolean {
+  return (
+    left.storage === right.storage &&
+    left.key === right.key &&
+    (left.oauthHost ?? '') === (right.oauthHost ?? '')
+  );
 }
 
 export function kimiCodeEnvBaseUrl(env: ManagedKimiEnv = process.env): string | undefined {
@@ -493,6 +532,7 @@ export function applyManagedKimiCodeConfig(
     options.oauthKey !== undefined
       ? managedOAuthRef({ key: options.oauthKey, oauthHost: options.oauthHost })
       : resolveKimiCodeOAuthRef({ baseUrl, oauthHost: options.oauthHost });
+  const oauthPool = managedOAuthPool(oauth, config.providers[KIMI_CODE_PROVIDER_NAME]);
   const existingModels = config.models ?? {};
   const selectedDefault = selectDefaultModel(config, options.models, {
     preserveExisting: options.preserveDefaultModel === true,
@@ -502,7 +542,8 @@ export function applyManagedKimiCodeConfig(
     type: 'kimi',
     baseUrl,
     apiKey: '',
-    oauth,
+    oauth: oauthPool[0],
+    ...(oauthPool.length > 1 ? { oauths: oauthPool.slice(1) } : {}),
   };
 
   const upstreamKeys = new Set(options.models.map((model) => managedModelKey(model.id)));

@@ -10,6 +10,7 @@ import type {
   FinishReason,
   GenerateOptions,
   ProviderRequestAuth,
+  ResponseHeaders,
   StreamedMessage,
   ThinkingEffort,
 } from '#/provider';
@@ -39,6 +40,7 @@ import type {
 
 import { mergeConsecutiveUserMessages } from './merge-user-messages';
 import { mergeRequestHeaders, resolveAuthBackedClient } from './request-auth';
+import { awaitWithResponseHeaders } from './response-headers';
 import {
   normalizeToolCallIdsForProvider,
   sanitizeToolCallId,
@@ -606,7 +608,11 @@ class AnthropicStreamedMessage implements StreamedMessage {
   private _rawFinishReason: string | null = null;
   private readonly _iter: AsyncGenerator<StreamedMessagePart>;
 
-  constructor(response: unknown, isStream: boolean) {
+  constructor(
+    response: unknown,
+    isStream: boolean,
+    readonly responseHeaders?: ResponseHeaders,
+  ) {
     if (isStream) {
       this._iter = this._convertStreamResponse(response as AsyncIterable<MessageStreamEvent>);
     } else {
@@ -856,6 +862,10 @@ class AnthropicStreamedMessage implements StreamedMessage {
 }
 export class AnthropicChatProvider implements ChatProvider {
   readonly name: string = 'anthropic';
+  readonly contextManagementCapability = {
+    toolResultClearing: true,
+    thinkingBlockClearing: true,
+  } as const;
 
   private _model: string;
   private _stream: boolean;
@@ -1056,16 +1066,18 @@ export class AnthropicChatProvider implements ChatProvider {
       // The helper reparses accumulated input_json_delta buffers on every chunk,
       // which becomes synchronous O(n^2) work for large streamed tool arguments.
       try {
-        const stream = this._betaApi
-          ? await client.beta.messages.create(
-              { ...createParams, stream: true } as unknown as MessageCreateParamsStreaming,
-              finalRequestOptions,
-            )
-          : await client.messages.create(
-              { ...createParams, stream: true } as unknown as MessageCreateParamsStreaming,
-              finalRequestOptions,
-            );
-        return new AnthropicStreamedMessage(stream, true);
+        const { data: stream, responseHeaders } = await awaitWithResponseHeaders(
+          this._betaApi
+            ? client.beta.messages.create(
+                { ...createParams, stream: true } as unknown as MessageCreateParamsStreaming,
+                finalRequestOptions,
+              )
+            : client.messages.create(
+                { ...createParams, stream: true } as unknown as MessageCreateParamsStreaming,
+                finalRequestOptions,
+              ),
+        );
+        return new AnthropicStreamedMessage(stream, true, responseHeaders);
       } catch (error: unknown) {
         throw convertAnthropicError(error);
       }
@@ -1073,16 +1085,18 @@ export class AnthropicChatProvider implements ChatProvider {
 
     // Non-streaming fallback
     try {
-      const response = this._betaApi
-        ? await client.beta.messages.create(
-            { ...createParams, stream: false } as unknown as MessageCreateParams,
-            finalRequestOptions,
-          )
-        : await client.messages.create(
-            { ...createParams, stream: false } as unknown as MessageCreateParams,
-            finalRequestOptions,
-          );
-      return new AnthropicStreamedMessage(response, false);
+      const { data: response, responseHeaders } = await awaitWithResponseHeaders(
+        this._betaApi
+          ? client.beta.messages.create(
+              { ...createParams, stream: false } as unknown as MessageCreateParams,
+              finalRequestOptions,
+            )
+          : client.messages.create(
+              { ...createParams, stream: false } as unknown as MessageCreateParams,
+              finalRequestOptions,
+            ),
+      );
+      return new AnthropicStreamedMessage(response, false, responseHeaders);
     } catch (error: unknown) {
       throw convertAnthropicError(error);
     }

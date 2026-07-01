@@ -5,25 +5,48 @@ import { join } from 'node:path';
 import { z } from 'zod';
 
 import { getDataDir } from '#/utils/paths';
+import { BUNDLED_EXTERNAL_THEMES } from './bundled-external-themes.generated';
 import { BUNDLED_THEMES } from './bundled-themes';
 import type { ColorPalette, ResolvedTheme } from './colors';
 import { getBuiltInPalette } from './colors';
 
 export const CustomThemeSchema = z.object({
+  schemaVersion: z.number().int().positive().optional(),
   name: z.string().min(1),
   displayName: z.string().optional(),
   /** Built-in palette that unspecified tokens fall back to. Defaults to `dark`. */
   base: z.enum(['dark', 'light']).optional(),
   colors: z.record(z.string(), z.string()).optional(),
+  ansi: z
+    .object({
+      normal: z.array(z.string()).optional(),
+      bright: z.array(z.string()).optional(),
+      foreground: z.string().optional(),
+      background: z.string().optional(),
+      cursor: z.string().optional(),
+      selection: z.string().optional(),
+    })
+    .optional(),
+  effects: z.record(z.string(), z.unknown()).optional(),
+  layout: z.record(z.string(), z.unknown()).optional(),
+  source: z
+    .object({
+      kind: z.string().optional(),
+      url: z.string().optional(),
+      license: z.string().optional(),
+      importedAt: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type CustomThemeDefinition = z.infer<typeof CustomThemeSchema>;
-export type ThemeSource = 'bundled' | 'custom';
+export type ThemeSource = 'bundled' | 'bundled-external' | 'custom';
 
 export interface ThemeListEntry {
   readonly name: string;
   readonly displayName?: string;
   readonly source: ThemeSource;
+  readonly pack?: string;
   readonly overridesBundled?: boolean;
 }
 
@@ -35,6 +58,7 @@ const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
  * selected as a custom theme — hide it from listings.
  */
 const RESERVED_THEME_NAMES: ReadonlySet<string> = new Set(['dark', 'light', 'auto']);
+const ALL_BUNDLED_THEMES = [...BUNDLED_THEMES, ...BUNDLED_EXTERNAL_THEMES] as const;
 
 export function getCustomThemesDir(): string {
   return join(getDataDir(), 'themes');
@@ -74,7 +98,7 @@ async function readCustomTheme(name: string): Promise<ParsedCustomTheme | null> 
 }
 
 function readBundledTheme(name: string): ParsedCustomTheme | null {
-  const theme = BUNDLED_THEMES.find((candidate) => candidate.name === name);
+  const theme = ALL_BUNDLED_THEMES.find((candidate) => candidate.name === name);
   if (theme === undefined) return null;
   return parseThemeDefinition(theme);
 }
@@ -97,7 +121,7 @@ function toThemeNames(files: readonly string[]): string[] {
     .toSorted();
 }
 
-function bundledThemeEntries(): ThemeListEntry[] {
+function superKimiThemeEntries(): ThemeListEntry[] {
   return BUNDLED_THEMES
     .filter((theme) => !RESERVED_THEME_NAMES.has(theme.name))
     .map((theme) => ({
@@ -107,8 +131,19 @@ function bundledThemeEntries(): ThemeListEntry[] {
     }));
 }
 
+function externalBundledThemeEntries(): ThemeListEntry[] {
+  return BUNDLED_EXTERNAL_THEMES
+    .filter((theme) => !RESERVED_THEME_NAMES.has(theme.name))
+    .map((theme) => ({
+      name: theme.name,
+      displayName: theme.displayName,
+      source: 'bundled-external' as const,
+      pack: theme.source?.url,
+    }));
+}
+
 function customThemeEntries(names: readonly string[]): ThemeListEntry[] {
-  const bundledNames = new Set(BUNDLED_THEMES.map((theme) => theme.name));
+  const bundledNames = new Set(ALL_BUNDLED_THEMES.map((theme) => theme.name));
   return names.map((name) => ({
     name,
     source: 'custom' as const,
@@ -119,8 +154,9 @@ function customThemeEntries(names: readonly string[]): ThemeListEntry[] {
 function mergeThemeEntries(customNames: readonly string[]): ThemeListEntry[] {
   const customNameSet = new Set(customNames);
   return [
-    ...bundledThemeEntries().filter((theme) => !customNameSet.has(theme.name)),
+    ...superKimiThemeEntries().filter((theme) => !customNameSet.has(theme.name)),
     ...customThemeEntries(customNames),
+    ...externalBundledThemeEntries().filter((theme) => !customNameSet.has(theme.name)),
   ];
 }
 

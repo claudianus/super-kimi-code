@@ -148,6 +148,7 @@ export class ContextMemory {
     this.deferredMessages = [];
     this._lastAssistantAt = null;
     this.agent.microCompaction.reset();
+    this.agent.contextOS.clear();
     this.agent.injection.onContextClear();
     this.agent.emitStatusUpdated();
   }
@@ -234,6 +235,7 @@ export class ContextMemory {
     this._tokenCount = result.tokensAfter;
     this.tokenCountCoveredMessageCount = this._history.length;
     this.agent.microCompaction.reset();
+    this.agent.contextOS.recordCompaction(result);
     this.agent.injection.onContextCompacted(result.compactedCount);
     this.agent.emitStatusUpdated();
   }

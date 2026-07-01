@@ -310,13 +310,13 @@ kimi vis --host 0.0.0.0 --port 8123 --no-open
 
 ### `kimi provider`
 
-Manage providers in the shell — the non-interactive equivalent of `/provider` in the TUI. Suitable for scripted deployments, CI initialization, and one-line setup on a new machine.
+Manage providers in the shell — the non-interactive equivalent of `/provider` in the TUI. Suitable for scripted deployments, CI initialization, account-pool setup, and route diagnostics on a new machine.
 
 ```sh
 kimi provider <action> [options]
 ```
 
-Five actions are available:
+The command is organized into setup, credential, and route groups.
 
 #### `kimi provider add <url>`
 
@@ -353,6 +353,39 @@ kimi provider list
 kimi provider list --json | jq '.providers | keys'
 ```
 
+#### `kimi provider doctor`
+
+Validate provider auth, environment references, credential pools, and routes without printing secrets. The command exits non-zero when it finds errors, so it works well in CI or dotfile bootstrap scripts.
+
+```sh
+kimi provider doctor
+kimi provider doctor --json
+```
+
+#### `kimi provider custom add <providerId>`
+
+Add one direct endpoint without a registry. This is the shortest path for local models, private OpenAI-compatible gateways, and single-model enterprise endpoints.
+
+| Parameter / Option | Description |
+| --- | --- |
+| `<providerId>` | Provider ID to create |
+| `--base-url <url>` | Endpoint base URL |
+| `--model <modelId>` | Upstream model ID |
+| `--api-key <key>` | Raw provider API key |
+| `--api-key-env <name>` | Store `{env:NAME}` instead of a raw key |
+| `--keyless` | Use a placeholder key for local endpoints that do not require auth |
+| `--alias <alias>` | Model alias to create |
+| `--type <type>` | Provider wire type; defaults to `openai` |
+| `--context <tokens>` | Context window |
+| `--output <tokens>` | Max output tokens |
+| `--display-name <name>` | Friendly model name |
+| `--thinking` | Mark the model as thinking-capable |
+| `--set-default` | Make the created alias the default model |
+
+```sh
+kimi provider custom add local --base-url http://localhost:11434/v1 --model qwen --keyless --set-default
+```
+
 #### `kimi provider catalog list [providerId]`
 
 Browse the public [models.dev](https://models.dev/) model catalog without modifying any configuration. Without an argument, lists all providers along with their protocol type and model count; with a `providerId`, lists all models under that provider along with their context window and capabilities.
@@ -378,12 +411,68 @@ Import a known provider directly from the catalog by ID. The protocol type, base
 | --- | --- |
 | `<providerId>` | Provider ID in the catalog, e.g., `anthropic`, `openai` |
 | `--api-key <key>` | Provider API key. Falls back to `KIMI_REGISTRY_API_KEY` if not provided; required |
+| `--api-key-env <name>` | Store `{env:NAME}` instead of a raw provider API key |
 | `--default-model <modelId>` | Optional — set `default_model` to `<providerId>/<modelId>` after import |
 | `--url <url>` | Override the catalog URL; defaults to `https://models.dev/api.json` |
 
 ```sh
 kimi provider catalog list anthropic          # Browse available models first
-kimi provider catalog add anthropic --api-key sk-ant-... --default-model claude-opus-4-7
+kimi provider catalog add anthropic --api-key-env ANTHROPIC_API_KEY --default-model claude-opus-4-7
+```
+
+#### `kimi provider key`
+
+Manage API-key pools for an existing provider. Secret values are never printed by list, promote, label, or route commands.
+
+```sh
+kimi provider key add openai --api-key-env OPENAI_PRIMARY_KEY --label primary
+kimi provider key add openai --api-key-envs OPENAI_A,OPENAI_B --labels work,backup --rpm 60 --tpm 120000 --auto-route
+kimi provider key list openai
+kimi provider key limit openai 2 --rpm 30
+kimi provider key promote openai 2
+kimi provider key label openai 2 backup
+kimi provider key remove openai 2
+```
+
+Common options for `key add`:
+
+| Option | Description |
+| --- | --- |
+| `--api-key <key>` / `--api-keys <keys>` | Raw key or comma-separated raw keys |
+| `--api-key-env <name>` / `--api-key-envs <names>` | Store one or more `{env:NAME}` references |
+| `--base-url <url>` | Per-credential endpoint override |
+| `--label <label>` / `--labels <labels>` | Friendly credential labels |
+| `--rpm <count>` | Local requests-per-minute limit |
+| `--tpm <tokens>` | Local tokens-per-minute limit |
+| `--auto-route` | Enable auto routing for model aliases that use this provider |
+
+#### `kimi provider oauth`
+
+Manage OAuth account refs for providers that use managed OAuth credentials. Use `kimi login --oauth-key <storageKey>` first when you need a distinct account slot.
+
+```sh
+kimi login --oauth-key kimi-work
+kimi provider oauth add kimi --key kimi-work --label work --auto-route
+kimi provider oauth list kimi
+kimi provider oauth promote kimi 2
+kimi provider oauth label kimi 2 backup
+kimi provider oauth remove kimi 2
+```
+
+#### `kimi provider route`
+
+Configure and inspect model fallback and load-balancing routes. A route expands one model alias into candidate provider/key/account/endpoint slots and optional fallback model aliases.
+
+```sh
+kimi provider route auto openai/gpt-4.1
+kimi provider route set openai/gpt-4.1 --fallback anthropic/claude-opus --strategy rate_limit_aware --session-affinity on
+kimi provider route set openai/gpt-4.1 --strategy weighted_round_robin --weights openai/gpt-4.1=3,anthropic/claude-opus=1
+kimi provider route preview openai/gpt-4.1
+kimi provider route status <sessionId>
+kimi provider route reset <sessionId>
+```
+
+Supported strategies are `auto`, `fallback`, `fill_first`, `round_robin`, `weighted_round_robin`, `least_used`, `lowest_latency`, `rate_limit_aware`, and `random`. Use `route preview` before running a long session, and `route status` after a session starts to inspect live cooldowns, rate-limit buckets, latency, pinned candidates, and preferred credential labels.
 ```
 
 ## Next steps

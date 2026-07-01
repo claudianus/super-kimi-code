@@ -14,7 +14,15 @@ export function registerLoginCommand(parent: Command): void {
   parent
     .command('login')
     .description('Authenticate with Kimi Code CLI via the device-code flow.')
-    .action(async () => {
-      await runLoginFlow();
+    .option(
+      '--oauth-key <key>',
+      'Use a distinct OAuth storage key, preserving existing accounts as fallback refs.',
+    )
+    .option('--oauth-host <host>', 'Override the OAuth host for this login.')
+    .action(async (options: { oauthKey?: string; oauthHost?: string }) => {
+      await runLoginFlow({
+        ...(options.oauthKey === undefined ? {} : { oauthKey: options.oauthKey }),
+        ...(options.oauthHost === undefined ? {} : { oauthHost: options.oauthHost }),
+      });
     });
 }

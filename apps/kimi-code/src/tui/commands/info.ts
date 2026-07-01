@@ -161,6 +161,7 @@ export async function showStatusReport(host: SlashCommandHost): Promise<void> {
     maxContextTokens: appState.maxContextTokens,
     availableModels: appState.availableModels,
     availableProviders: appState.availableProviders,
+    providerRouteStatus: runtimeStatus.status?.providerRouteStatus ?? appState.providerRouteStatus,
     status: runtimeStatus.status,
     statusError: runtimeStatus.error,
     gitStatus: createGitStatusCache(appState.workDir).getStatus(),

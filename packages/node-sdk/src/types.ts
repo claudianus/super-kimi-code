@@ -1,5 +1,6 @@
 import type {
   ExportSessionManifest,
+  ProviderRouteStatus,
   ResumeSessionResult,
   ShellEnvironment,
   TelemetryClient,
@@ -24,6 +25,7 @@ export type {
   BackgroundTaskStatus,
   ConfigDiagnostics,
   ContextMessage,
+  CouncilDecision,
   ExperimentalFeatureState,
   ExperimentalFlagMap,
   ExperimentalFlagSource,
@@ -37,6 +39,7 @@ export type {
   GoalToolResult,
   KimiConfig,
   KimiConfigPatch,
+  KnowledgePromotion,
   LoopControl,
   MemoryConsolidateResult,
   MemoryCreateInput,
@@ -63,16 +66,26 @@ export type {
   ProcessBackgroundTaskInfo,
   PromptOrigin,
   ProviderConfig,
+  ProviderRouteStatus,
   ProviderType,
   QuestionBackgroundTaskInfo,
+  ResearchBackend,
+  ResearchEvidence,
+  ResearchEvidencePack,
   ReloadSummary,
   ResumedAgentState,
   ServicesConfig,
   ShellEnvironment,
   SkillSearchResult,
   SkillSummary,
+  TeamPlan,
   ThinkingConfig,
   ToolInfo,
+  UltraResearchRun,
+  UltraworkRun,
+  VerificationResult,
+  WorkGraph,
+  WorkGraphNode,
 } from '@moonshot-ai/agent-core';
 
 export type { KimiHostIdentity, OAuthRefreshOutcome };
@@ -217,6 +230,7 @@ export interface SessionStatus {
   readonly maxContextTokens: number;
   readonly contextUsage: number;
   readonly usage?: SessionUsage;
+  readonly providerRouteStatus?: ProviderRouteStatus | null;
 }
 
 export interface SessionSummary {

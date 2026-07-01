@@ -25,73 +25,61 @@ Kimi Code CLI is a fully interactive TUI application. For the best visual experi
 - **macOS / Linux**:
 
 ```sh
-curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.sh | bash
 ```
 
 - **Windows (PowerShell)**:
 
 ```powershell
-irm https://code.kimi.com/kimi-code/install.ps1 | iex
+irm https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.ps1 | iex
 ```
 
-> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch. Kimi Code CLI uses the bundled Git Bash as its shell environment; if Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
+> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch. Super Kimi Code uses the bundled Git Bash as its shell environment; if Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-The script automatically downloads the latest release, verifies the checksum, and places the `kimi` executable on your `PATH`.
+The script checks out this GitHub source repository, builds the CLI, and places the `skimi` executable on your `PATH`. It requires Git and Node.js 24.15.0 or later.
 
-### npm installation
+### Source install details
 
-Requires Node.js 22.19.0 or later:
+The source installer accepts environment overrides for automation:
 
 ```sh
-node --version
-npm install -g @moonshot-ai/kimi-code
+SUPER_KIMI_REF=main SUPER_KIMI_COMMAND=skimi \
+  curl -fsSL https://raw.githubusercontent.com/claudianus/super-kimi-code/main/install.sh | bash
 ```
 
-Or with pnpm:
-
-```sh
-pnpm add -g @moonshot-ai/kimi-code
-```
+It checks out the repository under `~/.super-kimi-code/source` by default.
 
 ## Upgrade and uninstall
 
 After installation, verify that the executable is ready:
 
 ```sh
-kimi --version
+skimi --version
 ```
 
-**Upgrade**: run `kimi upgrade` — the CLI checks for the latest version and presents update options. Choose `Install update now` to upgrade based on your current install source. You can also upgrade directly via the package manager:
+**Upgrade**: re-run the install script. It updates the source checkout, reinstalls dependencies, and rebuilds the CLI.
 
-```sh
-npm install -g @moonshot-ai/kimi-code@latest
-```
-
-**Uninstall**: if you installed via the script, delete the `kimi` executable. If you installed via npm:
-
-```sh
-npm uninstall -g @moonshot-ai/kimi-code
-```
+**Uninstall**: delete the `skimi` executable and the source checkout under `~/.super-kimi-code/source`.
 
 ## First launch
 
-Move into your project directory and run `kimi` to start the interactive UI:
+Move into your project directory and run `skimi` to start the interactive UI:
 
 ```sh
 cd your-project
-kimi
+skimi
 ```
 
 To run a single instruction without entering the interactive UI, use `-p`:
 
 ```sh
-kimi -p "Take a look at this project's directory structure"
+skimi -p "Take a look at this project's directory structure"
 ```
 
 To resume the previous session, add `-c`:
 
 ```sh
-kimi -c
+skimi -c
 ```
 
 On first launch you need to configure an API source. In the interactive UI, enter `/login` to begin the login flow:
@@ -108,7 +96,7 @@ On first launch you need to configure an API source. In the interactive UI, ente
 To sign out, enter `/logout` to clear the current credentials.
 
 ::: tip Using other AI providers
-If you want to connect Anthropic, OpenAI, Google, or other providers, edit `~/.kimi-code/config.toml` directly to configure the API key. See [Providers and models](../configuration/providers.md) for details. For the full reference of all config options, see [Configuration files](../configuration/config-files.md), [Environment variables](../configuration/env-vars.md), and [Configuration overrides](../configuration/overrides.md).
+If you want to connect Anthropic, OpenAI, Google, or other providers, open `/provider` in the TUI or use `kimi provider catalog add` / `kimi provider custom add` from the shell. For teams with multiple accounts or API keys, `kimi provider key add`, `kimi provider oauth add`, and `kimi provider route auto` can create quota-aware fallback routes without exposing secrets. See [Providers and models](../configuration/providers.md) for details.
 :::
 
 ## Your first conversation

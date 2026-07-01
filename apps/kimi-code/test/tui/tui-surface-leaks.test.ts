@@ -27,7 +27,7 @@ describe('TUI surface leak checks', () => {
     expect(
       defaultUserSurfaceLeakFailures(
         'help',
-        'Describe task; Ultrawork auto-runs UltraPlan, UltraGoal, UltraSwarm, Verify.',
+        'Describe task; Ultrawork auto-runs UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.',
       ),
     ).toContain('default help capture exposes internal Ultrawork stage list');
     expect(defaultUserSurfaceLeakFailures('status', 'Plan mode    on')).toContain(
@@ -73,7 +73,7 @@ describe('TUI surface leak checks', () => {
       ),
     ).toBe(true);
     expect(
-      hasUltraworkTaskEntryCopy('Describe task; Ultrawork runs UltraPlan, UltraGoal, UltraSwarm.'),
+      hasUltraworkTaskEntryCopy('Describe task; Ultrawork runs UltraPlan, UltraResearch, UltraGoal, UltraSwarm.'),
     ).toBe(false);
     expect(
       hasUltraworkFooterNextAction(
@@ -92,9 +92,9 @@ describe('TUI surface leak checks', () => {
       hasUltraworkStatusContract(
         [
           'Ultrawork    auto-link ready',
-          'Workflow      task -> Ultrawork stages -> verify',
-          'Engine        UltraPlan | UltraGoal | UltraSwarm | Verify',
-          'Auto          ask if needed | plan | goal | swarm | verify',
+          'Workflow      task -> research -> team -> integrate -> verify -> learn',
+          'Engine        UltraPlan | UltraResearch | UltraGoal | UltraSwarm | Integrate | Verify | Learn',
+          'Auto          ask if needed | plan | research | goal | swarm | integrate | verify | learn',
           'Autonomy      bounded now -> headless target',
           'Recovery      resumable evidence ready -> durable target',
           'Tools         search first; load tools on demand',
@@ -125,7 +125,7 @@ describe('TUI surface leak checks', () => {
     expect(
       hasUltraworkAdvancedHelpContract(
         [
-          'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify.',
+          'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.',
           'Plain tasks start it automatically. Controls below are optional steering.',
           'Advanced Ultrawork controls',
           '/plan Advanced steering for UltraPlan; Ultrawork auto-enables it',
@@ -137,7 +137,7 @@ describe('TUI surface leak checks', () => {
     expect(
       hasUltraworkAdvancedHelpContract(
         [
-          'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify.',
+          'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.',
           'Plain tasks start it automatically. Controls below are optional steering.',
           'Advanced Ultrawork controls',
           '/plan Steer UltraPlan stage; Ultrawork enables it automatically',

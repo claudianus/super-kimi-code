@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KimiConfig } from '../../src/config';
+import type { KimiConfig, OAuthRef } from '../../src/config';
 import { ErrorCodes, KimiError } from '../../src/errors';
 import { ProviderManager } from '../../src/session/provider-manager';
 import { resolveThinkingLevel } from '../../src/agent/config/thinking';
@@ -686,6 +686,411 @@ describe('ProviderManager prompt cache key', () => {
   });
 });
 
+describe('ProviderManager provider routes', () => {
+  it('expands provider api key pools into auto route candidates', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          openai: {
+            type: 'openai',
+            apiKeys: ['sk-one', 'sk-two', 'sk-one'],
+          },
+        },
+        models: {
+          primary: {
+            provider: 'openai',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+            routing: {
+              sessionAffinity: true,
+              preferredCredential: 'api_key:2',
+            },
+          },
+        },
+      },
+    });
+
+    const resolved = manager.resolveProviderConfig('primary');
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(resolved.provider).toMatchObject({ apiKey: 'sk-one' });
+    expect(route?.strategy).toBe('auto');
+    expect(route?.sessionAffinity).toBe(true);
+    expect(route?.preferredCredential).toBe('api_key:2');
+    expect(
+      route?.candidates.map((candidate) => ({
+        modelAlias: candidate.modelAlias,
+        credentialLabel: candidate.credentialLabel,
+        apiKey: candidate.provider.apiKey,
+      })),
+    ).toEqual([
+      { modelAlias: 'primary', credentialLabel: 'api_key:1', apiKey: 'sk-one' },
+      { modelAlias: 'primary', credentialLabel: 'api_key:2', apiKey: 'sk-two' },
+    ]);
+  });
+
+  it('expands per-credential base URLs into route candidates', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          cloudflare: {
+            type: 'openai',
+            baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-1/ai/v1',
+            credentials: [
+              {
+                label: 'account-1',
+                apiKey: 'cf-one',
+                baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-1/ai/v1',
+              },
+              {
+                label: 'account-2',
+                apiKey: 'cf-two',
+                baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-2/ai/v1',
+              },
+            ],
+          },
+        },
+        models: {
+          primary: {
+            provider: 'cloudflare',
+            model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(
+      route?.candidates.map((candidate) => ({
+        credentialLabel: candidate.credentialLabel,
+        apiKey: candidate.provider.apiKey,
+        baseUrl: (candidate.provider as { readonly baseUrl?: string }).baseUrl,
+      })),
+    ).toEqual([
+      {
+        credentialLabel: 'api_key:account-1',
+        apiKey: 'cf-one',
+        baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-1/ai/v1',
+      },
+      {
+        credentialLabel: 'api_key:account-2',
+        apiKey: 'cf-two',
+        baseUrl: 'https://api.cloudflare.com/client/v4/accounts/account-2/ai/v1',
+      },
+    ]);
+  });
+
+  it('uses a single credential base URL as the runtime provider endpoint', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          custom: {
+            type: 'openai',
+            baseUrl: 'https://default.example.test/v1',
+            credentials: [
+              {
+                apiKey: 'sk-one',
+                baseUrl: 'https://account.example.test/v1',
+              },
+            ],
+          },
+        },
+        models: {
+          primary: {
+            provider: 'custom',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    const resolved = manager.resolveProviderConfig('primary');
+
+    expect(resolved.provider).toMatchObject({
+      apiKey: 'sk-one',
+      baseUrl: 'https://account.example.test/v1',
+    });
+  });
+
+  it('keeps a single named credential label on explicit routes', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          openai: {
+            type: 'openai',
+            credentials: [{ apiKey: 'sk-work', label: 'work', rpm: 2, tpm: 1000 }],
+          },
+        },
+        models: {
+          primary: {
+            provider: 'openai',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+            routing: {
+              preferredCredential: 'api_key:work',
+            },
+          },
+        },
+      },
+    });
+
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(route?.preferredCredential).toBe('api_key:work');
+    expect(
+      route?.candidates.map((candidate) => ({
+        credentialLabel: candidate.credentialLabel,
+        localLimits: candidate.localLimits,
+        apiKey: candidate.provider.apiKey,
+      })),
+    ).toEqual([
+      {
+        credentialLabel: 'api_key:work',
+        localLimits: { rpm: 2, tpm: 1000 },
+        apiKey: 'sk-work',
+      },
+    ]);
+  });
+
+  it('expands provider OAuth pools into auto route candidates', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          openai: {
+            type: 'openai',
+            oauth: { storage: 'file', key: 'oauth/primary', label: 'work' },
+            oauths: [
+              { storage: 'file', key: 'oauth/backup', label: 'backup' },
+              { storage: 'file', key: 'oauth/primary', label: 'duplicate-primary' },
+            ],
+          },
+        },
+        models: {
+          primary: {
+            provider: 'openai',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(route?.strategy).toBe('auto');
+    expect(
+      route?.candidates.map((candidate) => ({
+        modelAlias: candidate.modelAlias,
+        credentialLabel: candidate.credentialLabel,
+        oauthKey: candidate.oauthRef?.key,
+        apiKey: candidate.provider.apiKey,
+      })),
+    ).toEqual([
+      {
+        modelAlias: 'primary',
+        credentialLabel: 'oauth:work',
+        oauthKey: 'oauth/primary',
+        apiKey: undefined,
+      },
+      {
+        modelAlias: 'primary',
+        credentialLabel: 'oauth:backup',
+        oauthKey: 'oauth/backup',
+        apiKey: undefined,
+      },
+    ]);
+  });
+
+  it('resolves explicit environment references in provider api key pools', () => {
+    const previousOne = process.env['KIMI_TEST_OPENAI_KEY_ONE'];
+    const previousTwo = process.env['KIMI_TEST_OPENAI_KEY_TWO'];
+    process.env['KIMI_TEST_OPENAI_KEY_ONE'] = 'sk-env-one';
+    process.env['KIMI_TEST_OPENAI_KEY_TWO'] = 'sk-env-two';
+
+    try {
+      const manager = new ProviderManager({
+        config: {
+          defaultModel: 'primary',
+          providers: {
+            openai: {
+              type: 'openai',
+              apiKey: '{env:KIMI_TEST_OPENAI_KEY_ONE}',
+              apiKeys: ['env:KIMI_TEST_OPENAI_KEY_TWO', 'env/KIMI_TEST_OPENAI_KEY_ONE'],
+            },
+          },
+          models: {
+            primary: {
+              provider: 'openai',
+              model: 'gpt-primary',
+              maxContextSize: 200000,
+            },
+          },
+        },
+      });
+
+      const resolved = manager.resolveProviderConfig('primary');
+      const route = manager.resolveProviderRoute('primary');
+
+      expect(resolved.provider).toMatchObject({ apiKey: 'sk-env-one' });
+      expect(route?.strategy).toBe('auto');
+      expect(route?.candidates.map((candidate) => candidate.provider.apiKey)).toEqual([
+        'sk-env-one',
+        'sk-env-two',
+      ]);
+    } finally {
+      if (previousOne === undefined) delete process.env['KIMI_TEST_OPENAI_KEY_ONE'];
+      else process.env['KIMI_TEST_OPENAI_KEY_ONE'] = previousOne;
+      if (previousTwo === undefined) delete process.env['KIMI_TEST_OPENAI_KEY_TWO'];
+      else process.env['KIMI_TEST_OPENAI_KEY_TWO'] = previousTwo;
+    }
+  });
+
+  it('fails fast when an explicit provider api key environment reference is missing', () => {
+    const previous = process.env['KIMI_TEST_MISSING_OPENAI_KEY'];
+    delete process.env['KIMI_TEST_MISSING_OPENAI_KEY'];
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          openai: {
+            type: 'openai',
+            apiKey: '{env:KIMI_TEST_MISSING_OPENAI_KEY}',
+          },
+        },
+        models: {
+          primary: {
+            provider: 'openai',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    try {
+      expect(() => manager.resolveProviderConfig('primary')).toThrow(
+        /KIMI_TEST_MISSING_OPENAI_KEY/,
+      );
+    } finally {
+      if (previous !== undefined) process.env['KIMI_TEST_MISSING_OPENAI_KEY'] = previous;
+    }
+  });
+
+  it('resolves primary and fallback model aliases in routing order', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          primary: {
+            type: 'openai',
+            apiKey: 'sk-primary',
+          },
+          backup: {
+            type: 'anthropic',
+            apiKey: 'sk-backup',
+          },
+        },
+        models: {
+          primary: {
+            provider: 'primary',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+            fallbackModels: ['backup', 'primary'],
+            routing: { strategy: 'round_robin', cooldownMs: 120000 },
+          },
+          backup: {
+            provider: 'backup',
+            model: 'claude-backup',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(route).toMatchObject({
+      modelAlias: 'primary',
+      strategy: 'round_robin',
+      cooldownMs: 120000,
+    });
+    expect(
+      route?.candidates.map((candidate) => ({
+        modelAlias: candidate.modelAlias,
+        providerName: candidate.providerName,
+        providerModel: candidate.provider.model,
+      })),
+    ).toEqual([
+      { modelAlias: 'primary', providerName: 'primary', providerModel: 'gpt-primary' },
+      { modelAlias: 'backup', providerName: 'backup', providerModel: 'claude-backup' },
+    ]);
+  });
+
+  it('attaches route weights to expanded model candidates', () => {
+    const manager = new ProviderManager({
+      config: {
+        defaultModel: 'primary',
+        providers: {
+          primary: {
+            type: 'openai',
+            apiKeys: ['sk-primary-one', 'sk-primary-two'],
+          },
+          backup: {
+            type: 'anthropic',
+            apiKey: 'sk-backup',
+          },
+        },
+        models: {
+          primary: {
+            provider: 'primary',
+            model: 'gpt-primary',
+            maxContextSize: 200000,
+            fallbackModels: ['backup'],
+            routing: {
+              strategy: 'weighted_round_robin',
+              weights: { primary: 3, backup: 1 },
+            },
+          },
+          backup: {
+            provider: 'backup',
+            model: 'claude-backup',
+            maxContextSize: 200000,
+          },
+        },
+      },
+    });
+
+    const route = manager.resolveProviderRoute('primary');
+
+    expect(route?.strategy).toBe('weighted_round_robin');
+    expect(
+      route?.candidates.map((candidate) => ({
+        modelAlias: candidate.modelAlias,
+        credentialLabel: candidate.credentialLabel,
+        weight: candidate.weight,
+      })),
+    ).toEqual([
+      { modelAlias: 'primary', credentialLabel: 'api_key:1', weight: 3 },
+      { modelAlias: 'primary', credentialLabel: 'api_key:2', weight: 3 },
+      { modelAlias: 'backup', credentialLabel: undefined, weight: 1 },
+    ]);
+  });
+
+  it('returns no route when a model has no fallback routing configured', () => {
+    const manager = new ProviderManager({ config: BASE_CONFIG });
+
+    expect(manager.resolveProviderRoute('kimi-code/kimi-for-coding')).toBeUndefined();
+  });
+});
+
 describe('ProviderManager OAuth auth', () => {
   function oauthConfig(): KimiConfig {
     return {
@@ -734,6 +1139,126 @@ describe('ProviderManager OAuth auth', () => {
     await expect(resolveAuth!(async () => 'ok')).rejects.toMatchObject({
       code: ErrorCodes.AUTH_LOGIN_REQUIRED,
     });
+  });
+
+  it('adds route-safe OAuth credential details to login-required token failures', async () => {
+    const manager = new ProviderManager({
+      config: {
+        ...oauthConfig(),
+        providers: {
+          'managed:kimi-code': {
+            type: 'kimi',
+            apiKey: '',
+            baseUrl: 'https://api.example/v1',
+            oauth: { storage: 'file', key: 'oauth/primary', label: 'work' },
+            oauths: [{ storage: 'file', key: 'oauth/backup', label: 'backup' }],
+          },
+        },
+      },
+      resolveOAuthTokenProvider: () => ({
+        async getAccessToken() {
+          throw new KimiError(ErrorCodes.AUTH_LOGIN_REQUIRED, 'not logged in');
+        },
+      }),
+    });
+
+    const resolveAuth = manager.resolveAuth('kimi-code/kimi-for-coding', {
+      credentialLabel: 'oauth:2',
+    });
+    expect(resolveAuth).toBeDefined();
+
+    let thrown: unknown;
+    try {
+      await resolveAuth!(async () => 'ok');
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toMatchObject({
+      code: ErrorCodes.AUTH_LOGIN_REQUIRED,
+      details: {
+        providerName: 'managed:kimi-code',
+        credentialLabel: 'oauth:2',
+        oauthStorage: 'file',
+        oauthKeyFingerprint: expect.any(String),
+      },
+    });
+    expect(JSON.stringify((thrown as KimiError).details)).not.toContain('oauth/backup');
+  });
+
+  it('prefers explicit api keys over configured OAuth credentials', () => {
+    let tokenProviderResolved = false;
+    const manager = new ProviderManager({
+      config: {
+        ...oauthConfig(),
+        providers: {
+          'managed:kimi-code': {
+            type: 'kimi',
+            apiKey: 'static-key',
+            baseUrl: 'https://api.example/v1',
+            oauth: { storage: 'file', key: 'oauth/kimi-code' },
+          },
+        },
+      },
+      resolveOAuthTokenProvider: () => {
+        tokenProviderResolved = true;
+        return {
+          async getAccessToken() {
+            return 'oauth-token';
+          },
+        };
+      },
+    });
+
+    const resolved = manager.resolveProviderConfig('kimi-code/kimi-for-coding');
+
+    expect(resolved.provider).toMatchObject({ apiKey: 'static-key' });
+    expect(manager.resolveAuth('kimi-code/kimi-for-coding')).toBeUndefined();
+    expect(tokenProviderResolved).toBe(false);
+  });
+
+  it('uses the route candidate credential label to select an OAuth account', async () => {
+    const resolvedRefs: OAuthRef[] = [];
+    const manager = new ProviderManager({
+      config: {
+        ...oauthConfig(),
+        providers: {
+          'managed:kimi-code': {
+            type: 'kimi',
+            apiKey: '',
+            baseUrl: 'https://api.example/v1',
+            oauth: { storage: 'file', key: 'oauth/primary', label: 'work' },
+            oauths: [{ storage: 'file', key: 'oauth/backup', label: 'backup' }],
+          },
+        },
+      },
+      resolveOAuthTokenProvider: (_providerName, oauthRef) => {
+        if (oauthRef === undefined) return undefined;
+        resolvedRefs.push(oauthRef);
+        return {
+          async getAccessToken() {
+            return `token:${oauthRef.key}`;
+          },
+        };
+      },
+    });
+
+    const primaryAuth = manager.resolveAuth('kimi-code/kimi-for-coding', {
+      credentialLabel: 'oauth:work',
+    });
+    const backupAuth = manager.resolveAuth('kimi-code/kimi-for-coding', {
+      credentialLabel: 'oauth:backup',
+    });
+
+    expect(primaryAuth).toBeDefined();
+    expect(backupAuth).toBeDefined();
+    await expect(primaryAuth!((auth) => Promise.resolve(auth.apiKey))).resolves.toBe(
+      'token:oauth/primary',
+    );
+    await expect(backupAuth!((auth) => Promise.resolve(auth.apiKey))).resolves.toBe(
+      'token:oauth/backup',
+    );
+    expect(resolvedRefs.map((ref) => ref.key)).toEqual(['oauth/primary', 'oauth/backup']);
   });
 });
 

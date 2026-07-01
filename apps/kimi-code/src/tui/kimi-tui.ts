@@ -94,7 +94,7 @@ import { ToolCallComponent } from './components/messages/tool-call';
 import { UserMessageComponent } from './components/messages/user-message';
 import { ActivityPaneComponent, type ActivityPaneMode } from './components/panes/activity-pane';
 import { QueuePaneComponent } from './components/panes/queue-pane';
-import type { TuiConfig } from './config';
+import { DEFAULT_APPEARANCE_PREFERENCES, type TuiConfig } from './config';
 import {
   LLM_NOT_SET_MESSAGE,
   MAIN_AGENT_ID,
@@ -104,6 +104,7 @@ import {
 import { CHROME_GUTTER } from './constant/rendering';
 import { MAX_TERMINAL_TITLE_LENGTH } from './constant/terminal';
 import { AuthFlowController } from './controllers/auth-flow';
+import { AppearanceController } from './controllers/appearance';
 import { BtwPanelController } from './controllers/btw-panel';
 import { ClipboardImageHintController } from './controllers/clipboard-image-hint';
 import { EditorKeyboardController } from './controllers/editor-keyboard';
@@ -225,8 +226,10 @@ function createInitialAppState(input: KimiTUIStartupInput): AppState {
     editorCommand: input.tuiConfig.editorCommand,
     notifications: input.tuiConfig.notifications,
     upgrade: input.tuiConfig.upgrade,
+    appearance: input.tuiConfig.appearance ?? DEFAULT_APPEARANCE_PREFERENCES,
     availableModels: {},
     availableProviders: {},
+    providerRouteStatus: null,
     sessionTitle: null,
     goal: null,
     mcpServersSummary: null,
@@ -285,6 +288,7 @@ export class KimiTUI {
   >();
   readonly streamingUI: StreamingUIController;
   readonly authFlow: AuthFlowController;
+  readonly appearanceController: AppearanceController;
   readonly btwPanelController: BtwPanelController;
   readonly sessionEventHandler: SessionEventHandler;
   readonly sessionReplay: SessionReplayRenderer;
@@ -355,6 +359,13 @@ export class KimiTUI {
     );
     this.streamingUI = new StreamingUIController(this);
     this.authFlow = new AuthFlowController(this);
+    this.appearanceController = new AppearanceController({
+      terminal: this.state.terminal,
+      getAppearance: () => this.state.appState.appearance ?? DEFAULT_APPEARANCE_PREFERENCES,
+      requestRender: () => {
+        this.state.ui.requestRender();
+      },
+    });
     this.btwPanelController = new BtwPanelController(this);
     this.sessionEventHandler = new SessionEventHandler(this);
     this.sessionReplay = new SessionReplayRenderer(this);
@@ -803,6 +814,7 @@ export class KimiTUI {
     }
     this.reverseRpcDisposers.length = 0;
     this.disposeTerminalTracking();
+    this.appearanceController.dispose();
     await this.closeSession('shutting down');
     await this.harness.close();
     this.sessionEventHandler.stopAllMcpServerStatusSpinners();
@@ -1375,6 +1387,7 @@ export class KimiTUI {
     const busyChanged = 'streamingPhase' in patch || 'isCompacting' in patch;
     Object.assign(this.state.appState, patch);
     if ('planMode' in patch) this.updateEditorBorderHighlight();
+    if ('appearance' in patch) this.appearanceController.apply();
     this.state.footer.setState(this.state.appState);
     this.updateActivityPane();
     if (busyChanged) {
@@ -1455,6 +1468,7 @@ export class KimiTUI {
       contextTokens: status.contextTokens,
       maxContextTokens: status.maxContextTokens,
       contextUsage: status.contextUsage,
+      providerRouteStatus: status.providerRouteStatus ?? null,
       sessionTitle: session.summary?.title ?? null,
       goal: goalResult.goal,
     });
@@ -2472,9 +2486,19 @@ export class KimiTUI {
     const palette = await getColorPalette(themeName === 'auto' ? (resolved ?? 'dark') : themeName);
     currentTheme.setPalette(palette);
     this.setAppState({ theme: themeName });
+    this.appearanceController.apply();
     this.updateEditorBorderHighlight();
     // Force every historical message to re-render so Markdown/Text caches
     // (which hold old ANSI colour codes) are cleared.
+    this.state.transcriptContainer.invalidate();
+    this.state.ui.requestRender(true);
+  }
+
+  async previewTheme(themeName: ThemeName, resolved?: ResolvedTheme): Promise<void> {
+    const palette = await getColorPalette(themeName === 'auto' ? (resolved ?? 'dark') : themeName);
+    currentTheme.setPalette(palette);
+    this.appearanceController.apply();
+    this.updateEditorBorderHighlight();
     this.state.transcriptContainer.invalidate();
     this.state.ui.requestRender(true);
   }
@@ -2498,6 +2522,7 @@ export class KimiTUI {
     const palette = getBuiltInPalette(resolved);
     if (currentTheme.palette === palette) return;
     currentTheme.setPalette(palette);
+    this.appearanceController.apply();
     this.updateEditorBorderHighlight();
     // Repaint already-rendered transcript entries (status/markdown caches hold
     // old ANSI codes), matching applyTheme()'s behaviour.

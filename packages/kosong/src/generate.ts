@@ -8,7 +8,13 @@ import {
   type StreamedMessagePart,
   type ToolCall,
 } from './message';
-import type { ChatProvider, FinishReason, GenerateOptions, StreamedMessage } from './provider';
+import type {
+  ChatProvider,
+  FinishReason,
+  GenerateOptions,
+  ResponseHeaders,
+  StreamedMessage,
+} from './provider';
 import type { Tool } from './tool';
 import type { TokenUsage } from './usage';
 
@@ -39,6 +45,8 @@ export interface GenerateResult {
    * `null` if the provider did not emit one.
    */
   readonly rawFinishReason: string | null;
+  /** Provider response headers, when the transport exposes them. */
+  readonly responseHeaders?: ResponseHeaders;
 }
 
 export interface GenerateCallbacks {
@@ -231,6 +239,7 @@ export async function generate(
     usage: stream.usage,
     finishReason: stream.finishReason,
     rawFinishReason: stream.rawFinishReason,
+    responseHeaders: stream.responseHeaders,
   };
 }
 

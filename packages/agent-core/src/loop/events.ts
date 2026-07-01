@@ -1,5 +1,6 @@
 import type { FinishReason, TextPart, ThinkPart, TokenUsage } from '@moonshot-ai/kosong';
 
+import type { LLMProviderRouteSelection } from './llm';
 import type { ToolInputDisplay } from '../tools/display';
 import type { ExecutableToolResult, LoopStepStopReason, ToolUpdate } from './types';
 
@@ -31,6 +32,7 @@ export interface LoopStepEndEvent {
    */
   readonly providerFinishReason?: FinishReason | undefined;
   readonly rawFinishReason?: string | undefined;
+  readonly providerRouteSelection?: LLMProviderRouteSelection | undefined;
 }
 
 export interface LoopStepRetryingEvent {

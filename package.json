@@ -10,6 +10,7 @@
     "build:packages": "corepack pnpm -r --filter './packages/*' run build",
     "dev:cli": "corepack pnpm -C apps/kimi-code run dev",
     "dev:cli:marketplace": "KIMI_CODE_DEV_MARKETPLACE_URL=https://code.kimi.com/kimi-code/plugins/marketplace.json corepack pnpm -C apps/kimi-code run dev",
+    "install:skimi": "node scripts/install-skimi.mjs",
     "dev:server": "corepack pnpm -C apps/kimi-code run dev:server",
     "build:plugin-marketplace": "corepack pnpm -C apps/kimi-code run build:plugin-marketplace",
     "vis": "corepack pnpm -C apps/vis run dev",

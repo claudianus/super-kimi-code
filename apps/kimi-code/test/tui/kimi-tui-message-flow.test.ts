@@ -2798,6 +2798,80 @@ command = "vim"
     expect(countOccurrences(transcript, 'Swarm ended')).toBe(0);
   });
 
+  it('tracks provider route status from status updates', async () => {
+    const { driver } = await makeDriver();
+    const providerRoute = {
+      modelAlias: 'k2',
+      strategy: 'round_robin' as const,
+      candidates: [
+        {
+          modelAlias: 'k2',
+          providerName: 'openai',
+          credentialLabel: 'api_key:1',
+          providerModel: 'gpt-primary',
+        },
+      ],
+    };
+
+    driver.sessionEventHandler.handleEvent(
+      {
+        type: 'agent.status.updated',
+        agentId: 'main',
+        sessionId: 'ses-1',
+        providerRoute,
+      } as Event,
+      vi.fn(),
+    );
+
+    expect(driver.state.appState.providerRouteStatus).toEqual(providerRoute);
+
+    driver.sessionEventHandler.handleEvent(
+      {
+        type: 'agent.status.updated',
+        agentId: 'main',
+        sessionId: 'ses-1',
+        providerRoute: null,
+      } as Event,
+      vi.fn(),
+    );
+
+    expect(driver.state.appState.providerRouteStatus).toBeNull();
+  });
+
+  it('hydrates provider route status from session status sync', async () => {
+    const providerRoute = {
+      modelAlias: 'k2',
+      strategy: 'fallback' as const,
+      candidates: [
+        {
+          modelAlias: 'k2',
+          providerName: 'openai',
+          providerModel: 'gpt-primary',
+        },
+        {
+          modelAlias: 'k2/fallback',
+          providerName: 'anthropic',
+          providerModel: 'claude-backup',
+        },
+      ],
+    };
+    const session = makeSession({
+      getStatus: vi.fn(async () => ({
+        model: 'k2',
+        thinkingLevel: 'off',
+        permission: 'manual',
+        planMode: false,
+        contextTokens: 0,
+        maxContextTokens: 100,
+        contextUsage: 0,
+        providerRouteStatus: providerRoute,
+      })),
+    });
+    const { driver } = await makeDriver(session);
+
+    expect(driver.state.appState.providerRouteStatus).toEqual(providerRoute);
+  });
+
   it('renders an ended marker when a one-shot /swarm task exits', async () => {
     const { driver, session } = await makeDriver(undefined);
     driver.state.appState.permissionMode = 'auto';

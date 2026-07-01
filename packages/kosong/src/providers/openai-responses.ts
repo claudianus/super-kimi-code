@@ -11,6 +11,7 @@ import type {
   FinishReason,
   GenerateOptions,
   ProviderRequestAuth,
+  ResponseHeaders,
   StreamedMessage,
   ThinkingEffort,
 } from '#/provider';
@@ -33,6 +34,7 @@ import {
   requireProviderApiKey,
   resolveAuthBackedClient,
 } from './request-auth';
+import { awaitWithResponseHeaders } from './response-headers';
 import {
   normalizeToolCallIdsForProvider,
   sanitizeOpenAIResponsesCallId,
@@ -635,7 +637,11 @@ export class OpenAIResponsesStreamedMessage implements StreamedMessage {
   private _rawFinishReason: string | null = null;
   private readonly _iter: AsyncGenerator<StreamedMessagePart>;
 
-  constructor(response: unknown, isStream: boolean) {
+  constructor(
+    response: unknown,
+    isStream: boolean,
+    readonly responseHeaders?: ResponseHeaders,
+  ) {
     if (isStream) {
       this._iter = this._convertStreamResponse(response as AsyncIterable<RawObject>);
     } else {
@@ -978,6 +984,9 @@ export class OpenAIResponsesStreamedMessage implements StreamedMessage {
 }
 export class OpenAIResponsesChatProvider implements ChatProvider {
   readonly name: string = 'openai-responses';
+  readonly contextManagementCapability = {
+    serverSideCompaction: true,
+  } as const;
 
   private _model: string;
   private _stream: boolean;
@@ -1085,12 +1094,15 @@ export class OpenAIResponsesChatProvider implements ChatProvider {
       }
 
       options?.onRequestSent?.();
-      const response = await (
+      const create = (
         client.responses as {
-          create(params: unknown, opts?: unknown): Promise<unknown>;
+          create(params: unknown, opts?: unknown): unknown;
         }
-      ).create(createParams, options?.signal ? { signal: options.signal } : undefined);
-      return new OpenAIResponsesStreamedMessage(response, this._stream);
+      ).create.bind(client.responses);
+      const { data, responseHeaders } = await awaitWithResponseHeaders(
+        create(createParams, options?.signal ? { signal: options.signal } : undefined),
+      );
+      return new OpenAIResponsesStreamedMessage(data, this._stream, responseHeaders);
     } catch (error: unknown) {
       throw convertOpenAIError(error);
     }

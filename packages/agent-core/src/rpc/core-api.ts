@@ -35,7 +35,7 @@ import type { ContentPart } from '@moonshot-ai/kosong';
 import type { SessionWarning } from '@moonshot-ai/protocol';
 
 import type { PluginCommandDef, PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
-import type { UsageStatus } from './events';
+import type { ProviderRouteStatus, UsageStatus } from './events';
 import type { WithAgentId, WithSessionId } from './types';
 
 export type JsonPrimitive = string | number | boolean | null;
@@ -470,6 +470,8 @@ export interface AgentAPI {
   getPermission: (payload: EmptyPayload) => PermissionData;
   getPlan: (payload: EmptyPayload) => PlanData;
   getUsage: (payload: EmptyPayload) => UsageStatus;
+  getProviderRouteStatus: (payload: EmptyPayload) => ProviderRouteStatus | null;
+  resetProviderRouteStatus: (payload: EmptyPayload) => ProviderRouteStatus | null;
   getTools: (payload: EmptyPayload) => readonly ToolInfo[];
   getBackground: (payload: GetBackgroundPayload) => readonly BackgroundTaskInfo[];
 }

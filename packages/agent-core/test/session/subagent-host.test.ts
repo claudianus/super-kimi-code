@@ -316,6 +316,67 @@ describe('SessionSubagentHost', () => {
     ]);
   });
 
+  it('resolves expert catalog ids as named subagent profiles', async () => {
+    const telemetryTrack = vi.fn();
+    const parent = testAgent({ telemetry: { track: telemetryTrack } });
+    parent.configure();
+    await parent.rpc.setPermission({ mode: 'yolo' });
+    parent.newEvents();
+
+    const child = testAgent({
+      type: 'sub',
+      permission: { parent: parent.agent.permission },
+    });
+    const summary =
+      'Applied the anthropologist expert perspective to the delegated launch review, identified cultural coherence risks, and returned a detailed handoff for the parent agent to integrate without repeating the analysis. '.repeat(
+        2,
+      );
+    child.mockNextResponse({ type: 'text', text: summary });
+    const session = fakeSession(parent.agent, child.agent);
+    const host = new SessionSubagentHost(session, 'main');
+
+    const handle = await host.spawn({
+      profileName: 'academic-anthropologist',
+      profileBaseName: 'explore',
+      parentToolCallId: 'call_ultra_swarm',
+      prompt: 'Review the launch plan',
+      description: 'Review plan',
+      runInBackground: false,
+      signal,
+    });
+
+    await expect(handle.completion).resolves.toMatchObject({ result: summary.trim() });
+    expect(handle.profileName).toBe('academic-anthropologist');
+    expect(child.agent.config.profileName).toBe('academic-anthropologist');
+    expect(child.llmCalls[0]?.systemPrompt).toContain('## Expert Subagent Profile');
+    expect(child.llmCalls[0]?.systemPrompt).toContain(
+      'You are running as the "academic-anthropologist" expert subagent',
+    );
+    expect(child.llmCalls[0]?.systemPrompt).toContain('Anthropologist Agent Personality');
+    expect(child.llmCalls[0]?.systemPrompt).toContain('codebase exploration specialist');
+    expect(child.llmCalls[0]?.tools.map((tool) => tool.name).toSorted()).toEqual([
+      'Bash',
+      'Glob',
+      'Grep',
+      'Read',
+    ]);
+    expect(parent.allEvents).toContainEqual(
+      expect.objectContaining({
+        type: '[rpc]',
+        event: 'subagent.spawned',
+        args: expect.objectContaining({
+          subagentId: 'agent-0',
+          subagentName: 'academic-anthropologist',
+          parentToolCallId: 'call_ultra_swarm',
+        }),
+      }),
+    );
+    expect(telemetryTrack).toHaveBeenCalledWith('subagent_created', {
+      subagent_name: 'academic-anthropologist',
+      run_in_background: false,
+    });
+  });
+
   it('inherits active parent user tools when spawning a subagent', async () => {
     const parent = testAgent();
     parent.configure();

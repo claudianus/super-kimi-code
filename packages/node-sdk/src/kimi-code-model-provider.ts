@@ -92,6 +92,7 @@ export class KimiForCodingProvider implements ModelProvider {
     };
 
     return {
+      modelAlias: model,
       providerName: 'kimi-for-coding',
       provider,
       modelCapabilities: UNKNOWN_CAPABILITY,

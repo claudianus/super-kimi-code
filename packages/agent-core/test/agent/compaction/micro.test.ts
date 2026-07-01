@@ -632,7 +632,7 @@ describe('MicroCompaction', () => {
     );
   });
 
-  it('replaces rich error tool content while preserving context metadata before projection', () => {
+  it('preserves error tool results even when they are old and large', () => {
     vi.useFakeTimers();
     const ctx = testAgent({
       microCompaction: {
@@ -662,8 +662,65 @@ describe('MicroCompaction', () => {
       toolCallId: 'call_micro_1',
       isError: true,
     });
-    expect(textOf(tool, { raw: true })).toContain(DEFAULT_MARKER);
-    expect(textOf(tool, { raw: true })).toContain('toolCallId=call_micro_1');
+    expect(textOf(tool, { raw: true })).toContain('large rich output');
+    expect(tool?.content.length).toBeGreaterThan(1);
+  });
+
+  it('preserves known mutating tool results', () => {
+    vi.useFakeTimers();
+    const ctx = testAgent({
+      microCompaction: {
+        keepRecentMessages: 0,
+        minContentTokens: 1,
+        cacheMissedThresholdMs: 60 * MINUTE,
+        minContextUsageRatio: 0,
+      },
+    });
+
+    vi.setSystemTime(0);
+    appendMicroToolExchange(ctx, 1, {
+      toolName: 'Write',
+      output: 'wrote important file\n'.repeat(80),
+    });
+
+    vi.setSystemTime(61 * MINUTE);
+
+    ctx.agent.microCompaction.detect();
+    const compacted = ctx.agent.microCompaction.compact(ctx.agent.context.history);
+    const tool = compacted.find((message) => message.role === 'tool');
+    expect(textOf(tool, { raw: true })).toContain('wrote important file');
+    expect(hasMarker(compacted)).toBe(false);
+  });
+
+  it('keeps media metadata in cleared rich tool result markers', () => {
+    vi.useFakeTimers();
+    const ctx = testAgent({
+      microCompaction: {
+        keepRecentMessages: 0,
+        minContentTokens: 1,
+        cacheMissedThresholdMs: 60 * MINUTE,
+        minContextUsageRatio: 0,
+      },
+    });
+
+    vi.setSystemTime(0);
+    appendMicroToolExchange(ctx, 1, {
+      output: [
+        { type: 'text', text: largeToolOutput('large rich output') },
+        { type: 'video_url', videoUrl: { url: 'ms://video-1', id: 'video-1' } },
+      ],
+    });
+
+    vi.setSystemTime(61 * MINUTE);
+
+    ctx.agent.microCompaction.detect();
+    const compacted = ctx.agent.microCompaction.compact(ctx.agent.context.history);
+    const tool = compacted.find((message) => message.role === 'tool');
+    const marker = textOf(tool, { raw: true });
+    expect(marker).toContain(DEFAULT_MARKER);
+    expect(marker).toContain('policyReason=replayable_tool_result');
+    expect(marker).toContain('video-1');
+    expect(marker).toContain('ms://video-1');
     expect(tool?.content).toHaveLength(1);
   });
 
@@ -804,6 +861,7 @@ interface MicroToolExchangeOptions {
   readonly output?: string | ContentPart[] | undefined;
   readonly isError?: boolean | undefined;
   readonly usageTokens?: number | undefined;
+  readonly toolName?: string | undefined;
 }
 
 function appendMicroToolExchange(
@@ -813,6 +871,7 @@ function appendMicroToolExchange(
 ): void {
   const stepUuid = `micro-tool-step-${String(index)}`;
   const toolCallId = `call_micro_${String(index)}`;
+  const toolName = options.toolName ?? 'Lookup';
   const output =
     options.output === undefined || typeof options.output === 'string'
       ? largeToolOutput(options.output ?? `lookup result ${String(index)}`)
@@ -840,7 +899,7 @@ function appendMicroToolExchange(
       turnId: '',
       step: index,
       stepUuid,
-      part: { type: 'text', text: `calling Lookup ${String(index)}` },
+      part: { type: 'text', text: `calling ${toolName} ${String(index)}` },
     },
   });
   ctx.dispatch({
@@ -852,7 +911,7 @@ function appendMicroToolExchange(
       step: index,
       stepUuid,
       toolCallId,
-      name: 'Lookup',
+      name: toolName,
       args: { query: `item-${String(index)}` },
     },
   });

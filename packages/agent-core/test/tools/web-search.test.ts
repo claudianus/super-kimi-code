@@ -11,6 +11,7 @@ import {
   WebSearchTool,
   type WebSearchProvider,
 } from '../../src/tools/builtin/web/web-search';
+import type { UrlFetcher } from '../../src/tools/builtin/web/fetch-url';
 import { LocalWebSearchProvider } from '../../src/tools/providers/local-web-search';
 import { MoonshotWebSearchProvider } from '../../src/tools/providers/moonshot-web-search';
 import { toolContentString } from './fixtures/fake-kaos';
@@ -322,6 +323,85 @@ describe('LocalWebSearchProvider', () => {
     const provider = new LocalWebSearchProvider({ fetchImpl, maxBytes: 10 });
 
     await expect(provider.search('query')).rejects.toThrow(/too large/i);
+  });
+
+  it('falls back to direct public sources when the HTML search endpoint fails', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = input as URL;
+      if (url.hostname === 'duckduckgo.com') {
+        return new Response('unavailable', { status: 503 });
+      }
+      if (url.hostname === 'api.github.com') {
+        return new Response(JSON.stringify({
+          items: [
+            {
+              full_name: 'example/research-tool',
+              html_url: 'https://github.com/example/research-tool',
+              description: 'Local research fallback',
+              updated_at: '2026-01-02T00:00:00Z',
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+    const provider = new LocalWebSearchProvider({
+      fetchImpl,
+      searchUrl: 'https://duckduckgo.com/html/',
+      directSources: { github: true, arxiv: false, npm: false, pypi: false, crates: false },
+    });
+
+    const results = await provider.search('local research fallback', { limit: 3 });
+
+    expect(results[0]).toMatchObject({
+      title: 'example/research-tool',
+      url: 'https://github.com/example/research-tool',
+    });
+    expect(results[0]?.snippet).toContain('[github]');
+  });
+
+  it('fetches result content with the configured local concurrency cap', async () => {
+    const html = [
+      '<html><body>',
+      ...[1, 2, 3, 4].map((n) => [
+        '<div class="result">',
+        `<a class="result__a" href="https://example.com/docs-${String(n)}">Doc ${String(n)}</a>`,
+        `<a class="result__snippet">Snippet ${String(n)}</a>`,
+        '</div>',
+      ].join('')),
+      '</body></html>',
+    ].join('');
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(html, {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    }));
+    let active = 0;
+    let maxActive = 0;
+    const urlFetcher: UrlFetcher = {
+      fetch: vi.fn(async (url) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+        return { content: `Fetched ${url}`, kind: 'extracted' as const };
+      }),
+    };
+    const provider = new LocalWebSearchProvider({
+      fetchImpl,
+      urlFetcher,
+      searchUrl: 'https://duckduckgo.com/html/',
+      concurrency: 2,
+      directSources: { github: false, arxiv: false, npm: false, pypi: false, crates: false },
+    });
+
+    const results = await provider.search('docs', { limit: 4, includeContent: true });
+
+    expect(results).toHaveLength(4);
+    expect(results.every((result) => result.content?.startsWith('Fetched https://example.com/docs-'))).toBe(true);
+    expect(maxActive).toBeLessThanOrEqual(2);
   });
 });
 

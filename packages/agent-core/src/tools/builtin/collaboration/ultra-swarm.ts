@@ -12,9 +12,9 @@ import type { ExecutableToolContext, ExecutableToolResult, ToolExecution } from 
 import ULTRA_SWARM_DESCRIPTION from './ultra-swarm.md?raw';
 import { toInputJsonSchema } from '../../support/input-schema';
 import { globalUltraSwarmOrchestrator } from '../../../expert-agents/orchestrator';
-import type { ExpertAssignment } from '../../../expert-agents/types';
+import type { ExpertAssignment, ExpertSwarmPlan } from '../../../expert-agents/types';
 
-const MAX_ULTRA_SWARM_SUBAGENTS = 16;
+const MAX_ULTRA_SWARM_SUBAGENTS = 128;
 
 export const UltraSwarmToolInputSchema = z
   .object({
@@ -30,6 +30,32 @@ export const UltraSwarmToolInputSchema = z
       .describe(
         'Optional list of expert IDs to summon. If omitted, the system will auto-select the best experts for the task.',
       ),
+    required_experts: z
+      .array(z.string().trim().min(1))
+      .max(MAX_ULTRA_SWARM_SUBAGENTS)
+      .optional()
+      .describe(
+        'Expert IDs that must be included even when auto_select is true. Useful when Ultrawork has already identified mandatory research, review, or verification roles.',
+      ),
+    max_experts: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_ULTRA_SWARM_SUBAGENTS)
+      .optional()
+      .describe('Maximum experts to launch. Defaults to 24 and never exceeds 128.'),
+    intensity: z
+      .enum(['balanced', 'premium', 'max'])
+      .optional()
+      .describe(
+        'Swarm staffing intensity. balanced keeps staffing conservative, premium uses the default enterprise team, max allows the largest team up to max_experts.',
+      ),
+    focus: z
+      .enum(['plan', 'research', 'implement', 'review', 'full'])
+      .optional()
+      .describe(
+        'Primary swarm focus. Ultrawork uses this to distinguish planning, research, implementation, review, or full lifecycle work.',
+      ),
     auto_select: z
       .boolean()
       .optional()
@@ -41,7 +67,9 @@ export const UltraSwarmToolInputSchema = z
       .trim()
       .min(1)
       .optional()
-      .describe('Base subagent type for all spawned experts. Defaults to "coder" when omitted.'),
+      .describe(
+        'Base execution profile for spawned experts. Each expert still runs as its own expert subagent. Defaults to "coder" when omitted.',
+      ),
     run_in_background: z
       .boolean()
       .optional()
@@ -90,6 +118,7 @@ This tool automatically assembles and orchestrates a swarm of specialized expert
 - Be specific in your description for better expert matching
 - You can explicitly request experts by ID, or let the system auto-select
 - Each expert receives their full persona + your task description
+- Each call can launch up to 128 expert subagents; cap active concurrency with KIMI_CODE_AGENT_SWARM_MAX_CONCURRENCY when needed
 - Results are tagged with expert name and emoji for easy identification
 
 ## Available divisions
@@ -138,14 +167,21 @@ Engineering, Design, Security, Product, Marketing, Testing, Academic, Finance, G
     signal: AbortSignal,
     toolCallId: string,
   ): Promise<string> {
-    const profileName = normalizeOptionalString(args.subagent_type) ?? 'coder';
+    const profileBaseName = normalizeOptionalString(args.subagent_type) ?? 'coder';
     const autoSelect = args.auto_select !== false;
+    const maxExperts = args.max_experts ?? defaultMaxExperts(args.intensity);
+    const requestedExperts = uniqueStrings([
+      ...(autoSelect ? [] : (args.experts ?? [])),
+      ...(args.required_experts ?? []),
+    ]);
+    if (requestedExperts.length > maxExperts) {
+      throw new Error(
+        `UltraSwarm max_experts is ${String(maxExperts)}, but ${String(requestedExperts.length)} explicit/required experts were requested.`,
+      );
+    }
 
     // Build the swarm plan
-    const plan = await globalUltraSwarmOrchestrator.buildSwarmPlan(
-      args.description,
-      autoSelect ? undefined : args.experts,
-    );
+    const plan = await this.buildPlan(args.description, autoSelect, requestedExperts, maxExperts);
 
     if (plan.experts.length === 0) {
       return 'No matching experts found for this task. Try being more specific in your description.';
@@ -162,7 +198,7 @@ Engineering, Design, Security, Product, Marketing, Testing, Academic, Finance, G
       index: index + 1,
       expertId: assignment.expertId,
       expertName: assignment.expertName,
-      prompt: this.buildExpertPrompt(assignment, args.description),
+      prompt: this.buildExpertPrompt(assignment, args.description, args.focus),
       emoji: assignment.emoji,
       color: assignment.color,
     }));
@@ -170,12 +206,13 @@ Engineering, Design, Security, Product, Marketing, Testing, Academic, Finance, G
     const tasks = specs.map((spec): QueuedSubagentTask<UltraSwarmSpec> => ({
       kind: 'spawn',
       data: spec,
-      profileName,
+      profileName: spec.expertId,
+      profileBaseName,
       parentToolCallId: toolCallId,
       prompt: spec.prompt,
       description: `${args.description} #${String(spec.index)} (${spec.expertName} ${spec.emoji})`,
       swarmIndex: spec.index,
-      runInBackground: false,
+      runInBackground: args.run_in_background === true,
       swarmItem: spec.expertId,
       signal,
       timeout: DEFAULT_SUBAGENT_TIMEOUT_MS,
@@ -188,14 +225,36 @@ Engineering, Design, Security, Product, Marketing, Testing, Academic, Finance, G
     );
   }
 
-  private buildExpertPrompt(assignment: ExpertAssignment, taskDescription: string): string {
-    const persona = `<expert_persona name="${assignment.expertName}" emoji="${assignment.emoji}" color="${assignment.color}">
+  private async buildPlan(
+    description: string,
+    autoSelect: boolean,
+    requestedExperts: readonly string[],
+    maxExperts: number,
+  ): Promise<ExpertSwarmPlan> {
+    const base = await globalUltraSwarmOrchestrator.buildSwarmPlan(
+      description,
+      autoSelect ? undefined : requestedExperts,
+    );
+    if (autoSelect && requestedExperts.length > 0) {
+      const required = await globalUltraSwarmOrchestrator.buildSwarmPlan(description, requestedExperts);
+      return capPlan(mergePlans(required, base), maxExperts);
+    }
+    return capPlan(base, maxExperts);
+  }
+
+  private buildExpertPrompt(
+    assignment: ExpertAssignment,
+    taskDescription: string,
+    focus: UltraSwarmToolInput['focus'],
+  ): string {
+    const briefing = `<expert_briefing name="${assignment.expertName}" emoji="${assignment.emoji}" color="${assignment.color}">
 ${assignment.prompt}
-</expert_persona>`;
+</expert_briefing>`;
     const task = `<task>
 ${taskDescription}
 </task>`;
-    return `${persona}\n\n${task}\n\nYou are ${assignment.expertName}. Apply your expertise to this task. Provide a thorough, high-quality response that leverages your specialized knowledge and skills.`;
+    const focusLine = focus === undefined ? '' : `\nFocus lane: ${focus}.`;
+    return `${briefing}\n\n${task}${focusLine}\n\nApply your ${assignment.expertName} expertise to this task. Provide a thorough, high-quality response that leverages your specialized knowledge and skills.`;
   }
 }
 
@@ -203,6 +262,47 @@ function normalizeOptionalString(value: string | undefined): string | undefined 
   if (value === undefined) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function defaultMaxExperts(intensity: UltraSwarmToolInput['intensity']): number {
+  if (intensity === 'max') return MAX_ULTRA_SWARM_SUBAGENTS;
+  return 24;
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+function mergePlans(primary: ExpertSwarmPlan, secondary: ExpertSwarmPlan): ExpertSwarmPlan {
+  const seen = new Set<string>();
+  const experts: ExpertAssignment[] = [];
+  for (const assignment of [...primary.experts, ...secondary.experts]) {
+    if (seen.has(assignment.expertId)) continue;
+    seen.add(assignment.expertId);
+    experts.push(assignment);
+  }
+  return {
+    taskDescription: secondary.taskDescription,
+    strategy: experts.length > 3 ? 'mixed' : experts.length > 1 ? 'parallel' : 'sequential',
+    experts,
+  };
+}
+
+function capPlan(plan: ExpertSwarmPlan, maxExperts: number): ExpertSwarmPlan {
+  if (plan.experts.length <= maxExperts) return plan;
+  return {
+    ...plan,
+    experts: plan.experts.slice(0, maxExperts),
+    strategy: maxExperts > 3 ? 'mixed' : maxExperts > 1 ? 'parallel' : 'sequential',
+  };
 }
 
 function renderUltraSwarmResults(

@@ -285,6 +285,14 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).getUsage(payload);
   }
 
+  async getProviderRouteStatus({ agentId, ...payload }: AgentScopedPayload<EmptyPayload>) {
+    return (await this.getAgent(agentId)).getProviderRouteStatus(payload);
+  }
+
+  async resetProviderRouteStatus({ agentId, ...payload }: AgentScopedPayload<EmptyPayload>) {
+    return (await this.getAgent(agentId)).resetProviderRouteStatus(payload);
+  }
+
   async getTools({ agentId, ...payload }: AgentScopedPayload<EmptyPayload>) {
     return (await this.getAgent(agentId)).getTools(payload);
   }

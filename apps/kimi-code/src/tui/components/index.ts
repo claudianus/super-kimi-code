@@ -31,6 +31,7 @@ export * from './messages/status-message';
 export * from './messages/swarm-markers';
 export * from './messages/thinking';
 export * from './messages/tool-call';
+export * from './messages/ultrawork-theatre';
 export * from './messages/usage-panel';
 export * from './messages/user-message';
 export * from './panes/activity-pane';

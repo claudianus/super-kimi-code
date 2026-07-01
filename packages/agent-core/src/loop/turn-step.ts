@@ -22,6 +22,7 @@ import type {
   LoopHooks,
   LoopMessageBuilder,
   LoopStepStopReason,
+  RecordStepUsageInfo,
   RecordStepUsageResult,
 } from './types';
 
@@ -42,7 +43,10 @@ export interface ExecuteLoopStepDeps {
   readonly log?: Logger | undefined;
   readonly currentStep: number;
   readonly maxRetryAttempts?: number;
-  readonly recordUsage: (usage: TokenUsage) => RecordStepUsageResult | void | Promise<RecordStepUsageResult | void>;
+  readonly recordUsage: (
+    usage: TokenUsage,
+    info?: RecordStepUsageInfo | undefined,
+  ) => RecordStepUsageResult | void | Promise<RecordStepUsageResult | void>;
 }
 
 export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
@@ -156,7 +160,7 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
     });
   }
   const usage = response.usage;
-  const usageResult = await recordUsage(usage);
+  const usageResult = await recordUsage(usage, { model: response.usageModel });
   const stopTurnAfterUsage = usageResult?.stopTurn === true;
   const stopReason = deriveStepStopReason(response);
 
@@ -188,6 +192,7 @@ export async function executeLoopStep(deps: ExecuteLoopStepDeps): Promise<{
     llmServerFirstTokenMs: response.streamTiming?.serverFirstTokenMs,
     llmServerDecodeMs: response.streamTiming?.serverDecodeMs,
     llmClientConsumeMs: response.streamTiming?.clientConsumeMs,
+    providerRouteSelection: response.providerRouteSelection,
     ...stepEndProviderDiagnostics(response, effectiveStopReason),
   });
 

@@ -42,6 +42,15 @@ describe('Event public types', () => {
     >();
   });
 
+  it('exposes selected provider route metadata on step completion events', () => {
+    type Selection = NonNullable<EventByType<'turn.step.completed'>['providerRouteSelection']>;
+    expectTypeOf<Selection['modelAlias']>().toEqualTypeOf<string>();
+    expectTypeOf<Selection['providerName']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<Selection['credentialLabel']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<Selection['providerModel']>().toEqualTypeOf<string>();
+    expectTypeOf<Selection['baseUrl']>().toEqualTypeOf<string | undefined>();
+  });
+
   it('narrows subagent lifecycle events by type', () => {
     expectTypeOf<EventByType<'subagent.spawned'>['subagentId']>().toEqualTypeOf<string>();
     expectTypeOf<EventByType<'subagent.spawned'>['runInBackground']>().toEqualTypeOf<boolean>();
@@ -51,6 +60,33 @@ describe('Event public types', () => {
   it('narrows cron fired events by type', () => {
     expectTypeOf<EventByType<'cron.fired'>['prompt']>().toEqualTypeOf<string>();
     expectTypeOf<EventByType<'cron.fired'>['origin']['kind']>().toEqualTypeOf<'cron_job'>();
+  });
+
+  it('narrows Ultrawork orchestration events by type', () => {
+    expectTypeOf<EventByType<'ultrawork.stage.changed'>['to']>().toEqualTypeOf<
+      | 'intake'
+      | 'plan'
+      | 'research'
+      | 'goal'
+      | 'staff'
+      | 'swarm'
+      | 'integrate'
+      | 'verify'
+      | 'learn'
+      | 'done'
+    >();
+    expectTypeOf<EventByType<'ultrawork.research.provider.selected'>['backend']['kind']>().toEqualTypeOf<
+      | 'local_research_stack'
+      | 'kimi_web_search'
+      | 'openai_web_search'
+      | 'anthropic_web_search'
+      | 'moonshot_service_search'
+      | 'mcp_search'
+    >();
+    expectTypeOf<EventByType<'ultrawork.team.staffed'>['team']['maxExperts']>().toEqualTypeOf<number>();
+    expectTypeOf<EventByType<'ultrawork.knowledge.promoted'>['promotion']['target']>().toEqualTypeOf<
+      'kimi_recall' | 'llm_wiki'
+    >();
   });
 
   it('exposes approval and question reverse-RPC requests', () => {
@@ -75,6 +111,15 @@ describe('Event public types', () => {
         case 'event.workspace.deleted':
         case 'event.config.changed':
         case 'event.model_catalog.changed':
+        case 'ultrawork.stage.changed':
+        case 'ultrawork.research.started':
+        case 'ultrawork.research.provider.selected':
+        case 'ultrawork.research.finding.verified':
+        case 'ultrawork.team.staffed':
+        case 'ultrawork.task.assigned':
+        case 'ultrawork.council.decision':
+        case 'ultrawork.verification.completed':
+        case 'ultrawork.knowledge.promoted':
         case 'goal.updated':
         case 'skill.activated':
         case 'plugin_command.activated':

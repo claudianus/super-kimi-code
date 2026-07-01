@@ -1,7 +1,7 @@
 import type { KimiConfig } from '@moonshot-ai/kimi-code-sdk';
 
 import { currentTheme, lightColors } from '#/tui/theme';
-import { loadTuiConfig, type TuiConfig } from '../config';
+import { DEFAULT_APPEARANCE_PREFERENCES, loadTuiConfig, type TuiConfig } from '../config';
 import type { SlashCommandHost } from './dispatch';
 import { setExperimentalFeatures } from './experimental-flags';
 
@@ -47,6 +47,7 @@ export async function applyReloadedTuiConfig(
     editorCommand: config.editorCommand,
     notifications: config.notifications,
     upgrade: config.upgrade,
+    appearance: config.appearance ?? DEFAULT_APPEARANCE_PREFERENCES,
   });
 }
 

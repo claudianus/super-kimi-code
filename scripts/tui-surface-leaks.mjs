@@ -18,7 +18,7 @@ const DEFAULT_USER_SURFACE_LEAK_PATTERNS = Object.freeze([
     label: 'internal Ultrawork prompt contract',
     pattern: /<ultrawork_flow>|<untrusted_objective>|Operating contract:/i,
   },
-  { label: 'internal Ultrawork stage list', pattern: /\bUltrawork\s+auto-runs\s+UltraPlan,\s+UltraGoal,\s+UltraSwarm\b/i },
+  { label: 'internal Ultrawork stage list', pattern: /\bUltrawork\s+auto-runs\s+UltraPlan,\s+(?:UltraResearch,\s+)?UltraGoal,\s+UltraSwarm\b/i },
   { label: 'Ultrawork manual command', pattern: /(?:^|\s)\/?ultrawork(?=[\s.,;:)\]]|$)/ },
   { label: 'Ultraswarm manual command', pattern: /(?:^|\s)\/?ultraswarm(?=[\s.,;:)\]]|$)/ },
   { label: 'LLM jargon in model setup error', pattern: /\bLLM not set\b/i },
@@ -69,7 +69,7 @@ export function hasUltraworkHelpContract(output) {
 
 export function hasUltraworkAdvancedHelpContract(output) {
   return [
-    /\bUltrawork is one workflow:\s*UltraPlan,\s*UltraGoal,\s*UltraSwarm,\s*Verify\.?/i,
+    /\bUltrawork is one workflow:\s*UltraPlan,\s*UltraResearch,\s*UltraGoal,\s*UltraSwarm,\s*Integrate,\s*Verify,\s*Learn\.?/i,
     /\bPlain tasks start it automatically\.?/i,
     /\bControls below are optional steering\.?/i,
     /\bAdvanced Ultrawork controls\b/i,
@@ -81,9 +81,9 @@ export function hasUltraworkAdvancedHelpContract(output) {
 export function hasUltraworkStatusContract(output) {
   return [
     /\bUltrawork\b\s+auto-link ready/i,
-    /\bWorkflow\b\s+task\s*->\s*Ultrawork stages\s*->\s*verify/i,
-    /\bEngine\b\s+UltraPlan\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Verify/i,
-    /\bAuto\b\s+ask if needed\s*\|\s*plan\s*\|\s*goal\s*\|\s*swarm\s*\|\s*verify/i,
+    /\bWorkflow\b\s+task\s*->\s*research\s*->\s*team\s*->\s*integrate\s*->\s*verify\s*->\s*learn/i,
+    /\bEngine\b\s+UltraPlan\s*\|\s*UltraResearch\s*\|\s*UltraGoal\s*\|\s*UltraSwarm\s*\|\s*Integrate\s*\|\s*Verify\s*\|\s*Learn/i,
+    /\bAuto\b\s+ask if needed\s*\|\s*plan\s*\|\s*research\s*\|\s*goal\s*\|\s*swarm\s*\|\s*integrate\s*\|\s*verify\s*\|\s*learn/i,
     /\bFlow\b\s+[█░]{4}\s+(?:3|4)\/4\s+(?:verify queued|verify blocked|ready to run|verified)/i,
     /\bStages\b\s+Plan on\s*\|\s*Goal ready\s*\|\s*Swarm auto\s*\|\s*Verify queued/i,
     /\bNext\b\s+Type task;\s*Ultrawork runs the full workflow,\s*then verifies\.?/i,

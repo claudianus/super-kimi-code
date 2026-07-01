@@ -10,7 +10,12 @@ import { createKimiHarness } from '@moonshot-ai/kimi-code-sdk';
 import { createKimiCodeHostIdentity } from '#/cli/version';
 import { openUrl } from '#/utils/open-url';
 
-export async function runLoginFlow(): Promise<never> {
+export interface LoginFlowOptions {
+  readonly oauthKey?: string | undefined;
+  readonly oauthHost?: string | undefined;
+}
+
+export async function runLoginFlow(options: LoginFlowOptions = {}): Promise<never> {
   const identity = createKimiCodeHostIdentity();
   const harness = createKimiHarness({
     identity,
@@ -21,8 +26,19 @@ export async function runLoginFlow(): Promise<never> {
     controller.abort();
   });
   try {
+    const oauthKey = nonEmptyString(options.oauthKey);
+    const oauthHost = nonEmptyString(options.oauthHost);
     const result = await harness.auth.login(undefined, {
       signal: controller.signal,
+      ...(oauthKey === undefined
+        ? {}
+        : {
+            oauthRef: {
+              key: oauthKey,
+              ...(oauthHost === undefined ? {} : { oauthHost }),
+            },
+          }),
+      ...(oauthKey === undefined && oauthHost !== undefined ? { oauthHost } : {}),
       onDeviceCode: (data) => {
         const url = data.verificationUriComplete || data.verificationUri;
         // Print the manual fallback before attempting to open the user's
@@ -60,4 +76,9 @@ export async function runLoginFlow(): Promise<never> {
     }
     process.exit(1);
   }
+}
+
+function nonEmptyString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed;
 }

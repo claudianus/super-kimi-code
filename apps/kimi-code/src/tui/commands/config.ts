@@ -15,9 +15,15 @@ import { PermissionSelectorComponent } from '../components/dialogs/permission-se
 import { SettingsSelectorComponent, type SettingsSelection } from '../components/dialogs/settings-selector';
 import { ThemeSelectorComponent } from '../components/dialogs/theme-selector';
 import { UpdatePreferenceSelectorComponent } from '../components/dialogs/update-preference-selector';
-import { saveTuiConfig } from '../config';
+import {
+  DEFAULT_APPEARANCE_PREFERENCES,
+  saveTuiConfig,
+  type AppearancePreferences,
+  type TuiConfig,
+} from '../config';
 import type { ThemeName } from '#/tui/theme';
 import { currentTheme, isBuiltInTheme, lightColors, loadCustomThemeMerged } from '#/tui/theme';
+import { importThemeSource } from '#/tui/theme/importer';
 import { LLM_NOT_SET_MESSAGE, NO_ACTIVE_SESSION_MESSAGE } from '../constant/kimi-tui';
 import { formatErrorMessage } from '../utils/event-payload';
 import { showUsage } from './info';
@@ -31,6 +37,16 @@ import type { SlashCommandHost } from './dispatch';
 const MODEL_PICKER_REFRESH_TIMEOUT_MS = 2_000;
 const THINKING_LEVELS = ['off', 'on', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+const APPEARANCE_KEYS = [
+  'profile',
+  'density',
+  'particles',
+  'mascot',
+  'animation-fps',
+  'canvas-background',
+  'terminal-background',
+  'terminal-palette',
+] as const;
 
 export async function handlePlanCommand(host: SlashCommandHost, args: string): Promise<void> {
   const session = host.session;
@@ -289,6 +305,21 @@ export async function handleThemeCommand(host: SlashCommandHost, args: string): 
     showThemePicker(host);
     return;
   }
+  const importPrefix = 'import ';
+  if (theme.startsWith(importPrefix)) {
+    const source = theme.slice(importPrefix.length).trim();
+    if (source.length === 0) {
+      host.showError('Usage: /theme import <path|url|github:owner/repo/path>');
+      return;
+    }
+    try {
+      const result = await importThemeSource(source);
+      host.showStatus(`Imported theme "${result.themeName}" from ${result.sourceKind}.`, 'success');
+    } catch (error) {
+      host.showError(`Failed to import theme: ${formatErrorMessage(error)}`);
+    }
+    return;
+  }
   if (!isBuiltInTheme(theme)) {
     const custom = await loadCustomThemeMerged(theme);
     if (custom === null) {
@@ -297,6 +328,47 @@ export async function handleThemeCommand(host: SlashCommandHost, args: string): 
     }
   }
   await applyThemeChoice(host, theme);
+}
+
+export async function handleAppearanceCommand(host: SlashCommandHost, args: string): Promise<void> {
+  const raw = args.trim();
+  if (raw.length === 0) {
+    host.showNotice('Appearance', formatAppearanceStatus(currentAppearance(host)));
+    return;
+  }
+
+  const [keyRaw, ...rest] = raw.split(/\s+/);
+  const key = keyRaw?.toLowerCase();
+  const value = rest.join(' ').trim().toLowerCase();
+  if (key === 'help' || key === undefined || value.length === 0) {
+    host.showNotice(
+      'Appearance',
+      `Usage: /appearance <${APPEARANCE_KEYS.join('|')}> <value>`,
+    );
+    return;
+  }
+
+  const previous = currentAppearance(host);
+  const next = parseAppearancePatch(previous, key, value);
+  if (next === null) {
+    host.showError(`Unknown appearance option or value: ${raw}`);
+    return;
+  }
+  if (JSON.stringify(next) === JSON.stringify(previous)) {
+    host.showStatus('Appearance unchanged.');
+    return;
+  }
+
+  try {
+    await saveTuiConfig(tuiConfigFromHost(host, { appearance: next }));
+  } catch (error) {
+    host.showStatus(`Failed to save appearance: ${formatErrorMessage(error)}`, 'error');
+    return;
+  }
+
+  host.setAppState({ appearance: next });
+  host.track('appearance_changed', { key, value });
+  host.showStatus(`Appearance ${key} set to ${value}.`, 'success');
 }
 
 export async function handleModelCommand(host: SlashCommandHost, args: string): Promise<void> {
@@ -373,12 +445,7 @@ async function applyEditorChoice(host: SlashCommandHost, value: string): Promise
 
   const editorCommand = value.length > 0 ? value : null;
   try {
-    await saveTuiConfig({
-      theme: host.state.appState.theme,
-      editorCommand,
-      notifications: host.state.appState.notifications,
-      upgrade: host.state.appState.upgrade,
-    });
+    await saveTuiConfig(tuiConfigFromHost(host, { editorCommand }));
   } catch (error) {
     host.showStatus(
       `Failed to save editor: ${formatErrorMessage(error)}`,
@@ -506,15 +573,22 @@ async function persistModelSelection(host: SlashCommandHost, alias: string, thin
 }
 
 function showThemePicker(host: SlashCommandHost): void {
+  const originalTheme = host.state.appState.theme;
+  const originalResolved = currentTheme.palette === lightColors ? 'light' : 'dark';
   host.mountEditorReplacement(
     new ThemeSelectorComponent({
-      currentValue: host.state.appState.theme,
+      currentValue: originalTheme,
+      onHighlight: (value) => {
+        const resolved = value === 'auto' ? originalResolved : undefined;
+        void host.previewTheme(value, resolved).catch(() => {});
+      },
       onSelect: (value) => {
         host.restoreEditor();
         void applyThemeChoice(host, value);
       },
       onCancel: () => {
         host.restoreEditor();
+        void host.applyTheme(originalTheme, originalResolved);
       },
     }),
   );
@@ -539,12 +613,7 @@ async function applyThemeChoice(host: SlashCommandHost, theme: ThemeName): Promi
   }
 
   try {
-    await saveTuiConfig({
-      theme,
-      editorCommand: host.state.appState.editorCommand,
-      notifications: host.state.appState.notifications,
-      upgrade: host.state.appState.upgrade,
-    });
+    await saveTuiConfig(tuiConfigFromHost(host, { theme }));
   } catch (error) {
     host.showStatus(
       `Failed to save theme: ${formatErrorMessage(error)}`,
@@ -663,7 +732,7 @@ type UpdatePreferenceHost = {
   readonly state: {
     readonly appState: Pick<
       SlashCommandHost['state']['appState'],
-      'theme' | 'editorCommand' | 'notifications' | 'upgrade'
+      'theme' | 'editorCommand' | 'notifications' | 'upgrade' | 'appearance'
     >;
   };
   setAppState(patch: Pick<SlashCommandHost['state']['appState'], 'upgrade'>): void;
@@ -682,12 +751,7 @@ export async function applyUpdatePreferenceChoice(
 
   const upgrade = { autoInstall };
   try {
-    await saveTuiConfig({
-      theme: host.state.appState.theme,
-      editorCommand: host.state.appState.editorCommand,
-      notifications: host.state.appState.notifications,
-      upgrade,
-    });
+    await saveTuiConfig(tuiConfigFromHost(host, { upgrade }));
   } catch (error) {
     host.showStatus(
       `Failed to save automatic update setting: ${formatErrorMessage(error)}`,
@@ -738,9 +802,112 @@ function handleSettingsSelection(host: SlashCommandHost, value: SettingsSelectio
     case 'model': showModelPicker(host); return;
     case 'permission': showPermissionPicker(host); return;
     case 'theme': showThemePicker(host); return;
+    case 'appearance': void handleAppearanceCommand(host, ''); return;
     case 'editor': showEditorPicker(host); return;
     case 'experiments': void showExperimentsPanel(host); return;
     case 'upgrade': showUpdatePreferencePicker(host); return;
     case 'usage': void showUsage(host); return;
   }
+}
+
+function currentAppearance(host: {
+  readonly state: { readonly appState: { readonly appearance?: AppearancePreferences } };
+}): AppearancePreferences {
+  return host.state.appState.appearance ?? DEFAULT_APPEARANCE_PREFERENCES;
+}
+
+function tuiConfigFromHost(
+  host: {
+    readonly state: {
+      readonly appState: Pick<
+        SlashCommandHost['state']['appState'],
+        'theme' | 'editorCommand' | 'notifications' | 'upgrade'
+      > & { readonly appearance?: AppearancePreferences };
+    };
+  },
+  patch: Partial<TuiConfig> = {},
+): TuiConfig {
+  return {
+    theme: host.state.appState.theme,
+    editorCommand: host.state.appState.editorCommand,
+    notifications: host.state.appState.notifications,
+    upgrade: host.state.appState.upgrade,
+    appearance: currentAppearance(host),
+    ...patch,
+  };
+}
+
+function formatAppearanceStatus(appearance: AppearancePreferences): string {
+  return [
+    `profile: ${appearance.profile}`,
+    `density: ${appearance.density}`,
+    `particles: ${appearance.particles}`,
+    `mascot: ${appearance.mascot}`,
+    `animation-fps: ${String(appearance.animationFps)}`,
+    `canvas-background: ${appearance.canvasBackground ? 'on' : 'off'}`,
+    `terminal-background: ${appearance.terminalBackground}`,
+    `terminal-palette: ${appearance.terminalPalette ? 'on' : 'off'}`,
+  ].join('\n');
+}
+
+function parseAppearancePatch(
+  previous: AppearancePreferences,
+  key: string,
+  value: string,
+): AppearancePreferences | null {
+  const next: AppearancePreferences = { ...previous };
+  switch (key) {
+    case 'profile':
+      if (!isOneOf(value, ['auto', 'off', 'subtle', 'premium'])) return null;
+      next.profile = value;
+      return next;
+    case 'density':
+      if (!isOneOf(value, ['auto', 'compact', 'comfortable', 'spacious'])) return null;
+      next.density = value;
+      return next;
+    case 'particles':
+      if (!isOneOf(value, ['auto', 'off', 'ambient', 'events', 'premium'])) return null;
+      next.particles = value;
+      return next;
+    case 'mascot':
+      if (!isOneOf(value, ['auto', 'minimal', 'standard', 'premium', 'off'])) return null;
+      next.mascot = value;
+      return next;
+    case 'animation-fps': {
+      const fps = Number.parseInt(value, 10);
+      if (!Number.isInteger(fps) || fps < 1 || fps > 30) return null;
+      next.animationFps = fps;
+      return next;
+    }
+    case 'canvas-background':
+      {
+        const enabled = parseOnOff(value);
+        if (enabled === undefined) return null;
+        next.canvasBackground = enabled;
+        return next;
+      }
+    case 'terminal-background':
+      if (!isOneOf(value, ['off', 'session'])) return null;
+      next.terminalBackground = value;
+      return next;
+    case 'terminal-palette':
+      {
+        const enabled = parseOnOff(value);
+        if (enabled === undefined) return null;
+        next.terminalPalette = enabled;
+        return next;
+      }
+    default:
+      return null;
+  }
+}
+
+function parseOnOff(value: string): boolean | undefined {
+  if (value === 'on' || value === 'true' || value === 'yes') return true;
+  if (value === 'off' || value === 'false' || value === 'no') return false;
+  return undefined;
+}
+
+function isOneOf<const T extends readonly string[]>(value: string, choices: T): value is T[number] {
+  return choices.includes(value as T[number]);
 }

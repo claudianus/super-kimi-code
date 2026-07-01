@@ -52,6 +52,7 @@ import type {
   PluginCommandDef,
   PluginInfo,
   PluginSummary,
+  ProviderRouteStatus,
   ReloadSummary,
   CompactOptions,
   SessionPlan,
@@ -511,30 +512,37 @@ export abstract class SDKRpcClientBase {
   async getStatus(input: SessionIdRpcInput): Promise<SessionStatus> {
     const rpc = await this.getRpc();
     const agentId = this.interactiveAgentId;
-    const config = await rpc.getConfig({
-      sessionId: input.sessionId,
-      agentId,
-    });
-    const context = await rpc.getContext({
-      sessionId: input.sessionId,
-      agentId,
-    });
-    const permission = await rpc.getPermission({
-      sessionId: input.sessionId,
-      agentId,
-    });
-    const plan = await rpc.getPlan({
-      sessionId: input.sessionId,
-      agentId,
-    });
-    const swarmMode = await rpc.getSwarmMode({
-      sessionId: input.sessionId,
-      agentId,
-    });
-    const usage = await rpc.getUsage({
-      sessionId: input.sessionId,
-      agentId,
-    });
+    const [config, context, permission, plan, swarmMode, usage, providerRouteStatus] =
+      await Promise.all([
+        rpc.getConfig({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getContext({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getPermission({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getPlan({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getSwarmMode({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getUsage({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+        rpc.getProviderRouteStatus({
+          sessionId: input.sessionId,
+          agentId,
+        }),
+      ]);
     const maxContextTokens = config.modelCapabilities?.max_context_tokens ?? 0;
     const contextTokens = context.tokenCount;
     const contextUsage = maxContextTokens > 0 ? contextTokens / maxContextTokens : 0;
@@ -550,7 +558,16 @@ export abstract class SDKRpcClientBase {
       maxContextTokens,
       contextUsage,
       usage: hasUsage ? usage : undefined,
+      providerRouteStatus,
     };
+  }
+
+  async resetProviderRouteStatus(input: SessionIdRpcInput): Promise<ProviderRouteStatus | null> {
+    const rpc = await this.getRpc();
+    return rpc.resetProviderRouteStatus({
+      sessionId: input.sessionId,
+      agentId: this.interactiveAgentId,
+    });
   }
 
   async listSkills(input: SessionIdRpcInput): Promise<readonly SkillSummary[]> {

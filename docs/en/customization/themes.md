@@ -14,8 +14,15 @@ Custom themes can override the tokens below. The `dark` and `light` columns show
 | `textStrong` | `#F5F5F5` | `#1A1A1A` | Emphasized / bold text. Input dialogs, status messages |
 | `textDim` | `#888888` | `#454545` | Secondary, dimmed text. Thinking, hints, descriptions, completed todos, Markdown quotes, footer status bar |
 | `textMuted` | `#6B6B6B` | `#5F5F5F` | Faintest text. Counters, scroll info, descriptions, Markdown link URLs, code-block borders |
+| `background` | `#0B0F14` | `#FFFFFF` | Root TUI canvas background |
+| `surface` | `#111827` | `#F4F7FB` | Default panel and dialog surface |
+| `surfaceRaised` | `#182233` | `#E8F0FA` | Raised surface for focused or premium chrome |
+| `surfaceSunken` | `#080C10` | `#EEF2F7` | Sunken surface for inactive panes and recessed areas |
 | `border` | `#5A5A5A` | `#737373` | Pane and editor borders, Markdown horizontal rule |
 | `borderFocus` | `#E8A838` | `#92660A` | Focus / attention border, currently only the approval panel |
+| `selectionBg` | `#1D4E89` | `#D8E8FF` | Selection background for pickers and imported terminal palettes |
+| `selectionText` | `#F5F5F5` | `#0B1020` | Selection text |
+| `cursor` | `#E0E0E0` | `#1A1A1A` | Cursor color for opt-in terminal palette mutation |
 | `success` | `#4EC87E` | `#0E7A38` | Success state. `✓`, "enabled", completed |
 | `warning` | `#E8A838` | `#92660A` | Warning state. auto/yolo badges, stale markers, Plan mode hint |
 | `error` | `#E85454` | `#B91C1C` | Error state. Error messages, failed tool output |
@@ -27,6 +34,20 @@ Custom themes can override the tokens below. The `dark` and `light` columns show
 | `diffMeta` | `#888888` | `#5F5F5F` | Diff meta / hunk headers |
 | `roleUser` | `#FFCB6B` | `#9A4A00` | User message bullet and text, skill-activation name |
 | `shellMode` | `#BD93F9` | `#7C3AED` | Shell mode (`!`) prompt, editor border, and the echoed `$ command` line |
+| `glow` | `#7DD3FC` | `#075985` | Glow / halo accent for premium mascot and focus effects |
+| `particle` | `#B784FF` | `#7C3AED` | Particle accent for event bursts and ambient effects |
+| `gradientStart` | `#00D5FF` | `#075985` | Start of premium gradient treatments |
+| `gradientEnd` | `#B784FF` | `#0F766E` | End of premium gradient treatments |
+| `syntaxText` | `#E0E0E0` | `#1A1A1A` | Code highlight default / identifiers |
+| `syntaxKeyword` | `#C792EA` | `#6D28D9` | Code highlight keywords, constants, and built-ins |
+| `syntaxFunction` | `#82AAFF` | `#075985` | Code highlight function and method names |
+| `syntaxType` | `#FFCB6B` | `#9A4A00` | Code highlight class/type names and attributes |
+| `syntaxString` | `#C3E88D` | `#0E7A38` | Code highlight string literals |
+| `syntaxNumber` | `#F78C6C` | `#B45309` | Code highlight numeric and boolean literals |
+| `syntaxComment` | `#697098` | `#6B7280` | Code highlight comments and doc tags |
+| `syntaxOperator` | `#89DDFF` | `#0F766E` | Code highlight operators, punctuation, and symbols |
+| `syntaxTag` | `#F07178` | `#B91C1C` | Code highlight tags, selectors, and markup names |
+| `syntaxMeta` | `#7FDBCA` | `#5F5F5F` | Code highlight metadata, decorators, and preprocessor lines |
 
 ## Use the custom-theme skill
 
@@ -84,7 +105,7 @@ Use the token names from [Built-in color tokens](#built-in-color-tokens). Any to
 
 Two ways:
 
-1. **The `/theme` command** (recommended): opens the theme picker, where custom themes appear as `Custom: <filename>`. The picker **re-scans the themes directory every time it opens**, so a theme file you just added shows up **without a restart**.
+1. **The `/theme` command** (recommended): opens the theme picker with Super Kimi presets, bundled external terminal themes, and custom themes. Moving focus previews the highlighted theme immediately, including the demo panel and syntax colors. Custom themes appear as `Custom: <filename>`. The picker **re-scans the themes directory every time it opens**, so a theme file you just added shows up **without a restart**.
 2. **`tui.toml`**: set `theme` to your theme name:
 
    ```toml

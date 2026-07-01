@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
+import { join } from 'pathe';
 
 import { ErrorCodes, KimiError } from '#/errors';
 import { getRootLogger, log } from '#/logging/logger';
@@ -799,6 +800,14 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).getUsage(payload);
   }
 
+  getProviderRouteStatus({ sessionId, ...payload }: SessionAgentPayload<EmptyPayload>) {
+    return this.sessionApi(sessionId).getProviderRouteStatus(payload);
+  }
+
+  resetProviderRouteStatus({ sessionId, ...payload }: SessionAgentPayload<EmptyPayload>) {
+    return this.sessionApi(sessionId).resetProviderRouteStatus(payload);
+  }
+
   getTools({ sessionId, ...payload }: SessionAgentPayload<EmptyPayload>) {
     return this.sessionApi(sessionId).getTools(payload);
   }
@@ -986,6 +995,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     if (this.runtime !== undefined) return this.runtime;
     const runtime = await createRuntimeConfig({
       config,
+      homeDir: this.homeDir,
       kimiRequestHeaders: this.kimiRequestHeaders,
       resolveOAuthTokenProvider: this.resolveOAuthTokenProvider,
     });
@@ -1156,11 +1166,28 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
 async function createRuntimeConfig(input: {
   readonly config: KimiConfig;
+  readonly homeDir?: string | undefined;
   readonly kimiRequestHeaders?: Record<string, string> | undefined;
   readonly resolveOAuthTokenProvider?: OAuthTokenProviderResolver | undefined;
 }): Promise<ToolServices> {
   const localFetcher = new LocalFetchURLProvider();
-  const localSearcher = new LocalWebSearchProvider();
+  const localSearch = input.config.research?.localSearch;
+  const localSearcher =
+    localSearch?.enabled === false
+      ? undefined
+      : new LocalWebSearchProvider({
+          urlFetcher: localFetcher,
+          concurrency: localSearch?.concurrency,
+          timeoutMs: localSearch?.timeoutMs,
+          searxngUrl: localSearch?.searxngUrl,
+          yacyUrl: localSearch?.yacyUrl,
+          directSources: localSearch?.directSources,
+          offlineMode: localSearch?.offlineMode,
+          cachePath:
+            input.homeDir === undefined
+              ? undefined
+              : join(input.homeDir, 'research', 'local-search.sqlite'),
+        });
   const searchService = input.config.services?.moonshotSearch;
   const fetchService = input.config.services?.moonshotFetch;
 

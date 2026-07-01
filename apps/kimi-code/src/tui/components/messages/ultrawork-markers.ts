@@ -5,9 +5,11 @@ import { currentTheme } from '#/tui/theme/theme';
 
 export type UltraworkModeMarkerState = 'active' | 'ended';
 
-const ULTRAWORK_PIPELINE = 'UltraPlan -> UltraGoal -> UltraSwarm -> Verify';
-const ULTRAWORK_STAGE_STATUS = 'One Ultrawork: UltraPlan, UltraGoal, UltraSwarm auto-activate';
-const ULTRAWORK_NEXT_ACTION = 'Next: Swarm decision: ENGAGE|DEFER reason + value + owner';
+const ULTRAWORK_PIPELINE = 'UltraPlan -> UltraResearch -> UltraGoal -> UltraSwarm -> Integrate -> Verify -> Learn';
+const ULTRAWORK_COMPACT_PIPELINE = 'UltraPlan>UltraResearch>UltraGoal>UltraSwarm>Integrate>Verify>Learn';
+const ULTRAWORK_STAGE_STATUS = 'One Ultrawork: plan, research, team, integrate, verify, learn';
+const ULTRAWORK_RESEARCH_STATUS = 'Research: local fallback + provider/MCP accelerators; verified sources only';
+const ULTRAWORK_NEXT_ACTION = 'Next: Research + Swarm decision: ENGAGE|DEFER reason + value + owner';
 
 export class UltraworkModeMarkerComponent implements Component {
   constructor(
@@ -25,9 +27,13 @@ export class UltraworkModeMarkerComponent implements Component {
     const marker = currentTheme.boldFg(token, STATUS_BULLET);
     const label = currentTheme.boldFg(token, ultraworkMarkerLabel(this.state));
     const pipelineToken = this.state === 'ended' ? 'textDim' : 'primary';
+    const pipelineText =
+      `  ${ULTRAWORK_PIPELINE}`.length <= safeWidth
+        ? `  ${ULTRAWORK_PIPELINE}`
+        : `  ${ULTRAWORK_COMPACT_PIPELINE}`;
     const pipelineLine = currentTheme.fg(
       pipelineToken,
-      truncateToWidth(`  ${ULTRAWORK_PIPELINE}`, safeWidth, '…'),
+      truncateToWidth(pipelineText, safeWidth, '…'),
     );
     const stageStatusToken = this.state === 'ended' ? 'textDim' : 'text';
     const stageStatusLine = currentTheme.fg(
@@ -38,12 +44,17 @@ export class UltraworkModeMarkerComponent implements Component {
       stageStatusToken,
       truncateToWidth(`  ${ULTRAWORK_NEXT_ACTION}`, safeWidth, '…'),
     );
+    const researchLine = currentTheme.fg(
+      stageStatusToken,
+      truncateToWidth(`  ${ULTRAWORK_RESEARCH_STATUS}`, safeWidth, '…'),
+    );
     const taskLine = currentTheme.fg('textDim', truncateToWidth(`  ${this.taskDescription}`, safeWidth, '…'));
     return [
       '',
       truncateToWidth(marker + label, safeWidth, '…'),
       pipelineLine,
       stageStatusLine,
+      researchLine,
       nextActionLine,
       taskLine,
     ];

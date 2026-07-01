@@ -57,7 +57,7 @@ export const ADVANCED_KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
 const DEFAULT_HELP_INTRO =
   'Describe task; Ultrawork runs the full workflow, then verifies.\nAdvanced controls are optional.';
 export const ADVANCED_HELP_INTRO =
-  'Ultrawork is one workflow: UltraPlan, UltraGoal, UltraSwarm, Verify.\nPlain tasks start it automatically. Controls below are optional steering.';
+  'Ultrawork is one workflow: UltraPlan, UltraResearch, UltraGoal, UltraSwarm, Integrate, Verify, Learn.\nPlain tasks start it automatically. Controls below are optional steering.';
 
 export interface HelpPanelOptions {
   readonly commands: readonly HelpPanelCommand[];
