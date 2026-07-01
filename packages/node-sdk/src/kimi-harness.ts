@@ -280,6 +280,9 @@ export class KimiHarness {
       ...sessionScoped,
       // Canonical fields are owned by the harness and must win over any
       // caller-supplied sessionStartedProperties that happen to share a key.
+      // SDK-local sessions have no per-connection client id; keep the key
+      // explicit so session_started has the same schema as daemon clients.
+      client_id: null,
       client_name: this.identity?.userAgentProduct ?? null,
       client_version: this.identity?.version ?? null,
       ui_mode: this.uiMode,

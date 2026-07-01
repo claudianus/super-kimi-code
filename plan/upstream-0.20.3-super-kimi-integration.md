@@ -36,6 +36,7 @@ Do not wholesale-merge upstream. Super Kimi carries Ultrawork, bundled themes, w
 - Upstream `#1170`, `#1186` selective: route managed Kimi Code Anthropic-protocol model aliases through the Anthropic beta Messages API.
 - Upstream `#1203` selective: track when Glob/Grep search tools use a non-system ripgrep fallback.
 - Upstream `#1207` selective: share provider model refresh orchestration between the CLI/TUI path and runtime model catalog service.
+- Upstream `#1196`: normalize telemetry event fields for compaction, session start, update prompts, login, server start, and ACP question answers.
 
 Super Kimi adaptation:
 - Preserved dynamic `skill:` slash command lookup.
@@ -65,6 +66,7 @@ Super Kimi adaptation:
 - Kept the managed Kimi provider surface intact while storing only the needed `protocol: anthropic` alias metadata, preserving Kimi OAuth/base URLs, forwarding Kimi identity headers, and routing those aliases through Anthropic beta transport with session metadata.
 - Kept the existing ripgrep-powered search tools and added telemetry only at the fallback boundary so Super Kimi can diagnose slow or missing search binaries without changing tool output.
 - Kept the product surface TUI-first and deferred the web/server scheduler pieces from the same upstream PR, while moving the shared managed Kimi, Open Platform, and custom-registry refresh core into the OAuth package for CLI and runtime reuse.
+- Preserved Super Kimi's Context Compaction v2 records and TUI replay shape while normalizing only telemetry payload fields to snake_case, dropping custom compaction instructions from telemetry, and aligning client attribution schemas for CLI, daemon, and ACP harness diagnostics.
 
 ## Next Candidate Queue
 

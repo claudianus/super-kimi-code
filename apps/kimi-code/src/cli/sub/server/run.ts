@@ -15,7 +15,7 @@ import { startServer, type RunningServer } from '@moonshot-ai/server';
 import chalk from 'chalk';
 import { Option, type Command } from 'commander';
 
-import { CLI_SHUTDOWN_TIMEOUT_MS, SERVER_UI_MODE } from '#/constant/app';
+import { CLI_SHUTDOWN_TIMEOUT_MS } from '#/constant/app';
 import { darkColors } from '#/tui/theme/colors';
 import { getDataDir } from '#/utils/paths';
 
@@ -308,7 +308,7 @@ async function runServerInProcess(
     },
   });
 
-  track('server_started', { ui_mode: SERVER_UI_MODE, daemon: mode.daemon });
+  track('server_started', { daemon: mode.daemon });
 
   process.once('SIGINT', () => {
     void shutdown('SIGINT');

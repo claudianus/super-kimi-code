@@ -6,6 +6,7 @@ import {
 } from '#/errors';
 import {
   APIEmptyResponseError,
+  inputTotal,
   isRetryableGenerateError,
   type ChatProvider,
   type GenerateResult,
@@ -480,45 +481,46 @@ export class FullCompaction {
       result.compactedTokens = plan.compactedTokens;
       result.qualityWarnings = plan.qualityWarnings;
 
+      const durationMs = Date.now() - startedAt;
       this.agent.telemetry.track('compaction_finished', {
-        tokensBefore: result.tokensBefore,
-        tokensAfter: result.tokensAfter,
-        duration: Date.now() - startedAt,
-        compactedCount: result.compactedCount,
-        retryCount: retryCount.value,
+        source: data.source,
+        tokens_before: result.tokensBefore,
+        tokens_after: result.tokensAfter,
+        duration_ms: durationMs,
+        compacted_count: result.compactedCount,
+        retry_count: retryCount.value,
         round,
-        thinkingLevel: this.agent.config.thinkingLevel,
-        ...usage,
-        ...data,
+        thinking_level: this.agent.config.thinkingLevel,
+        ...usageTelemetryProperties(usage),
       });
       this.agent.telemetry.track('compaction_v2_finished', {
-        tokensBefore: result.tokensBefore,
-        tokensAfter: result.tokensAfter,
-        summaryTokens: result.summaryTokens,
-        retainedTokens: result.retainedTokens,
-        compactedTokens: result.compactedTokens,
-        duration: Date.now() - startedAt,
-        compactedCount: result.compactedCount,
-        retryCount: retryCount.value,
+        source: data.source,
+        tokens_before: result.tokensBefore,
+        tokens_after: result.tokensAfter,
+        summary_tokens: result.summaryTokens,
+        retained_tokens: result.retainedTokens,
+        compacted_tokens: result.compactedTokens,
+        duration_ms: durationMs,
+        compacted_count: result.compactedCount,
+        retry_count: retryCount.value,
         round,
-        thinkingLevel: this.agent.config.thinkingLevel,
-        actionTypes: result.actions?.map((action) => action.type).join(',') ?? '',
-        qualityWarnings: result.qualityWarnings?.join(',') ?? '',
-        ...usage,
-        ...data,
+        thinking_level: this.agent.config.thinkingLevel,
+        action_types: result.actions?.map((action) => action.type).join(',') ?? '',
+        quality_warnings: result.qualityWarnings?.join(',') ?? '',
+        ...usageTelemetryProperties(usage),
       });
       this.agent.context.applyCompaction(result);
       return result;
     } catch (error) {
       if (isAbortError(error)) return;
       this.agent.telemetry.track('compaction_failed', {
-        ...data,
-        tokensBefore,
-        duration: Date.now() - startedAt,
+        source: data.source,
+        tokens_before: tokensBefore,
+        duration_ms: Date.now() - startedAt,
         round,
-        retryCount: retryCount.value,
-        thinkingLevel: this.agent.config.thinkingLevel,
-        errorType: error instanceof Error ? error.name : 'Unknown',
+        retry_count: retryCount.value,
+        thinking_level: this.agent.config.thinkingLevel,
+        error_type: error instanceof Error ? error.name : 'Unknown',
       });
       if (isKimiError(error) && error.code === ErrorCodes.AUTH_LOGIN_REQUIRED) throw error;
       throw new KimiError(ErrorCodes.COMPACTION_FAILED, String(error), { cause: error });
@@ -708,6 +710,16 @@ function mergeTokenUsage(current: TokenUsage | null, next: TokenUsage): TokenUsa
     output: current.output + next.output,
     inputCacheRead: current.inputCacheRead + next.inputCacheRead,
     inputCacheCreation: current.inputCacheCreation + next.inputCacheCreation,
+  };
+}
+
+function usageTelemetryProperties(
+  usage: TokenUsage | null,
+): { input_tokens?: number; output_tokens?: number } {
+  if (usage === null) return {};
+  return {
+    input_tokens: inputTotal(usage),
+    output_tokens: usage.output,
   };
 }
 

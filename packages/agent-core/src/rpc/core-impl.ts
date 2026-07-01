@@ -1234,19 +1234,12 @@ function telemetryErrorReason(error: unknown): string {
 
 function clientTelemetryProperties(client: ClientTelemetryInfo | undefined): TelemetryProperties {
   if (client === undefined) return {};
-  const properties: Record<string, string> = {};
-  addNonEmpty(properties, 'client_id', client.id);
-  addNonEmpty(properties, 'client_name', client.name);
-  addNonEmpty(properties, 'client_version', client.version);
-  addNonEmpty(properties, 'ui_mode', client.uiMode);
-  return properties;
-}
-
-function addNonEmpty(target: Record<string, string>, key: string, value: string | undefined): void {
-  const trimmed = value?.trim();
-  if (trimmed !== undefined && trimmed.length > 0) {
-    target[key] = trimmed;
-  }
+  return {
+    client_id: client.id ?? null,
+    client_name: client.name ?? null,
+    client_version: client.version ?? null,
+    ui_mode: client.uiMode ?? null,
+  };
 }
 
 async function resumeSessionResult(

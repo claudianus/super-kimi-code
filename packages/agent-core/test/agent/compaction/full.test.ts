@@ -270,19 +270,19 @@ describe('FullCompaction', () => {
       event: 'compaction_finished',
       properties: expect.objectContaining({
         source: 'manual',
-        instruction: 'Keep the important test facts.',
-        tokensBefore: 39,
-        tokensAfter: expect.any(Number),
-        duration: expect.any(Number),
-        compactedCount: 6,
-        retryCount: 0,
-        thinkingLevel: 'off',
-        inputOther: expect.any(Number),
-        output: 8,
-        inputCacheRead: 0,
-        inputCacheCreation: 0,
+        tokens_before: 39,
+        tokens_after: expect.any(Number),
+        duration_ms: expect.any(Number),
+        compacted_count: 6,
+        retry_count: 0,
+        thinking_level: 'off',
+        input_tokens: expect.any(Number),
+        output_tokens: 8,
       }),
     });
+    expect(
+      records.find((record) => record.event === 'compaction_finished')?.properties,
+    ).not.toHaveProperty('instruction');
     await ctx.expectResumeMatches();
   });
 
@@ -392,9 +392,9 @@ describe('FullCompaction', () => {
     expect(records).toContainEqual({
       event: 'compaction_v2_finished',
       properties: expect.objectContaining({
-        actionTypes: expect.stringContaining('semantic_working_memory'),
-        compactedTokens: expect.any(Number),
-        retainedTokens: expect.any(Number),
+        action_types: expect.stringContaining('semantic_working_memory'),
+        compacted_tokens: expect.any(Number),
+        retained_tokens: expect.any(Number),
       }),
     });
     await ctx.expectResumeMatches();
@@ -661,8 +661,8 @@ describe('FullCompaction', () => {
       event: 'compaction_finished',
       properties: expect.objectContaining({
         source: 'manual',
-        tokensBefore: 25,
-        retryCount: 1,
+        tokens_before: 25,
+        retry_count: 1,
       }),
     });
     await ctx.expectResumeMatches();
@@ -801,8 +801,8 @@ describe('FullCompaction', () => {
       event: 'compaction_failed',
       properties: expect.objectContaining({
         source: 'manual',
-        retryCount: 4,
-        errorType: 'APIEmptyResponseError',
+        retry_count: 4,
+        error_type: 'APIEmptyResponseError',
       }),
     });
     // No summary was ever applied; the original history is left intact.
@@ -915,16 +915,16 @@ describe('FullCompaction', () => {
       event: 'compaction_failed',
       properties: expect.objectContaining({
         source: 'manual',
-        tokensBefore: 25,
-        duration: expect.any(Number),
+        tokens_before: 25,
+        duration_ms: expect.any(Number),
         round: 1,
-        retryCount: 0,
-        errorType: 'Error',
+        retry_count: 0,
+        error_type: 'Error',
       }),
     });
     expect(
       records.find((record) => record.event === 'compaction_failed')?.properties,
-    ).not.toHaveProperty('tokensAfter');
+    ).not.toHaveProperty('tokens_after');
     await ctx.expectResumeMatches();
   });
 
@@ -1029,10 +1029,10 @@ describe('FullCompaction', () => {
       event: 'compaction_failed',
       properties: expect.objectContaining({
         source: 'manual',
-        tokensBefore: 25,
-        duration: expect.any(Number),
-        retryCount: 4,
-        errorType: 'APIConnectionError',
+        tokens_before: 25,
+        duration_ms: expect.any(Number),
+        retry_count: 4,
+        error_type: 'APIConnectionError',
       }),
     });
     await ctx.expectResumeMatches();
@@ -1387,10 +1387,10 @@ describe('FullCompaction', () => {
       event: 'compaction_finished',
       properties: expect.objectContaining({
         source: 'auto',
-        tokensBefore: 46,
-        tokensAfter: expect.any(Number),
-        compactedCount: 4,
-        retryCount: 0,
+        tokens_before: 46,
+        tokens_after: expect.any(Number),
+        compacted_count: 4,
+        retry_count: 0,
       }),
     });
     await ctx.expectResumeMatches();
@@ -1906,7 +1906,7 @@ describe('FullCompaction', () => {
       event: 'compaction_finished',
       properties: expect.objectContaining({
         source: 'auto',
-        thinkingLevel: 'high',
+        thinking_level: 'high',
       }),
     });
   });
