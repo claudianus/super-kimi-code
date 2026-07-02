@@ -43,10 +43,22 @@ describe('DefaultToolApprovePermissionPolicy', () => {
     expect(policy.evaluate(policyContext('CronList', {}))).toEqual({ kind: 'approve' });
   });
 
+  it('auto-approves read-only GUI observation tools', () => {
+    expect(policy.evaluate(policyContext('BrowserObserve', {}))).toEqual({ kind: 'approve' });
+    expect(policy.evaluate(policyContext('BrowserScreenshot', {}))).toEqual({ kind: 'approve' });
+    expect(policy.evaluate(policyContext('ComputerCapture', {}))).toEqual({ kind: 'approve' });
+    expect(policy.evaluate(policyContext('ComputerStatus', {}))).toEqual({ kind: 'approve' });
+  });
+
   it('does not approve CronCreate', () => {
     expect(
       policy.evaluate(policyContext('CronCreate', { cron: '*/5 * * * *', prompt: 'ping' })),
     ).toBeUndefined();
+  });
+
+  it('does not approve side-effectful GUI action tools', () => {
+    expect(policy.evaluate(policyContext('BrowserAct', { actions: [] }))).toBeUndefined();
+    expect(policy.evaluate(policyContext('ComputerAct', { actions: [] }))).toBeUndefined();
   });
 
   it('does not approve CronDelete', () => {

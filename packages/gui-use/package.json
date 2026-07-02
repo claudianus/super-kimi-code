@@ -1,0 +1,57 @@
+{
+  "name": "@moonshot-ai/gui-use",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-use and computer-use runtimes for Kimi Code",
+  "license": "MIT",
+  "author": "Moonshot AI",
+  "homepage": "https://github.com/claudianus/super-kimi-code/tree/main/packages/gui-use#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claudianus/super-kimi-code.git",
+    "directory": "packages/gui-use"
+  },
+  "bugs": {
+    "url": "https://github.com/claudianus/super-kimi-code/issues"
+  },
+  "keywords": [
+    "browser-use",
+    "computer-use",
+    "gui",
+    "agent"
+  ],
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "imports": {
+    "#/*": [
+      "./src/*.ts",
+      "./src/*/index.ts"
+    ]
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./install": {
+      "types": "./src/install.ts",
+      "default": "./src/install.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cloakbrowser": "0.4.5",
+    "playwright-core": "^1.61.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3"
+  }
+}

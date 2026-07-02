@@ -11,6 +11,7 @@ import {
   SensitiveFileAccessAskPermissionPolicy,
 } from './file-access-ask';
 import { GitCwdWriteApprovePermissionPolicy } from './git-cwd-write-approve';
+import { GuiUseSafetyPermissionPolicy } from './gui-use-safety';
 import { GoalStartReviewAskPermissionPolicy } from './goal-start-review-ask';
 import { PlanModeGuardDenyPermissionPolicy } from './plan-mode-guard-deny';
 import { PlanModeToolApprovePermissionPolicy } from './plan-mode-tool-approve';
@@ -37,6 +38,8 @@ export function createPermissionDecisionPolicies(agent: Agent): PermissionPolicy
     new PlanModeGuardDenyPermissionPolicy(agent),
     // User-configured deny rule matches → deny.
     new UserConfiguredDenyPermissionPolicy(agent),
+    // GUI-use risk policy must run before auto/yolo approval so risky desktop/browser actions still gate.
+    new GuiUseSafetyPermissionPolicy(agent),
     // auto mode → approve (any auto-mode block must be a deny rule above this).
     new AutoModeApprovePermissionPolicy(agent),
     // Approve-for-session memorized rule matches → approve. Runs before user-configured ask rules so an in-session grant beats a still-matching ask rule on later calls.

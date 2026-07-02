@@ -69,6 +69,7 @@ function createDeps(overrides: {
       error: vi.fn(),
       debug: vi.fn(),
     },
+    updateGuiUseAfterUpgrade: vi.fn().mockResolvedValue(undefined),
     platform: 'darwin' as NodeJS.Platform,
     isInteractive: overrides.isInteractive ?? true,
   };
@@ -90,6 +91,7 @@ describe('handleUpgrade', () => {
       installSource: 'npm-global',
     });
     expect(deps.installUpdate).toHaveBeenCalledWith('npm-global', '0.5.0', 'darwin');
+    expect(deps.updateGuiUseAfterUpgrade).toHaveBeenCalledTimes(1);
     expect(deps.track).toHaveBeenCalledWith('upgrade_command_prompted', expect.objectContaining({
       current_version: '0.4.0',
       target_version: '0.5.0',
@@ -123,6 +125,7 @@ describe('handleUpgrade', () => {
 
     expect(deps.promptForInstallChoice).toHaveBeenCalledTimes(1);
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(deps.track).toHaveBeenCalledWith('upgrade_command_skipped', expect.objectContaining({
       target_version: '0.5.0',
       source: 'npm-global',
@@ -139,6 +142,7 @@ describe('handleUpgrade', () => {
     expect(deps.detectInstallSource).toHaveBeenCalledTimes(1);
     expect(deps.refreshGitCheckoutUpdateTarget).not.toHaveBeenCalled();
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(deps.track).toHaveBeenCalledWith('upgrade_command_no_update', expect.objectContaining({
       current_version: '0.4.0',
     }));
@@ -152,6 +156,7 @@ describe('handleUpgrade', () => {
     await expect(handleUpgrade('0.4.0', { ...deps, ...writable })).resolves.toBe(0);
 
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(deps.promptForInstallChoice).not.toHaveBeenCalled();
     expect(deps.track).toHaveBeenCalledWith('upgrade_command_manual_command', expect.objectContaining({
       target_version: '0.5.0',
@@ -168,6 +173,7 @@ describe('handleUpgrade', () => {
 
     expect(deps.promptForInstallChoice).not.toHaveBeenCalled();
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(deps.track).toHaveBeenCalledWith('upgrade_command_manual_command', expect.objectContaining({
       target_version: '0.5.0',
       source: 'npm-global',
@@ -196,6 +202,7 @@ describe('handleUpgrade', () => {
       'origin/main@abcdef123456',
       'darwin',
     );
+    expect(deps.updateGuiUseAfterUpgrade).toHaveBeenCalledTimes(1);
     expect(stdout.join('')).toContain('Updated Super Kimi Code from GitHub');
     expect(stderr.join('')).toBe('');
   });
@@ -212,6 +219,7 @@ describe('handleUpgrade', () => {
     expect(deps.refreshUpdateCache).not.toHaveBeenCalled();
     expect(deps.refreshGitCheckoutUpdateTarget).toHaveBeenCalledTimes(1);
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(stdout.join('')).toContain('Super Kimi Code GitHub checkout is already up to date.');
   });
 
@@ -228,6 +236,7 @@ describe('handleUpgrade', () => {
     expect(deps.refreshUpdateCache).not.toHaveBeenCalled();
     expect(deps.promptForInstallChoice).not.toHaveBeenCalled();
     expect(deps.installUpdate).not.toHaveBeenCalled();
+    expect(deps.updateGuiUseAfterUpgrade).not.toHaveBeenCalled();
     expect(stdout.join('')).toContain('Detected install source: GitHub checkout');
     expect(stdout.join('')).toContain('git -C');
   });
@@ -290,6 +299,7 @@ describe('handleUpgrade', () => {
     await expect(handleUpgrade('0.4.0', { ...deps, ...writable })).resolves.toBe(0);
 
     expect(deps.installUpdate).toHaveBeenCalledWith('npm-global', '0.5.0', 'darwin');
+    expect(deps.updateGuiUseAfterUpgrade).toHaveBeenCalledTimes(1);
     expect(stdout.join('')).toContain('Updated @moonshot-ai/kimi-code to 0.5.0');
   });
 });

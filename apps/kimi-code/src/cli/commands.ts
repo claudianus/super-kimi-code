@@ -4,6 +4,8 @@ import { Command, Option } from 'commander';
 
 import type { CLIOptions } from './options';
 import { registerAcpCommand } from './sub/acp';
+import { registerBrowserUseCommand } from './sub/browser-use';
+import { registerComputerUseCommand } from './sub/computer-use';
 import { registerDoctorCommand } from './sub/doctor';
 import { registerExportCommand } from './sub/export';
 import { registerLoginCommand } from './sub/login';
@@ -89,6 +91,8 @@ export function createProgram(
 
   registerExportCommand(program);
   registerProviderCommand(program);
+  registerBrowserUseCommand(program);
+  registerComputerUseCommand(program);
   registerAcpCommand(program);
   registerServerCommand(program);
   registerLoginCommand(program);

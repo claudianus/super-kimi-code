@@ -17,6 +17,8 @@ NODE_MIN="${SUPER_KIMI_NODE_MIN:-$DEFAULT_NODE_MIN}"
 FORCE=0
 NO_BUILD=0
 NO_SHELL_RC=0
+NO_BROWSER_USE=0
+NO_COMPUTER_USE=0
 
 usage() {
   cat <<EOF
@@ -33,12 +35,15 @@ Options:
   --node-min <version>  Minimum Node.js version. Default: ${DEFAULT_NODE_MIN}
   --force              Replace an existing checkout/wrapper when needed
   --no-build           Skip pnpm install/build after checkout
+  --no-browser-use     Skip CloakBrowser binary pre-install
+  --no-computer-use    Skip cua-driver computer-use install
   --no-shell-rc        Do not edit shell startup files
   -h, --help           Show this help
 
 Environment variables:
   SUPER_KIMI_REPO_URL, SUPER_KIMI_REF, SUPER_KIMI_INSTALL_DIR,
-  SUPER_KIMI_BIN_DIR, SUPER_KIMI_COMMAND, SUPER_KIMI_NODE_MIN
+  SUPER_KIMI_BIN_DIR, SUPER_KIMI_COMMAND, SUPER_KIMI_NODE_MIN,
+  SUPER_KIMI_SKIP_BROWSER_USE, SUPER_KIMI_SKIP_COMPUTER_USE
 EOF
 }
 
@@ -121,6 +126,14 @@ while [ "$#" -gt 0 ]; do
       ;;
     --no-build)
       NO_BUILD=1
+      shift
+      ;;
+    --no-browser-use)
+      NO_BROWSER_USE=1
+      shift
+      ;;
+    --no-computer-use)
+      NO_COMPUTER_USE=1
       shift
       ;;
     --no-shell-rc)
@@ -219,6 +232,27 @@ if [ "$NO_BUILD" -eq 0 ]; then
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm run build:packages
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm -C apps/kimi-code run build
   )
+
+  if [ "$NO_BROWSER_USE" -eq 0 ] && [ "${SUPER_KIMI_SKIP_BROWSER_USE:-0}" != "1" ]; then
+    log "Pre-installing CloakBrowser binary cache"
+    (
+      cd "$INSTALL_DIR"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm --filter @moonshot-ai/gui-use exec cloakbrowser install
+    ) || log "warning: CloakBrowser binary pre-install failed; retry with '$COMMAND_NAME browser-use install'"
+  fi
+
+  if [ "$NO_COMPUTER_USE" -eq 0 ] && [ "${SUPER_KIMI_SKIP_COMPUTER_USE:-0}" != "1" ]; then
+    case "$(uname -s)" in
+      Darwin|Linux)
+        log "Installing cua-driver computer-use runtime"
+        /bin/bash -c 'curl -fsSL https://raw.githubusercontent.com/trycua/cua/main/libs/cua-driver/scripts/install.sh | /bin/bash' || \
+          log "warning: cua-driver install failed; retry with '$COMMAND_NAME computer-use install'"
+        ;;
+      *)
+        log "warning: cua-driver auto-install is not supported on this platform"
+        ;;
+    esac
+  fi
 fi
 
 install_args=("--bin-dir" "$BIN_DIR" "--name" "$COMMAND_NAME")

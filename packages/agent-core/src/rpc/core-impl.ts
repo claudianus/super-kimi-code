@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
+import { CloakBrowserRuntime, CuaComputerRuntime } from '@moonshot-ai/gui-use';
 import { join } from 'pathe';
 
 import { ErrorCodes, KimiError } from '#/errors';
@@ -992,14 +993,16 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
   }
 
   private async resolveRuntime(config: KimiConfig): Promise<ToolServices> {
-    if (this.runtime !== undefined) return this.runtime;
+    if (this.runtimeOverride !== undefined) return this.runtimeOverride;
+    const statefulGui = hasStatefulGuiRuntime(config);
+    if (!statefulGui && this.runtime !== undefined) return this.runtime;
     const runtime = await createRuntimeConfig({
       config,
       homeDir: this.homeDir,
       kimiRequestHeaders: this.kimiRequestHeaders,
       resolveOAuthTokenProvider: this.resolveOAuthTokenProvider,
     });
-    this.runtime = runtime;
+    if (!statefulGui) this.runtime = runtime;
     return runtime;
   }
 
@@ -1209,7 +1212,28 @@ async function createRuntimeConfig(input: {
             defaultHeaders: input.kimiRequestHeaders,
             ...serviceCredentials(searchService, input.resolveOAuthTokenProvider),
           }),
+    browserUse:
+      input.config.browserUse?.enabled === false
+        ? undefined
+        : new CloakBrowserRuntime({
+            autoUpdate: input.config.browserUse?.autoUpdate,
+            cacheDir: input.config.browserUse?.cacheDir,
+            binaryPath: input.config.browserUse?.binaryPath,
+            version: input.config.browserUse?.version,
+            licenseKeyEnv: input.config.browserUse?.licenseKeyEnv,
+          }),
+    computerUse:
+      input.config.computerUse?.enabled === false
+        ? undefined
+        : new CuaComputerRuntime({
+            autoInstall: input.config.computerUse?.autoInstall,
+            driverCmd: input.config.computerUse?.driverCmd,
+          }),
   };
+}
+
+function hasStatefulGuiRuntime(config: KimiConfig): boolean {
+  return config.browserUse?.enabled !== false || config.computerUse?.enabled !== false;
 }
 
 function serviceCredentials(

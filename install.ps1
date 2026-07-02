@@ -7,6 +7,8 @@ param(
   [string]$NodeMin,
   [switch]$Force,
   [switch]$NoBuild,
+  [switch]$NoBrowserUse,
+  [switch]$NoComputerUse,
   [switch]$NoPath
 )
 
@@ -128,6 +130,33 @@ function Build-Source {
   }
 }
 
+function Install-CloakBrowser {
+  param([string]$TargetDir)
+  Write-Step 'Pre-installing CloakBrowser binary cache'
+  Push-Location $TargetDir
+  try {
+    $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
+    & corepack pnpm --filter '@moonshot-ai/gui-use' exec cloakbrowser install
+  } catch {
+    Write-Warning "CloakBrowser binary pre-install failed; retry with '$CommandName browser-use install'"
+  } finally {
+    Pop-Location
+  }
+}
+
+function Install-CuaDriver {
+  Write-Step 'Installing cua-driver computer-use runtime'
+  try {
+    & powershell -NoProfile -ExecutionPolicy Bypass -Command `
+      "irm https://raw.githubusercontent.com/trycua/cua/main/libs/cua-driver/scripts/install.ps1 | iex"
+    if ($LASTEXITCODE -ne 0) {
+      throw "cua-driver installer exited with code $LASTEXITCODE"
+    }
+  } catch {
+    Write-Warning "cua-driver install failed; retry with '$CommandName computer-use install'"
+  }
+}
+
 function Test-ManagedFile {
   param([string]$Path)
   if (-not (Test-Path $Path)) { return $true }
@@ -218,6 +247,12 @@ Ensure-Pnpm
 Sync-Source $RepoUrl $Ref $InstallDir ([bool]$Force)
 if (-not $NoBuild) {
   Build-Source $InstallDir
+  if ((-not $NoBrowserUse) -and $env:SUPER_KIMI_SKIP_BROWSER_USE -ne '1') {
+    Install-CloakBrowser $InstallDir
+  }
+  if ((-not $NoComputerUse) -and $env:SUPER_KIMI_SKIP_COMPUTER_USE -ne '1') {
+    Install-CuaDriver
+  }
 }
 
 $commandPath = Write-Wrappers $InstallDir $BinDir $CommandName ([bool]$Force)

@@ -237,6 +237,28 @@ export const ServicesConfigSchema = z.object({
 
 export type ServicesConfig = z.infer<typeof ServicesConfigSchema>;
 
+export const BrowserUseConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  provider: z.enum(['cloakbrowser']).optional(),
+  autoUpdate: z.boolean().optional(),
+  cacheDir: z.string().min(1).optional(),
+  binaryPath: z.string().min(1).optional(),
+  version: z.string().min(1).optional(),
+  licenseKeyEnv: z.string().min(1).optional(),
+});
+
+export type BrowserUseConfig = z.infer<typeof BrowserUseConfigSchema>;
+
+export const ComputerUseConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  provider: z.enum(['cua-driver']).optional(),
+  autoInstall: z.boolean().optional(),
+  driverCmd: z.string().min(1).optional(),
+  requireApproval: z.boolean().optional(),
+});
+
+export type ComputerUseConfig = z.infer<typeof ComputerUseConfigSchema>;
+
 const McpServerCommonFields = {
   enabled: z.boolean().optional(),
   startupTimeoutMs: z.number().int().min(1).optional(),
@@ -326,6 +348,8 @@ export const KimiConfigSchema = z.object({
   memory: MemoryConfigSchema.optional(),
   research: ResearchConfigSchema.optional(),
   modelCatalog: ModelCatalogConfigSchema.optional(),
+  browserUse: BrowserUseConfigSchema.optional(),
+  computerUse: ComputerUseConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   telemetry: z.boolean().optional(),
   raw: z.record(z.string(), z.unknown()).optional(),
@@ -348,6 +372,8 @@ const ResearchConfigPatchSchema = ResearchConfigSchema.extend({
   localSearch: ResearchLocalSearchConfigPatchSchema.optional(),
 }).partial();
 const ModelCatalogConfigPatchSchema = ModelCatalogConfigSchema.partial();
+const BrowserUseConfigPatchSchema = BrowserUseConfigSchema.partial();
+const ComputerUseConfigPatchSchema = ComputerUseConfigSchema.partial();
 const ExperimentalConfigPatchSchema = ExperimentalConfigSchema;
 const MoonshotServiceConfigPatchSchema = MoonshotServiceConfigSchema.partial();
 const ServicesConfigPatchSchema = z.object({
@@ -380,6 +406,8 @@ export const KimiConfigPatchSchema = z
     memory: MemoryConfigPatchSchema.optional(),
     research: ResearchConfigPatchSchema.optional(),
     modelCatalog: ModelCatalogConfigPatchSchema.optional(),
+    browserUse: BrowserUseConfigPatchSchema.optional(),
+    computerUse: ComputerUseConfigPatchSchema.optional(),
     experimental: ExperimentalConfigPatchSchema.optional(),
     telemetry: z.boolean().optional(),
   })

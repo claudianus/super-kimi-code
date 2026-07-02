@@ -524,6 +524,13 @@ export class ToolManager {
           new b.AgentSwarmTool(this.agent.subagentHost, this.agent.swarmMode),
         this.agent.subagentHost &&
           new b.UltraSwarmTool(this.agent.subagentHost, this.agent.swarmMode),
+        toolServices?.browserUse && new b.BrowserObserveTool(toolServices.browserUse),
+        toolServices?.browserUse && new b.BrowserScreenshotTool(toolServices.browserUse),
+        toolServices?.browserUse && new b.BrowserActTool(toolServices.browserUse),
+        toolServices?.browserUse && new b.BrowserConsoleTool(toolServices.browserUse),
+        toolServices?.computerUse && new b.ComputerCaptureTool(toolServices.computerUse),
+        toolServices?.computerUse && new b.ComputerActTool(toolServices.computerUse),
+        toolServices?.computerUse && new b.ComputerStatusTool(toolServices.computerUse),
         toolServices?.webSearcher && new b.WebSearchTool(toolServices.webSearcher),
         toolServices?.urlFetcher && new b.FetchURLTool(toolServices.urlFetcher),
       ]

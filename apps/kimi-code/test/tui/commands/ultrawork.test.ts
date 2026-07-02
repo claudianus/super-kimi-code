@@ -225,6 +225,12 @@ describe('buildUltraworkPrompt', () => {
     );
     expect(prompt).toContain('do not defeat CAPTCHA, paywall, login');
     expect(prompt).toContain('without a paid search subscription or extra-cost search API');
+    expect(prompt).toContain('Browser / computer-use verification');
+    expect(prompt).toContain('default harness capabilities for rendered web pages, visual QA');
+    expect(prompt).toContain('headless/background browser sessions and cua-driver background capture');
+    expect(prompt).toContain('Prefer BrowserObserve refs and ComputerCapture SOM element indexes');
+    expect(prompt).toContain('safe GUI actions may run automatically');
+    expect(prompt).toContain('High-risk GUI actions still require explicit approval');
     expect(prompt).toContain('Kimi Agent Bench');
     expect(prompt).toContain('node scripts/kimi-agent-sota-gate.mjs');
     expect(prompt).toContain('node scripts/qa-super-kimi-autonomous.mjs --phase sota-gate');

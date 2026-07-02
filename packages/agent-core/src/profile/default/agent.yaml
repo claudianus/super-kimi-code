@@ -24,6 +24,13 @@ tools:
   - Skill
   - SearchSkill
   - WebSearch
+  - BrowserObserve
+  - BrowserScreenshot
+  - BrowserAct
+  - BrowserConsole
+  - ComputerCapture
+  - ComputerAct
+  - ComputerStatus
   - Agent
   - AgentSwarm
   - UltraSwarm

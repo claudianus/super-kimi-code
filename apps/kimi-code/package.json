@@ -80,6 +80,7 @@
   "devDependencies": {
     "@earendil-works/pi-tui": "^0.74.0",
     "@moonshot-ai/acp-adapter": "workspace:^",
+    "@moonshot-ai/gui-use": "workspace:^",
     "@moonshot-ai/kimi-code-oauth": "workspace:^",
     "@moonshot-ai/kimi-code-sdk": "workspace:^",
     "@moonshot-ai/kimi-telemetry": "workspace:^",

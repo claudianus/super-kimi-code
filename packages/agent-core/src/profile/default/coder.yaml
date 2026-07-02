@@ -16,5 +16,12 @@ tools:
   - Write
   - Edit
   - WebSearch
+  - BrowserObserve
+  - BrowserScreenshot
+  - BrowserAct
+  - BrowserConsole
+  - ComputerCapture
+  - ComputerAct
+  - ComputerStatus
   - FetchURL
   - mcp__*

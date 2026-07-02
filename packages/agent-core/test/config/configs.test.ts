@@ -108,6 +108,22 @@ print_wait_ceiling_s = 3600
 refresh_interval_ms = 60000
 refresh_on_start = false
 
+[browser_use]
+enabled = true
+provider = "cloakbrowser"
+auto_update = true
+cache_dir = "/tmp/kimi-cloak"
+binary_path = "/opt/cloakbrowser"
+version = "0.4.5"
+license_key_env = "CLOAKBROWSER_LICENSE_KEY"
+
+[computer_use]
+enabled = true
+provider = "cua-driver"
+auto_install = true
+driver_cmd = "cua-driver"
+require_approval = true
+
 [[hooks]]
 event = "PreToolUse"
 matcher = "Shell"
@@ -208,6 +224,22 @@ describe('harness config TOML loader', () => {
     expect(config.modelCatalog).toEqual({
       refreshIntervalMs: 60000,
       refreshOnStart: false,
+    });
+    expect(config.browserUse).toEqual({
+      enabled: true,
+      provider: 'cloakbrowser',
+      autoUpdate: true,
+      cacheDir: '/tmp/kimi-cloak',
+      binaryPath: '/opt/cloakbrowser',
+      version: '0.4.5',
+      licenseKeyEnv: 'CLOAKBROWSER_LICENSE_KEY',
+    });
+    expect(config.computerUse).toEqual({
+      enabled: true,
+      provider: 'cua-driver',
+      autoInstall: true,
+      driverCmd: 'cua-driver',
+      requireApproval: true,
     });
     expect(config.hooks).toEqual([
       {

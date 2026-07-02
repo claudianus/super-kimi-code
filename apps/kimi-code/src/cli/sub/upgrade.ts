@@ -1,6 +1,8 @@
 import { log, type Logger } from '@moonshot-ai/kimi-code-sdk';
 import { track as trackTelemetry, type TelemetryProperties } from '@moonshot-ai/kimi-telemetry';
+import { updateCloakBrowser, updateCuaDriver } from '@moonshot-ai/gui-use';
 
+import { getHostPackageRoot } from '#/cli/version';
 import { refreshUpdateCache } from '#/cli/update/refresh';
 import { selectUpdateTarget } from '#/cli/update/select';
 import { detectInstallSource } from '#/cli/update/source';
@@ -49,6 +51,7 @@ export interface UpgradeDeps {
   readonly isInteractive: boolean;
   readonly track: UpgradeTrack;
   readonly logger: UpgradeLogger;
+  readonly updateGuiUseAfterUpgrade: () => Promise<void>;
 }
 
 export async function handleUpgrade(
@@ -144,6 +147,7 @@ export async function handleUpgrade(
       source,
     });
     await deps.installUpdate(source, target.version, deps.platform);
+    await deps.updateGuiUseAfterUpgrade();
     trackUpgradeEvent(deps.track, 'upgrade_command_succeeded', {
       current_version: currentVersion,
       target_version: target.version,
@@ -258,6 +262,7 @@ async function handleGithubCheckoutUpgrade(
       source,
     });
     await deps.installUpdate(source, target.version, deps.platform);
+    await deps.updateGuiUseAfterUpgrade();
     trackUpgradeEvent(deps.track, 'upgrade_command_succeeded', {
       current_version: currentVersion,
       target_version: target.version,
@@ -292,6 +297,8 @@ async function handleGithubCheckoutUpgrade(
 }
 
 function createDefaultUpgradeDeps(overrides: Partial<UpgradeDeps>): UpgradeDeps {
+  const stdout = overrides.stdout ?? process.stdout;
+  const stderr = overrides.stderr ?? process.stderr;
   return {
     refreshUpdateCache: overrides.refreshUpdateCache ?? (() => refreshUpdateCache()),
     detectInstallSource: overrides.detectInstallSource ?? (() => detectInstallSource()),
@@ -300,16 +307,82 @@ function createDefaultUpgradeDeps(overrides: Partial<UpgradeDeps>): UpgradeDeps 
     installUpdate: overrides.installUpdate ?? installUpdateForeground,
     promptForInstallChoice: overrides.promptForInstallChoice ?? promptForInstallChoice,
     platform: overrides.platform ?? process.platform,
-    stdout: overrides.stdout ?? process.stdout,
-    stderr: overrides.stderr ?? process.stderr,
+    stdout,
+    stderr,
     isInteractive: overrides.isInteractive ?? (process.stdin.isTTY && process.stdout.isTTY),
     track: overrides.track ?? trackTelemetry,
     logger: overrides.logger ?? log,
+    updateGuiUseAfterUpgrade:
+      overrides.updateGuiUseAfterUpgrade ?? (() => updateGuiUseAfterUpgrade({ stdout, stderr })),
   };
+}
+
+async function updateGuiUseAfterUpgrade(deps: {
+  readonly stdout: WritableLike;
+  readonly stderr: WritableLike;
+}): Promise<void> {
+  await Promise.all([
+    updateBrowserUseAfterUpgrade(deps),
+    updateComputerUseAfterUpgrade(deps),
+  ]);
+}
+
+async function updateBrowserUseAfterUpgrade(deps: {
+  readonly stdout: WritableLike;
+  readonly stderr: WritableLike;
+}): Promise<void> {
+  try {
+    const result = await updateCloakBrowser({ cwd: getHostPackageRoot(), quiet: true });
+    if (result.ok) {
+      deps.stdout.write('CloakBrowser binary cache is up to date.\n');
+      return;
+    }
+    const detail = result.error ?? firstNonEmpty(result.stderr, result.stdout);
+    deps.stderr.write(
+      'warning: failed to update the CloakBrowser binary cache. ' +
+        'Run `kimi browser-use update` to retry.\n',
+    );
+    if (detail.length > 0) deps.stderr.write(`${detail}\n`);
+  } catch (error) {
+    deps.stderr.write(
+      'warning: failed to update the CloakBrowser binary cache. ' +
+        'Run `kimi browser-use update` to retry. ' +
+        `${formatErrorMessage(error)}\n`,
+    );
+  }
+}
+
+async function updateComputerUseAfterUpgrade(deps: {
+  readonly stdout: WritableLike;
+  readonly stderr: WritableLike;
+}): Promise<void> {
+  try {
+    const result = await updateCuaDriver({ cwd: getHostPackageRoot(), quiet: true });
+    if (result.ok) {
+      deps.stdout.write('cua-driver computer-use runtime is up to date.\n');
+      return;
+    }
+    const detail = result.error ?? firstNonEmpty(result.stderr, result.stdout);
+    deps.stderr.write(
+      'warning: failed to update the cua-driver computer-use runtime. ' +
+        'Run `kimi computer-use update` to retry.\n',
+    );
+    if (detail.length > 0) deps.stderr.write(`${detail}\n`);
+  } catch (error) {
+    deps.stderr.write(
+      'warning: failed to update the cua-driver computer-use runtime. ' +
+        'Run `kimi computer-use update` to retry. ' +
+        `${formatErrorMessage(error)}\n`,
+    );
+  }
 }
 
 function formatDisplayVersion(version: string): string {
   return version.startsWith('v') ? version : `v${version}`;
+}
+
+function firstNonEmpty(...values: readonly string[]): string {
+  return values.map((value) => value.trim()).find((value) => value.length > 0) ?? '';
 }
 
 function formatErrorMessage(error: unknown): string {

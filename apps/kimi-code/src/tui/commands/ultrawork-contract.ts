@@ -120,6 +120,15 @@ const ULTRAWORK_WEB_RESEARCH_GUIDANCE = [
   '- Default path must work without a paid search subscription or extra-cost search API; optional paid/provider-native/MCP providers are only explicitly configured accelerators.',
   '- If all live search paths fail, use cached/local knowledge only, label it stale/offline, and avoid claiming currentness.',
 ].join('\n');
+const ULTRAWORK_GUI_USE_GUIDANCE = [
+  'Browser / computer-use verification:',
+  '- Treat BrowserUse and ComputerUse as default harness capabilities for rendered web pages, visual QA, downloads, local app checks, desktop workflows, and evidence capture when they materially improve verification.',
+  '- Keep this work quiet by default: use headless/background browser sessions and cua-driver background capture where available; do not surface windows or interrupt the user unless the task explicitly requires visible interaction.',
+  '- Prefer BrowserObserve refs and ComputerCapture SOM element indexes for actions. Use raw coordinates only when refs/indexes are unavailable and verify with capture_after, BrowserScreenshot, or ComputerCapture.',
+  '- In auto and yolo permission modes, safe GUI actions may run automatically. High-risk GUI actions still require explicit approval, and hard-blocked destructive actions must not be bypassed.',
+  '- Use BrowserScreenshot or ComputerCapture as real-surface evidence before claiming visual, interactive, browser, or host-app work is complete.',
+  '- If browser-use or computer-use status is missing, permission-blocked, or driver-blocked, record the concrete blocker and continue with the next-best non-GUI evidence instead of pretending the surface was checked.',
+].join('\n');
 const ULTRAWORK_BENCH_GUIDANCE = [
   'Kimi Agent Bench:',
   '- For benchmark, loop-improvement, or TUI QA work, prefer the internal Super Kimi agent bench and QA harness before ad-hoc claims.',
@@ -281,6 +290,7 @@ export function buildUltraworkPrompt(
     `- ${ULTRAWORK_KNOWLEDGE_MAP_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_MEMORY_WIKI_LEDGER_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_WEB_RESEARCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
+    `- ${ULTRAWORK_GUI_USE_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_BENCH_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_EXPERT_COVERAGE_GUIDANCE.replaceAll('\n', '\n  ')}`,
     `- ${ULTRAWORK_XP_DOD_GUIDANCE.replaceAll('\n', '\n  ')}`,

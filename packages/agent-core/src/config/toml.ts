@@ -9,6 +9,8 @@ import {
   formatConfigValidationError,
   getDefaultConfig,
   type BackgroundConfig,
+  type BrowserUseConfig,
+  type ComputerUseConfig,
   type ExperimentalConfig,
   type HookDefConfig,
   type KimiConfig,
@@ -322,6 +324,10 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
       result[targetKey] = transformResearchData(value);
     } else if (targetKey === 'modelCatalog' && isPlainObject(value)) {
       result[targetKey] = transformPlainObject(value);
+    } else if (targetKey === 'browserUse' && isPlainObject(value)) {
+      result[targetKey] = transformPlainObject(value);
+    } else if (targetKey === 'computerUse' && isPlainObject(value)) {
+      result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'experimental' && isPlainObject(value)) {
       result[targetKey] = cloneRecord(value);
     } else if (!isPlainObject(value)) {
@@ -524,6 +530,8 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
   setSection(out, 'memory', config.memory, memoryToToml);
   setSection(out, 'research', config.research, researchToToml);
   setSection(out, 'model_catalog', config.modelCatalog, modelCatalogToToml);
+  setSection(out, 'browser_use', config.browserUse, browserUseToToml);
+  setSection(out, 'computer_use', config.computerUse, computerUseToToml);
   setSection(out, 'experimental', config.experimental, experimentalToToml);
   setSection(out, 'permission', config.permission, permissionToToml);
   setHooks(out, config.hooks);
@@ -740,6 +748,28 @@ function modelCatalogToToml(
 ): Record<string, unknown> {
   const out = cloneRecord(rawModelCatalog);
   for (const [key, value] of Object.entries(modelCatalog)) {
+    setDefined(out, camelToSnake(key), value);
+  }
+  return out;
+}
+
+function browserUseToToml(
+  browserUse: BrowserUseConfig,
+  rawBrowserUse: unknown,
+): Record<string, unknown> {
+  const out = cloneRecord(rawBrowserUse);
+  for (const [key, value] of Object.entries(browserUse)) {
+    setDefined(out, camelToSnake(key), value);
+  }
+  return out;
+}
+
+function computerUseToToml(
+  computerUse: ComputerUseConfig,
+  rawComputerUse: unknown,
+): Record<string, unknown> {
+  const out = cloneRecord(rawComputerUse);
+  for (const [key, value] of Object.entries(computerUse)) {
     setDefined(out, camelToSnake(key), value);
   }
   return out;
